@@ -1456,9 +1456,9 @@ function buildPreview(){
           '<div><div class="pv-cond-lbl">Prazo de entrega</div><div class="pv-cond-val">'+(val('prazo')||'—')+'</div></div>'+
           '<div><div class="pv-cond-lbl">Forma de entrega</div><div class="pv-cond-val">'+(val('entrega')||'—')+'</div></div>'+
         '</div>'+
-        (obsText?'<div class="pv-obs"><span class="pv-obs-lbl">Observações</span>'+obsText+'</div>':'')+
-        (bancoText?'<div class="pv-bank"><div class="pv-bank-title">Dados bancários / PIX</div>'+bancoText.replace(/\n/g,'<br>')+'</div>':'')+
-        (termosText?'<div class="pv-terms"><span class="pv-obs-lbl">Termos e Condições</span>'+termosText.replace(/\n/g,'<br>')+'</div>':'')+
+        (obsText?'<div class="pv-obs"><span class="pv-obs-lbl">Observações</span><div style="white-space:pre-line;margin-top:4px">'+obsText+'</div></div>':'')+
+        (bancoText?'<div class="pv-bank"><div class="pv-bank-title">Dados bancários / PIX</div><div style="white-space:pre-line">'+bancoText+'</div></div>':'')+
+        (termosText?'<div class="pv-terms"><span class="pv-obs-lbl">Termos e Condições</span><div style="white-space:pre-line;margin-top:4px">'+termosText+'</div></div>':'')+
         '<div class="pv-sign-area">'+
           '<div class="pv-sign-line">'+cfg.nome+' — Emissor</div>'+
           '<div class="pv-sign-line">'+(val('cli-nome')||'Cliente')+' — Aprovação</div>'+
