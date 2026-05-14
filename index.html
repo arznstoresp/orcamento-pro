@@ -314,7 +314,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid #F0F0F0;font-size:14px;vert
         <div class="g4">
           <div><label class="lbl">Número</label><input id="orc-num"></div>
           <div><label class="lbl">Data</label><input type="date" id="orc-data"></div>
-          <div><label class="lbl">Validade (dias)</label><input type="number" id="orc-val" value="15" min="1"></div>
+          <div><label class="lbl">Validade (dias)</label><input type="number" id="orc-val" value="3" min="1"></div>
           <div><label class="lbl">Status</label>
             <select id="orc-status"><option>Aguardando aprovação</option><option>Aprovado</option><option>Recusado</option><option>Em revisão</option></select>
           </div>
@@ -350,7 +350,13 @@ table.cat td{padding:7px 6px;border-bottom:1px solid #F0F0F0;font-size:14px;vert
       </div>
 
       <div class="card">
-        <div class="card-title">Itens do Orçamento</div>
+        <div class="card-title">Itens do Orçamento
+          <span style="margin-left:auto;display:flex;align-items:center;gap:8px">
+            <label style="font-size:12px;color:var(--ink3);font-weight:400;display:flex;align-items:center;gap:5px;cursor:pointer;text-transform:none;letter-spacing:0">
+              <input type="checkbox" id="ocultar-total" onchange="recalc()" style="width:auto;padding:0"> Ocultar total ao cliente
+            </label>
+          </span>
+        </div>
         <div class="items-wrap">
           <table class="itens" id="itens-table">
             <thead><tr id="itens-thead">
@@ -371,22 +377,24 @@ table.cat td{padding:7px 6px;border-bottom:1px solid #F0F0F0;font-size:14px;vert
           <div><label class="lbl">Desconto geral (%)</label><input type="number" id="inp-desc" value="0" min="0" max="100" oninput="recalc()"></div>
           <div><label class="lbl">Frete (R$)</label><input type="number" id="inp-frete" value="0" min="0" step="0.01" oninput="recalc()"></div>
         </div>
-        <div class="totals-box">
+        <div class="totals-box" id="totals-box-wrap">
           <div class="trow"><span>Subtotal dos itens</span><span id="t-sub">R$ 0,00</span></div>
           <div class="trow green" id="row-desc" style="display:none"><span id="lbl-desc">Desconto geral</span><span id="t-desc">— R$ 0,00</span></div>
           <div class="trow red" id="row-taxa" style="display:none"><span>Frete</span><span id="t-taxa">+ R$ 0,00</span></div>
           <div class="tfinal"><span>TOTAL</span><span id="t-total">R$ 0,00</span></div>
         </div>
+        <div id="total-oculto-aviso" style="display:none;margin-top:10px;padding:8px 12px;background:#fef3c7;border-radius:8px;font-size:12px;color:#92400e">⚠️ Total oculto: o PDF exibirá os valores por item, mas sem somatória total.</div>
       </div>
 
       <div class="card">
         <div class="card-title">Condições Comerciais</div>
         <div class="g2">
           <div><label class="lbl">Forma de pagamento</label>
-            <select id="pgto">
-              <option>À vista</option><option>30 dias</option><option>30/60 dias</option>
+            <select id="pgto" onchange="onPgtoChange()">
+              <option>À vista</option><option>PIX</option>
+              <option>30 dias</option><option>30/60 dias</option>
               <option>30/60/90 dias</option><option>50% entrada + 50% entrega</option>
-              <option>Cartão de crédito</option><option>PIX</option>
+              <option>Cartão de crédito</option>
               <option>Boleto bancário</option><option>Personalizado</option>
             </select>
           </div>
@@ -401,10 +409,10 @@ table.cat td{padding:7px 6px;border-bottom:1px solid #F0F0F0;font-size:14px;vert
               <option>Motoboy</option>
             </select>
           </div>
-          <div><label class="lbl">Parcelas <span class="lbl-hint">— calcular automaticamente</span></label>
+          <div id="wrap-parcelas">
+            <label class="lbl">Parcelas <span class="lbl-hint" id="hint-parcelas">— disponível para pagamentos parcelados</span></label>
             <div class="field-row">
-              <input type="number" id="num-parcelas" placeholder="Ex: 3" min="1" max="48" style="max-width:80px">
-              <button type="button" class="btn btn-out btn-sm" onclick="calcParcelas()">Calcular</button>
+              <input type="number" id="num-parcelas" placeholder="Nº de parcelas" min="2" max="48" style="max-width:120px" oninput="calcParcelas()">
             </div>
           </div>
         </div>
@@ -573,6 +581,29 @@ table.cat td{padding:7px 6px;border-bottom:1px solid #F0F0F0;font-size:14px;vert
       </div>
 
       <div class="card">
+        <div class="card-title">Funcionários e Comissões <span id="func-count" style="margin-left:6px;font-size:12px;color:var(--brand);font-weight:700"></span></div>
+        <p style="font-size:13px;color:var(--ink3);margin-bottom:12px;line-height:1.6">Cadastre seus funcionários/vendedores. A comissão padrão é de 5% sobre o total dos orçamentos aprovados. Gere o relatório mensal para pagamento.</p>
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <button class="btn btn-brand btn-sm" onclick="openFuncModal()">＋ Novo funcionário</button>
+          <button class="btn btn-out btn-sm" onclick="exportarRelComissoes()">📊 Relatório de comissões</button>
+        </div>
+        <div class="items-wrap">
+          <table class="cat" id="func-table">
+            <thead><tr>
+              <th style="width:30%">Nome</th>
+              <th style="width:20%">Cargo</th>
+              <th style="width:15%">WhatsApp</th>
+              <th style="width:10%">Comissão %</th>
+              <th style="width:15%">Total comissões</th>
+              <th style="width:10%"></th>
+            </tr></thead>
+            <tbody id="func-body"></tbody>
+          </table>
+        </div>
+        <div id="func-empty" style="text-align:center;padding:20px;color:var(--ink3);font-size:13px;display:none">Nenhum funcionário cadastrado.</div>
+      </div>
+
+      <div class="card">
         <div class="card-title">Backup e Restauração</div>
         <p style="font-size:13px;color:var(--ink3);margin-bottom:12px;line-height:1.6">⚠️ Dados salvos no navegador. Faça backup antes de limpar o cache ou trocar de computador.</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -596,6 +627,30 @@ table.cat td{padding:7px 6px;border-bottom:1px solid #F0F0F0;font-size:14px;vert
 
   </div>
 </div>
+</div>
+
+<!-- MODAL FUNCIONÁRIO -->
+<div class="modal-overlay" id="modal-func">
+  <div class="modal" style="width:440px">
+    <div class="modal-title" id="modal-func-title">Novo Funcionário</div>
+    <input type="hidden" id="func-edit-id">
+    <div class="g2">
+      <div><label class="lbl">Nome *</label><input id="func-nome" placeholder="Nome completo"></div>
+      <div><label class="lbl">Cargo</label><input id="func-cargo" placeholder="Ex: Vendedor"></div>
+    </div>
+    <div class="g2 mt">
+      <div><label class="lbl">WhatsApp</label><input id="func-wpp" oninput="maskPhone(this)" maxlength="15" placeholder="(11) 99999-0000"></div>
+      <div><label class="lbl">E-mail</label><input id="func-email" type="email" placeholder="func@email.com"></div>
+    </div>
+    <div class="mt">
+      <label class="lbl">Comissão (%)</label>
+      <input type="number" id="func-comissao" value="5" min="0" max="100" step="0.1" placeholder="5">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-out" onclick="closeFuncModal()">Cancelar</button>
+      <button class="btn btn-brand" onclick="saveFunc()">💾 Salvar</button>
+    </div>
+  </div>
 </div>
 
 <!-- MODAL PRODUTO -->
@@ -825,13 +880,38 @@ function toggleModoOpcoes(){
 }
 
 // ═══════════════════════════════════════
-// PARCELAS
+// PAGAMENTO / PARCELAS
 // ═══════════════════════════════════════
+var PGTOS_A_VISTA=['À vista','PIX'];
+function onPgtoChange(){
+  var pgto=val('pgto');
+  var aVista=PGTOS_A_VISTA.indexOf(pgto)>=0;
+  var wrap=ge('wrap-parcelas');
+  if(wrap){
+    wrap.style.opacity=aVista?'0.4':'1';
+    wrap.style.pointerEvents=aVista?'none':'auto';
+  }
+  if(aVista){
+    setVal('num-parcelas','');
+    ge('parcelas-preview').style.display='none';
+    localStorage.removeItem('orcpro_parcelas_tmp');
+  } else {
+    // Se tiver valor digitado, recalcula
+    if(val('num-parcelas'))calcParcelas();
+  }
+}
+
 function calcParcelas(){
+  var pgto=val('pgto');
+  if(PGTOS_A_VISTA.indexOf(pgto)>=0)return;
   var n=parseInt(val('num-parcelas'));
-  if(!n||n<1){alert('Informe o número de parcelas.');return;}
+  if(!n||n<2){
+    ge('parcelas-preview').style.display='none';
+    localStorage.removeItem('orcpro_parcelas_tmp');
+    return;
+  }
   var t=calcTotal().total;
-  if(!t){alert('Adicione itens ao orçamento primeiro.');return;}
+  if(!t)return;
   var vp=t/n;
   var wrap=ge('parcelas-preview');
   var rows='';
@@ -842,7 +922,6 @@ function calcParcelas(){
   }
   wrap.innerHTML='<table class="parcelas-table"><thead><tr><th>Parcela</th><th>Vencimento</th><th>Valor</th></tr></thead><tbody>'+rows+'</tbody></table>';
   wrap.style.display='block';
-  // salvar para o PDF
   localStorage.setItem('orcpro_parcelas_tmp',JSON.stringify({n:n,vp:vp,total:t}));
 }
 
@@ -884,6 +963,12 @@ function recalc(){
   ge('lbl-desc').textContent='Desconto geral ('+(parseFloat(val('inp-desc'))||0)+'%)';
   ge('row-desc').style.display=(parseFloat(val('inp-desc'))||0)>0?'':'none';
   ge('row-taxa').style.display=(parseFloat(val('inp-frete'))||0)>0?'':'none';
+  // toggle ocultar total
+  var ocultar=ge('ocultar-total')&&ge('ocultar-total').checked;
+  var aviso=ge('total-oculto-aviso');
+  if(aviso)aviso.style.display=ocultar?'block':'none';
+  // recalcular parcelas se tiver número preenchido
+  if(val('num-parcelas')&&PGTOS_A_VISTA.indexOf(val('pgto'))<0)calcParcelas();
 }
 
 // ═══════════════════════════════════════
@@ -1305,31 +1390,36 @@ function buildPreview(){
     parcelasHtml='<div class="pv-parcelas"><div class="pv-parcelas-title">Parcelas</div><div class="pv-parcelas-grid">'+itens+'</div></div>';
   }
 
+  var ocultar=ge('ocultar-total')&&ge('ocultar-total').checked;
+
   var tabelaSimples=modoOp==='simples'?
     '<table class="pv-table"><thead><tr>'+
-      '<th style="width:0"></th>'+
-      '<th style="width:33%">Descrição</th>'+
+      '<th style="width:3%"></th>'+
+      '<th style="width:38%">Descrição</th>'+
       '<th class="c" style="width:7%">Qtd</th>'+
       '<th class="c" style="width:7%">Un.</th>'+
       '<th class="r" style="width:13%">Valor unit.</th>'+
-      '<th class="c" style="width:8%">Desc.</th>'+
+      '<th class="c" style="width:7%">Desc.</th>'+
       '<th class="r" style="width:13%">Subtotal</th>'+
     '</tr></thead><tbody>'+buildRows(items,0)+'</tbody></table>'+
-    '<div class="pv-totals-area"><div class="pv-totals-box">'+
-      '<div class="pv-tr"><span>Subtotal</span><span>'+fmt(t.sub)+'</span></div>'+
-      (t.dv>0?'<div class="pv-tr"><span>Desconto ('+val('inp-desc')+'%)</span><span style="color:var(--green);font-weight:600">— '+fmt(t.dv)+'</span></div>':'')+
-      (t.frete>0?'<div class="pv-tr"><span>Frete</span><span style="color:var(--red);font-weight:600">+ '+fmt(t.frete)+'</span></div>':'')+
-      '<div class="pv-tr-big"><span class="pv-tr-big-label">Total</span><span class="pv-tr-big-val">'+fmt(t.total)+'</span></div>'+
-    '</div></div>':'';
+    (!ocultar?
+      '<div class="pv-totals-area"><div class="pv-totals-box">'+
+        '<div class="pv-tr"><span>Subtotal</span><span>'+fmt(t.sub)+'</span></div>'+
+        (t.dv>0?'<div class="pv-tr"><span>Desconto ('+val('inp-desc')+'%)</span><span style="color:var(--green);font-weight:600">— '+fmt(t.dv)+'</span></div>':'')+
+        (t.frete>0?'<div class="pv-tr"><span>Frete</span><span style="color:var(--red);font-weight:600">+ '+fmt(t.frete)+'</span></div>':'')+
+        '<div class="pv-tr-big"><span class="pv-tr-big-label">Total</span><span class="pv-tr-big-val">'+fmt(t.total)+'</span></div>'+
+      '</div></div>'
+    :'<div style="background:#fef3c7;border-radius:8px;padding:8px 12px;font-size:11px;color:#92400e;margin-top:8px;text-align:center">Valores individuais por item. Total sob consulta.</div>')
+  :'';
 
   ge('pv-doc').innerHTML=
     '<div class="pv-header-bar">'+
       '<div class="pv-logo-area">'+logoHtml+
         '<div><div class="pv-emp-name">'+(cfg.nome||'Sua Empresa')+'</div>'+
         '<div class="pv-emp-meta">'+
-          (cfg.cnpj?'CNPJ: '+cfg.cnpj+'<br>':'')+
-          (cfg.tel?cfg.tel:'')+
-          (cfg.email?' &middot; '+cfg.email:'')+
+          (cfg.cnpj?'CNPJ: '+cfg.cnpj:'')+
+          (cfg.tel?' &nbsp;·&nbsp; '+cfg.tel:'')+
+          (cfg.email?' &nbsp;·&nbsp; '+cfg.email:'')+
           (cfg.cidade?'<br>'+cfg.cidade:'')+
           (cfg.site?' &middot; '+cfg.site:'')+
         '</div></div>'+
@@ -1347,14 +1437,14 @@ function buildPreview(){
       '</div>'+
     '</div>'+
     '<div class="pv-body">'+
-      '<div class="pv-parties">'+
-        '<div><div class="pv-pty-lbl">Prestador de serviços</div>'+
-          '<div class="pv-pty-name">'+(cfg.nome||'—')+'</div>'+
-          '<div class="pv-pty-info">'+(cfg.cnpj?'CNPJ: '+cfg.cnpj+'<br>':'')+( cfg.tel?cfg.tel+'<br>':'')+(cfg.email?cfg.email:'')+( cfg.end?'<br>'+cfg.end:'')+'</div>'+
-        '</div>'+
-        '<div><div class="pv-pty-lbl">Cliente</div>'+
-          '<div class="pv-pty-name">'+(val('cli-nome')||'—')+'</div>'+
-          '<div class="pv-pty-info">'+(val('cli-doc')?'Doc: '+val('cli-doc')+'<br>':'')+(val('cli-wpp')?val('cli-wpp')+'<br>':'')+(val('cli-email')?val('cli-email'):'')+( val('cli-end')?'<br>'+val('cli-end'):'')+'</div>'+
+      '<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #EBEBEB">'+
+        '<div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--brand);margin-bottom:4px">Para</div>'+
+        '<div style="font-size:15px;font-weight:700">'+(val('cli-nome')||'—')+'</div>'+
+        '<div style="font-size:11px;color:var(--ink3);display:flex;gap:14px;flex-wrap:wrap;margin-top:3px">'+
+          (val('cli-doc')?'<span>Doc: '+val('cli-doc')+'</span>':'')+
+          (val('cli-wpp')?'<span>📱 '+val('cli-wpp')+'</span>':'')+
+          (val('cli-email')?'<span>✉️ '+val('cli-email')+'</span>':'')+
+          (val('cli-end')?'<span>📍 '+val('cli-end')+'</span>':'')+
         '</div>'+
       '</div>'+
       (val('orc-desc')?'<div class="pv-desc-box">'+val('orc-desc')+'</div>':'')+
@@ -1374,8 +1464,8 @@ function buildPreview(){
           '<div class="pv-sign-line">'+(val('cli-nome')||'Cliente')+' — Aprovação</div>'+
         '</div>'+
         '<div class="pv-doc-footer">'+
-          '<div class="pv-doc-footer-left">'+(cfg.nome||'')+( cfg.tel?' &middot; '+cfg.tel:'')+(cfg.email?' &middot; '+cfg.email:'')+'</div>'+
-          '<div class="pv-doc-footer-right">Documento gerado eletronicamente · Orçamento Pro v5</div>'+
+          '<div class="pv-doc-footer-left">'+(cfg.site?cfg.site:'')+(cfg.cidade?' &nbsp;·&nbsp; '+cfg.cidade:'')+'</div>'+
+          '<div class="pv-doc-footer-right">Documento gerado eletronicamente</div>'+
         '</div>'+
       '</div>'+
     '</div>';
@@ -1458,17 +1548,102 @@ function limparForm(){
   setVal('op1-label','Básico');setVal('op2-label','Intermediário');setVal('op3-label','Premium');
   ge('opcoes-labels-wrap').style.display='none';
   ge('parcelas-preview').style.display='none';
+  var ot=ge('ocultar-total');if(ot)ot.checked=false;
   localStorage.removeItem('orcpro_parcelas_tmp');
   ge('items-body').innerHTML='';iid=0;
-  setVal('orc-num',nextNum());setVal('orc-data',hoje());setVal('orc-val','15');
-  addItem();
+  setVal('orc-num',nextNum());setVal('orc-data',hoje());setVal('orc-val','3');
+  var cfg=getCfg();if(cfg.termos)setVal('termos',cfg.termos);
+  onPgtoChange();
+  // Não adiciona item pré-configurado
+}
+
+// ═══════════════════════════════════════
+// FUNCIONÁRIOS / COMISSÕES
+// ═══════════════════════════════════════
+function getFuncs(){try{return JSON.parse(localStorage.getItem('orcpro_funcs')||'[]');}catch(e){return[];}}
+function saveFuncs(arr){localStorage.setItem('orcpro_funcs',JSON.stringify(arr));}
+
+function renderFuncs(){
+  var funcs=getFuncs(),hist=getHist();
+  var tbody=ge('func-body'),empty=ge('func-empty'),count=ge('func-count');
+  if(count)count.textContent='('+funcs.length+')';
+  if(!funcs.length){if(tbody)tbody.innerHTML='';if(empty)empty.style.display='block';return;}
+  if(empty)empty.style.display='none';
+  tbody.innerHTML=funcs.map(function(f){
+    // calcular total de comissões: orçamentos aprovados com esse vendedor
+    var totalAprov=0;
+    hist.forEach(function(h){
+      if((h.vendedor||'').toLowerCase()===f.nome.toLowerCase()&&h.status==='Aprovado'){
+        var items=h.items||[],sub=items.reduce(function(a,x){return a+(x.sub||0);},0);
+        var dv=sub*(parseFloat(h.descGeral)||0)/100,total=sub-dv+(parseFloat(h.frete)||0);
+        totalAprov+=total;
+      }
+    });
+    var comissao=totalAprov*(parseFloat(f.comissao)||5)/100;
+    return'<tr>'+
+      '<td><strong>'+f.nome+'</strong></td>'+
+      '<td style="font-size:13px;color:var(--ink3)">'+(f.cargo||'—')+'</td>'+
+      '<td style="font-size:13px">'+(f.wpp?'<a href="https://wa.me/'+f.wpp.replace(/\D/g,'')+'" target="_blank" style="color:var(--brand)">'+f.wpp+'</a>':'—')+'</td>'+
+      '<td style="text-align:center;font-weight:600;color:var(--brand)">'+(f.comissao||5)+'%</td>'+
+      '<td style="font-weight:700;color:var(--green)">'+fmt(comissao)+'</td>'+
+      '<td style="display:flex;gap:4px">'+
+        '<button class="btn btn-out btn-sm" onclick="openFuncModal(\''+f.id+'\')">✏️</button>'+
+        '<button class="btn btn-danger btn-sm" onclick="deleteFunc(\''+f.id+'\')">🗑</button>'+
+      '</td>'+
+    '</tr>';
+  }).join('');
+}
+
+function openFuncModal(id){
+  ge('func-edit-id').value=id||'';
+  ge('modal-func-title').textContent=id?'Editar Funcionário':'Novo Funcionário';
+  if(id){
+    var f=getFuncs().find(function(x){return x.id===id;});
+    if(f){setVal('func-nome',f.nome);setVal('func-cargo',f.cargo);setVal('func-wpp',f.wpp);setVal('func-email',f.email);setVal('func-comissao',f.comissao);}
+  }else{
+    ['func-nome','func-cargo','func-wpp','func-email'].forEach(function(i){setVal(i,'');});
+    setVal('func-comissao','5');
+  }
+  ge('modal-func').className='modal-overlay open';
+}
+function closeFuncModal(){ge('modal-func').className='modal-overlay';}
+function deleteFunc(id){if(!confirm('Excluir funcionário?'))return;saveFuncs(getFuncs().filter(function(f){return f.id!==id;}));renderFuncs();}
+function saveFunc(){
+  var nome=val('func-nome');if(!nome){alert('Informe o nome.');return;}
+  var funcs=getFuncs(),editId=val('func-edit-id');
+  var func={id:editId||'f'+Date.now(),nome:nome,cargo:val('func-cargo'),wpp:val('func-wpp'),email:val('func-email'),comissao:parseFloat(val('func-comissao'))||5};
+  if(editId){var idx=funcs.findIndex(function(x){return x.id===editId;});if(idx>=0)funcs[idx]=func;else funcs.push(func);}
+  else funcs.push(func);
+  saveFuncs(funcs);closeFuncModal();renderFuncs();
+}
+
+function exportarRelComissoes(){
+  var funcs=getFuncs(),hist=getHist();
+  if(!funcs.length){alert('Nenhum funcionário cadastrado.');return;}
+  var rows=[['Funcionário','Cargo','WhatsApp','Comissão %','Orçamentos Aprovados','Total Vendido','Total Comissão','Mês Referência']];
+  var mesRef=new Date().toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  funcs.forEach(function(f){
+    var orcAprov=0,totalAprov=0;
+    hist.forEach(function(h){
+      if((h.vendedor||'').toLowerCase()===f.nome.toLowerCase()&&h.status==='Aprovado'){
+        var items=h.items||[],sub=items.reduce(function(a,x){return a+(x.sub||0);},0);
+        var dv=sub*(parseFloat(h.descGeral)||0)/100,total=sub-dv+(parseFloat(h.frete)||0);
+        totalAprov+=total;orcAprov++;
+      }
+    });
+    var comissao=totalAprov*(parseFloat(f.comissao)||5)/100;
+    rows.push([f.nome,f.cargo||'',f.wpp||'',(f.comissao||5)+'%',orcAprov,+totalAprov.toFixed(2),+comissao.toFixed(2),mesRef]);
+  });
+  var wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:22},{wch:16},{wch:15},{wch:10},{wch:18},{wch:16},{wch:16},{wch:20}];
+  XLSX.utils.book_append_sheet(wb,ws,'Comissões');XLSX.writeFile(wb,'relatorio_comissoes_'+hoje()+'.xlsx');
 }
 
 // ═══════════════════════════════════════
 // BACKUP / RESTAURAÇÃO
 // ═══════════════════════════════════════
 function exportarBackup(){
-  var dados={versao:'5.0',exportadoEm:new Date().toISOString(),empresa:getCfg(),produtos:getProdutos(),clientes:getClientes(),historico:getHist(),contador:localStorage.getItem('orcpro_cnt')||'0'};
+  var dados={versao:'5.1',exportadoEm:new Date().toISOString(),empresa:getCfg(),produtos:getProdutos(),clientes:getClientes(),historico:getHist(),funcionarios:getFuncs(),contador:localStorage.getItem('orcpro_cnt')||'0'};
   var blob=new Blob([JSON.stringify(dados,null,2)],{type:'application/json'});
   var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='orcamentopro_backup_'+hoje()+'.json';a.click();
 }
@@ -1483,6 +1658,7 @@ function importarBackup(e){
       if(d.produtos)localStorage.setItem('orcpro_produtos',JSON.stringify(d.produtos));
       if(d.clientes)localStorage.setItem('orcpro_clientes',JSON.stringify(d.clientes));
       if(d.historico)localStorage.setItem('orcpro_hist',JSON.stringify(d.historico));
+      if(d.funcionarios)localStorage.setItem('orcpro_funcs',JSON.stringify(d.funcionarios));
       if(d.contador)localStorage.setItem('orcpro_cnt',d.contador);
       ge('backup-file').value='';alert('✅ Backup restaurado! A página será recarregada.');location.reload();
     }catch(err){alert('Erro ao ler backup: '+err.message);}
@@ -1511,7 +1687,7 @@ function showView(name){
   };
   ge('tb-actions').innerHTML=acts[name]||'';
   if(name==='preview')buildPreview();
-  if(name==='config')fillConfigForm();
+  if(name==='config'){fillConfigForm();renderFuncs();}
   if(name==='cat')renderCat();
   if(name==='clientes')renderClientes();
   if(name==='hist')renderHist();
@@ -1581,10 +1757,10 @@ window.onload=function(){
   if(checkLinkPublico())return;
   setVal('orc-data',hoje());
   setVal('orc-num',nextNum());
-  // Preencher termos padrão se config tiver
+  setVal('orc-val','3');
   var cfg=getCfg();
   if(cfg.termos&&!val('termos'))setVal('termos',cfg.termos);
-  addItem();
+  // NÃO adiciona item pré-configurado — usuário clica em + Adicionar item
   if(!cfg.nome){
     showView('config');
     setTimeout(function(){alert('👋 Bem-vindo ao Orçamento Pro v5!\n\nConfigure sua empresa, faça upload do logotipo e comece a gerar orçamentos profissionais.\n\nDica: use Ctrl+S para salvar rapidamente!');},300);
