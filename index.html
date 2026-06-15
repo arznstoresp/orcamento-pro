@@ -644,6 +644,10 @@ table.cat td{padding:7px 6px;border-bottom:1px solid #F0F0F0;font-size:13px;vert
           <div><label class="lbl">Prefixo de numeração</label><input id="cfg-prefixo" oninput="autoSave()" placeholder="Ex: 2025 → 2025-001"></div>
           <div><label class="lbl">Meta mensal (R$)</label><input type="number" id="cfg-meta" oninput="autoSave()" placeholder="Ex: 10000" min="0" step="100"></div>
         </div>
+        <div class="mt">
+          <label class="lbl">Categorias de produtos <span class="lbl-hint">— uma por linha, aparecem no catálogo e nos itens do orçamento</span></label>
+          <textarea id="cfg-categorias" oninput="autoSave()" placeholder="Ex:&#10;Camisetas&#10;Canecas&#10;Adesivos&#10;Chaveiros&#10;Brindes&#10;Impressão 3D" style="min-height:110px;white-space:pre-wrap"></textarea>
+        </div>
         <div class="mt" style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn btn-brand" onclick="saveConfig()">💾 Salvar</button>
           <button class="btn btn-out" onclick="irParaForm()">✏️ Orçamento</button>
@@ -719,7 +723,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid #F0F0F0;font-size:13px;vert
   <div class="modal" style="width:540px">
     <div class="modal-title" id="modal-prod-title">Produto</div>
     <input type="hidden" id="prod-edit-id">
-    <div class="g2"><div><label class="lbl">Nome *</label><input id="prod-nome"></div><div><label class="lbl">Categoria</label><input id="prod-cat" placeholder="Ex: Vestuário"></div></div>
+    <div class="g2"><div><label class="lbl">Nome *</label><input id="prod-nome"></div><div><label class="lbl">Categoria</label><input id="prod-cat" placeholder="Ex: Camisetas" list="cats-datalist"><datalist id="cats-datalist"></datalist></div></div>
     <div class="g2 mt"><div><label class="lbl">Unidade</label><select id="prod-unit"><option>un</option><option>cx</option><option>kg</option><option>m</option><option>m²</option><option>L</option><option>par</option><option>pç</option></select></div><div><label class="lbl">SKU</label><input id="prod-sku" placeholder="CAM-001"></div></div>
     <div class="g3 mt">
       <div><label class="lbl">Custo (R$)</label><input type="number" id="prod-custo" placeholder="0,00" min="0" step="0.01"></div>
@@ -784,6 +788,52 @@ table.cat td{padding:7px 6px;border-bottom:1px solid #F0F0F0;font-size:13px;vert
     <div><label class="lbl">Nome do template *</label><input id="tpl-nome" placeholder="Ex: Orçamento Camiseta Personalizada"></div>
     <div class="mt"><label class="lbl">Descrição (opcional)</label><input id="tpl-desc" placeholder="Breve descrição do template"></div>
     <div class="modal-footer"><button class="btn btn-out" onclick="closeTplModal()">Cancelar</button><button class="btn btn-brand" onclick="confirmarSalvarTemplate()">⭐ Salvar</button></div>
+  </div>
+</div>
+
+<!-- MODAL FOLLOW-UP WPP -->
+<div class="modal-overlay" id="modal-followup">
+  <div class="modal" style="width:520px">
+    <div class="modal-title">💬 Enviar Follow-up pelo WhatsApp</div>
+    <input type="hidden" id="fu-orc-id">
+    <div style="margin-bottom:10px">
+      <label class="lbl">Para</label>
+      <div style="display:flex;align-items:center;gap:10px;background:var(--surface);border-radius:8px;padding:9px 12px;font-size:13px">
+        <span id="fu-cliente-nome" style="font-weight:600"></span>
+        <span id="fu-cliente-wpp" style="color:var(--ink3)"></span>
+      </div>
+    </div>
+    <div>
+      <label class="lbl">Mensagem <span class="lbl-hint">— editável antes de enviar</span></label>
+      <textarea id="fu-mensagem" style="min-height:180px;font-size:13px;line-height:1.6;white-space:pre-wrap"></textarea>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
+      <button class="btn btn-out btn-sm" onclick="aplicarTemplateFU('followup')">📋 Follow-up</button>
+      <button class="btn btn-out btn-sm" onclick="aplicarTemplateFU('vencido')">⚠️ Vencido</button>
+      <button class="btn btn-out btn-sm" onclick="aplicarTemplateFU('aprovado')">✅ Aprovado</button>
+      <button class="btn btn-out btn-sm" onclick="aplicarTemplateFU('agradecimento')">🙏 Agradecimento</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-out" onclick="closeFollowupModal()">Cancelar</button>
+      <button class="btn btn-wpp" onclick="enviarFollowupWpp()">💬 Abrir WhatsApp</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FOLLOW-UP MASSA -->
+<div class="modal-overlay" id="modal-followup-massa">
+  <div class="modal" style="width:520px">
+    <div class="modal-title">💬 Follow-up em massa — Vencidos</div>
+    <div class="warn-box" id="fu-massa-info"></div>
+    <div>
+      <label class="lbl">Mensagem padrão <span class="lbl-hint">— personalize para cada cliente antes de enviar</span></label>
+      <textarea id="fu-massa-msg" style="min-height:160px;font-size:13px;line-height:1.6;white-space:pre-wrap"></textarea>
+    </div>
+    <p style="font-size:12px;color:var(--ink3);margin-top:8px;line-height:1.5">⚠️ O WhatsApp será aberto uma vez por cliente. Confirme o envio em cada janela.</p>
+    <div class="modal-footer">
+      <button class="btn btn-out" onclick="closeFollowupMassaModal()">Cancelar</button>
+      <button class="btn btn-wpp" onclick="enviarFollowupMassa()">💬 Iniciar envios</button>
+    </div>
   </div>
 </div>
 
@@ -894,7 +944,7 @@ function buscaCep(){
 // ═══════════════════════════════════════════════════
 function getCfg(){try{return JSON.parse(localStorage.getItem('orcpro_emp')||'{}');}catch(e){return{};}}
 function saveConfig(){
-  var cfg={nome:val('cfg-nome'),cnpj:val('cfg-cnpj'),tel:val('cfg-tel'),email:val('cfg-email'),site:val('cfg-site'),cidade:val('cfg-cidade'),end:val('cfg-end'),obs:val('cfg-obs'),termos:val('cfg-termos'),banco:val('cfg-banco'),prefixo:val('cfg-prefixo'),slogan:val('cfg-slogan'),meta:parseFloat(val('cfg-meta'))||0};
+  var cfg={nome:val('cfg-nome'),cnpj:val('cfg-cnpj'),tel:val('cfg-tel'),email:val('cfg-email'),site:val('cfg-site'),cidade:val('cfg-cidade'),end:val('cfg-end'),obs:val('cfg-obs'),termos:val('cfg-termos'),banco:val('cfg-banco'),prefixo:val('cfg-prefixo'),slogan:val('cfg-slogan'),meta:parseFloat(val('cfg-meta'))||0,categorias:val('cfg-categorias')};
   localStorage.setItem('orcpro_emp',JSON.stringify(cfg));
   updateMiniPreview();showSaved();
   atualizarVendedoresList();
@@ -907,7 +957,7 @@ function fillConfigForm(){
   setVal('cfg-nome',c.nome);setVal('cfg-cnpj',c.cnpj);setVal('cfg-tel',c.tel);setVal('cfg-email',c.email);
   setVal('cfg-site',c.site);setVal('cfg-cidade',c.cidade);setVal('cfg-end',c.end);setVal('cfg-obs',c.obs);
   setVal('cfg-termos',c.termos);setVal('cfg-banco',c.banco);setVal('cfg-prefixo',c.prefixo);
-  setVal('cfg-slogan',c.slogan);setVal('cfg-meta',c.meta||'');
+  setVal('cfg-slogan',c.slogan);setVal('cfg-meta',c.meta||'');setVal('cfg-categorias',c.categorias||'');
   updateMiniPreview();loadLogoPreview();renderFuncs();
 }
 function updateMiniPreview(){
@@ -920,6 +970,9 @@ function irParaForm(){saveConfig();showView('form');}
 function atualizarVendedoresList(){
   var dl=ge('vendedores-list');if(!dl)return;
   var funcs=getFuncs();dl.innerHTML=funcs.map(function(f){return'<option value="'+f.nome+'">';}).join('');
+  // Atualizar datalist de categorias
+  var catsDl=ge('cats-datalist');
+  if(catsDl){catsDl.innerHTML=getCategorias().map(function(c){return'<option value="'+c+'">';}).join('');}
 }
 
 // ═══════════════════════════════════════════════════
@@ -975,7 +1028,14 @@ function toggleModoOpcoes(){ge('opcoes-labels-wrap').style.display=val('modo-opc
 // ITENS
 // ═══════════════════════════════════════════════════
 function getCategorias(){
-  var cats={};getProdutos().forEach(function(p){if(p.cat)cats[p.cat]=1;});
+  var cfg=getCfg();
+  var cats={};
+  // Categorias cadastradas nas configurações
+  if(cfg.categorias){
+    cfg.categorias.split('\n').forEach(function(c){var t=c.trim();if(t)cats[t]=1;});
+  }
+  // Categorias dos produtos cadastrados
+  getProdutos().forEach(function(p){if(p.cat)cats[p.cat]=1;});
   return Object.keys(cats).sort();
 }
 function addItem(desc,qty,unit,price,di,prazoItem,cat,custo){
@@ -1075,6 +1135,9 @@ function renderCat(){
 
 function openProdModal(id){
   ge('prod-edit-id').value=id||'';ge('modal-prod-title').textContent=id?'Editar Produto':'Novo Produto';
+  // Atualizar datalist de categorias
+  var catsDl=ge('cats-datalist');
+  if(catsDl)catsDl.innerHTML=getCategorias().map(function(c){return'<option value="'+c+'">';}).join('');
   if(id){var p=getProdutos().find(function(x){return x.id===id;});if(p){setVal('prod-nome',p.nome);setVal('prod-cat',p.cat);setVal('prod-unit',p.unit);setVal('prod-sku',p.sku);setVal('prod-custo',p.custo||'');setVal('prod-varejo',p.varejo);setVal('prod-atacado',p.atacado);setVal('prod-min',p.minAtacado);setVal('prod-desc',p.desc);setVal('prod-foto-data',p.foto||'');var prev=ge('prod-foto-preview');if(p.foto&&prev)prev.innerHTML='<img src="'+p.foto+'" style="max-height:72px;max-width:150px;border-radius:6px;object-fit:cover"><div class="logo-upload-hint">Clique para trocar</div>';}}
   else{['prod-nome','prod-cat','prod-sku','prod-custo','prod-varejo','prod-atacado','prod-desc','prod-foto-data'].forEach(function(i){setVal(i,'');});setVal('prod-unit','un');setVal('prod-min','10');var prev=ge('prod-foto-preview');if(prev)prev.innerHTML='<div style="font-size:20px">📷</div><div class="logo-upload-hint">Clique para selecionar (até 1MB)</div>';ge('prod-foto-file').value='';}
   ge('modal-prod').className='modal-overlay open';
@@ -1301,6 +1364,7 @@ function renderHistComDados(f,isVencidoFilter){
       '<td style="display:flex;gap:3px;flex-wrap:wrap">'+
         '<button class="btn btn-brand btn-sm" onclick="editarOrcamento(\''+h.id+'\')" title="Editar">✏️</button>'+
         '<button class="btn btn-out btn-sm" onclick="previewOrcamento(\''+h.id+'\')" title="Ver">👁</button>'+
+        '<button class="btn btn-wpp btn-sm" onclick="abrirFollowup(\''+h.id+'\')" title="Enviar mensagem">💬</button>'+
         '<button class="btn btn-out btn-sm" onclick="duplicarOrcamento(\''+h.id+'\')" title="Duplicar">📋</button>'+
         '<button class="btn btn-danger btn-sm" onclick="deletarOrcamento(\''+h.id+'\')" title="Excluir">🗑</button>'+
       '</td>'+
@@ -1577,7 +1641,7 @@ function renderDash(){
     return val_date<new Date();
   });
   var alertHtml='';
-  if(vencidos.length)alertHtml+='<div class="alert-box">⚠️ <strong>'+vencidos.length+' orçamento(s) vencidos</strong> sem resposta do cliente! <button class="btn btn-danger btn-sm" onclick="filtrarHistVencidos()" style="margin-left:8px">Ver histórico</button></div>';
+  if(vencidos.length)alertHtml+='<div class="alert-box">⚠️ <strong>'+vencidos.length+' orçamento(s) vencidos</strong> sem resposta do cliente! <button class="btn btn-danger btn-sm" onclick="filtrarHistVencidos()" style="margin-left:8px">Ver histórico</button><button class="btn btn-wpp btn-sm" onclick="abrirFollowupMassa()" style="margin-left:6px">💬 Follow-up em massa</button></div>';
   if(vencendo.length)alertHtml+='<div class="warn-box">🕐 <strong>'+vencendo.length+' orçamento(s) vencem em até 48h!</strong> Faça follow-up agora. <button class="btn btn-yellow btn-sm" onclick="showView(\'hist\')" style="margin-left:8px">Ver</button></div>';
   alertas.innerHTML=alertHtml;
 
@@ -1840,6 +1904,155 @@ function limparForm(){
 }
 
 // ═══════════════════════════════════════════════════
+// FOLLOW-UP WHATSAPP
+// ═══════════════════════════════════════════════════
+var _fuOrcamentos=[];// usado no envio em massa
+
+function montarMsgFollowup(h,tipo){
+  var cfg=getCfg();
+  var nome=h.cliente.nome||'Cliente';
+  var num=h.num||'';
+  var total=fmt(calcHistTotal(h));
+  var validade=addDays(h.data,h.validade);
+  var empresa=cfg.nome||'nós';
+  var tel=cfg.tel||'';
+
+  var msgs={
+    followup:
+      'Olá, *'+nome+'*! 😊\n\n'+
+      'Passando para verificar se você teve a oportunidade de analisar o orçamento *#'+num+'* no valor de *'+total+'*.\n\n'+
+      'O orçamento está válido até *'+validade+'*. Qualquer dúvida estou à disposição!\n\n'+
+      '_'+empresa+(tel?' · '+tel:'')+'_',
+
+    vencido:
+      'Olá, *'+nome+'*! 👋\n\n'+
+      'O orçamento *#'+num+'* no valor de *'+total+'* venceu recentemente.\n\n'+
+      'Caso ainda tenha interesse, posso renovar com os mesmos valores. É só me avisar! 😊\n\n'+
+      '_'+empresa+(tel?' · '+tel:'')+'_',
+
+    aprovado:
+      'Olá, *'+nome+'*! 🎉\n\n'+
+      'Ótima notícia — o orçamento *#'+num+'* no valor de *'+total+'* foi confirmado!\n\n'+
+      'Vamos iniciar a produção assim que confirmarmos o pagamento. Em caso de dúvidas, estou à disposição.\n\n'+
+      '_'+empresa+(tel?' · '+tel:'')+'_',
+
+    agradecimento:
+      'Olá, *'+nome+'*! 🙏\n\n'+
+      'Obrigado pela confiança em nos escolher!\n\n'+
+      'Seu pedido referente ao orçamento *#'+num+'* já está em andamento. Qualquer atualização avisaremos por aqui.\n\n'+
+      '_'+empresa+(tel?' · '+tel:'')+'_'
+  };
+  return msgs[tipo]||msgs.followup;
+}
+
+function abrirFollowup(id){
+  var h=getHist().find(function(x){return x.id===id;});
+  if(!h){alert('Orçamento não encontrado.');return;}
+  if(!h.cliente.wpp){alert('Este cliente não tem WhatsApp cadastrado.');return;}
+  ge('fu-orc-id').value=id;
+  ge('fu-cliente-nome').textContent=h.cliente.nome||'—';
+  ge('fu-cliente-wpp').textContent=h.cliente.wpp||'';
+  // escolher template padrão conforme status
+  var tipo='followup';
+  if(h.status==='Aprovado')tipo='aprovado';
+  else{
+    var valDate=new Date((h.data||hoje())+'T12:00');
+    valDate.setDate(valDate.getDate()+(parseInt(h.validade)||3));
+    if(valDate<new Date())tipo='vencido';
+  }
+  setVal('fu-mensagem',montarMsgFollowup(h,tipo));
+  ge('modal-followup').className='modal-overlay open';
+}
+
+function abrirFollowupPreview(){
+  // Pega o orçamento atual do formulário
+  var num=val('orc-num');
+  var h=getHist().find(function(x){return x.num===num;});
+  if(!h){
+    // Cria um objeto temporário com os dados do form
+    h={num:num,data:val('orc-data'),validade:val('orc-val'),status:val('orc-status'),
+      cliente:{nome:val('cli-nome'),wpp:val('cli-wpp')},
+      items:getItems(),descGeral:val('inp-desc'),frete:val('inp-frete')};
+  }
+  if(!h.cliente.wpp&&!val('cli-wpp')){alert('Cliente sem WhatsApp cadastrado.');return;}
+  ge('fu-orc-id').value='preview';
+  ge('fu-cliente-nome').textContent=h.cliente.nome||val('cli-nome')||'—';
+  ge('fu-cliente-wpp').textContent=h.cliente.wpp||val('cli-wpp')||'';
+  setVal('fu-mensagem',montarMsgFollowup(h,'followup'));
+  ge('modal-followup').className='modal-overlay open';
+}
+
+function aplicarTemplateFU(tipo){
+  var id=val('fu-orc-id');
+  var h=id&&id!=='preview'?getHist().find(function(x){return x.id===id;}):null;
+  if(!h){
+    // modo preview — monta com dados do form
+    h={num:val('orc-num'),data:val('orc-data'),validade:val('orc-val'),status:val('orc-status'),
+      cliente:{nome:ge('fu-cliente-nome').textContent,wpp:ge('fu-cliente-wpp').textContent},
+      items:getItems(),descGeral:val('inp-desc'),frete:val('inp-frete')};
+  }
+  setVal('fu-mensagem',montarMsgFollowup(h,tipo));
+}
+
+function enviarFollowupWpp(){
+  var msg=val('fu-mensagem');if(!msg){alert('Mensagem vazia.');return;}
+  var wpp=ge('fu-cliente-wpp').textContent.replace(/\D/g,'');
+  window.open(wpp?'https://wa.me/'+wpp+'?text='+encodeURIComponent(msg):'https://wa.me/?text='+encodeURIComponent(msg),'_blank');
+  closeFollowupModal();
+}
+function closeFollowupModal(){ge('modal-followup').className='modal-overlay';}
+
+// Follow-up em massa
+function abrirFollowupMassa(){
+  var hist=getHist();
+  var hoje2=hoje();
+  _fuOrcamentos=hist.filter(function(h){
+    if(h.status!=='Aguardando aprovação'&&h.status!=='Em revisão')return false;
+    if(!h.cliente.wpp)return false;
+    var valDate=new Date((h.data||hoje2)+'T12:00');
+    valDate.setDate(valDate.getDate()+(parseInt(h.validade)||3));
+    return valDate<new Date();
+  });
+  if(!_fuOrcamentos.length){alert('Nenhum orçamento vencido com WhatsApp cadastrado.');return;}
+  var semWpp=hist.filter(function(h){
+    if(h.status!=='Aguardando aprovação'&&h.status!=='Em revisão')return false;
+    var valDate=new Date((h.data||hoje2)+'T12:00');
+    valDate.setDate(valDate.getDate()+(parseInt(h.validade)||3));
+    return valDate<new Date()&&!h.cliente.wpp;
+  }).length;
+  ge('fu-massa-info').innerHTML=
+    '📋 <strong>'+_fuOrcamentos.length+' cliente(s)</strong> serão contactados.'+
+    (semWpp?'<br>⚠️ '+semWpp+' orçamento(s) ignorado(s) por não ter WhatsApp cadastrado.':'')+
+    '<br><br><strong>Clientes:</strong> '+_fuOrcamentos.map(function(h){return h.cliente.nome||'—';}).join(', ');
+  // Mensagem padrão usando o primeiro como exemplo
+  var exemplo=_fuOrcamentos[0];
+  setVal('fu-massa-msg',montarMsgFollowup(exemplo,'vencido').replace(exemplo.cliente.nome||'Cliente','[NOME DO CLIENTE]').replace('#'+exemplo.num,'#[Nº ORÇAMENTO]').replace(fmt(calcHistTotal(exemplo)),'[VALOR]').replace(addDays(exemplo.data,exemplo.validade),'[VALIDADE]'));
+  ge('modal-followup-massa').className='modal-overlay open';
+}
+
+function enviarFollowupMassa(){
+  var msgBase=val('fu-massa-msg');if(!msgBase){alert('Mensagem vazia.');return;}
+  if(!confirm('Confirma o envio para '+_fuOrcamentos.length+' cliente(s)? O WhatsApp será aberto uma vez para cada um.'))return;
+  closeFollowupMassaModal();
+  var delay=0;
+  _fuOrcamentos.forEach(function(h,i){
+    setTimeout(function(){
+      var cfg=getCfg();
+      // Substituir variáveis na mensagem
+      var msg=msgBase
+        .replace(/\[NOME DO CLIENTE\]/g,h.cliente.nome||'Cliente')
+        .replace(/\[Nº ORÇAMENTO\]/g,h.num||'')
+        .replace(/\[VALOR\]/g,fmt(calcHistTotal(h)))
+        .replace(/\[VALIDADE\]/g,addDays(h.data,h.validade));
+      var wpp=h.cliente.wpp.replace(/\D/g,'');
+      window.open('https://wa.me/'+wpp+'?text='+encodeURIComponent(msg),'_blank');
+    },delay);
+    delay+=1500;// 1.5s entre cada abertura para não bloquear popup
+  });
+}
+function closeFollowupMassaModal(){ge('modal-followup-massa').className='modal-overlay';}
+
+// ═══════════════════════════════════════════════════
 // BACKUP / RESTAURAÇÃO
 // ═══════════════════════════════════════════════════
 function exportarBackup(){
@@ -1881,7 +2094,7 @@ function showView(name){
   var acts={
     dash:'<button class="btn btn-brand" onclick="showView(\'form\')">✏️ Novo orçamento</button>',
     form:'<button class="btn btn-out" onclick="limparForm()">↺ Novo</button><button class="btn btn-out" onclick="salvarOrcamento()">💾 Salvar</button><button class="btn btn-out" onclick="salvarComoTemplate()">⭐ Template</button><button class="btn btn-brand" onclick="showView(\'preview\')">👁 Pré-visualizar →</button>',
-    preview:'<button class="btn btn-out" onclick="showView(\'form\')">← Editar</button><button class="btn btn-out" onclick="salvarOrcamento()">💾 Salvar</button><button class="btn btn-wpp" onclick="enviarWpp()">💬</button><button class="btn btn-email" onclick="enviarEmail()">✉️</button><button class="btn btn-pdf" onclick="window.print()">🖨️</button><button class="btn btn-green" onclick="gerarLinkPublico()">🔗</button>',
+    preview:'<button class="btn btn-out" onclick="showView(\'form\')">← Editar</button><button class="btn btn-out" onclick="salvarOrcamento()">💾 Salvar</button><button class="btn btn-wpp" onclick="enviarWpp()">💬 Enviar</button><button class="btn btn-wpp" onclick="abrirFollowupPreview()" style="background:#128C7E">💬 Follow-up</button><button class="btn btn-email" onclick="enviarEmail()">✉️</button><button class="btn btn-pdf" onclick="window.print()">🖨️</button><button class="btn btn-green" onclick="gerarLinkPublico()">🔗</button>',
     hist:'<button class="btn btn-brand" onclick="showView(\'form\')">✏️ Novo</button><button class="btn btn-out" onclick="exportarHistXls()">📊 Excel</button>',
     os:'',templates:'<button class="btn btn-brand" onclick="salvarComoTemplate()">⭐ Salvar atual como template</button>',
     cat:'<button class="btn btn-brand" onclick="openProdModal()">＋ Produto</button>',
