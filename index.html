@@ -1310,7 +1310,22 @@ function calcHistTotal(h){
 function renderHist(){
   var hist=getHist(),hoje2=hoje();
 
-  // Filtro especial: só vencidos sem resposta (vindos do alerta do dashboard)
+  // Filtro especial: vencendo em até 48h
+  if(window._filtroVencendo){
+    window._filtroVencendo=false;
+    setVal('hist-search','');setVal('hist-filter','');
+    hist=hist.filter(function(h){
+      if(h.status!=='Aguardando aprovação'&&h.status!=='Em revisão')return false;
+      var valDate=new Date(h.data+'T12:00');
+      valDate.setDate(valDate.getDate()+(parseInt(h.validade)||3));
+      var diff=Math.ceil((valDate-new Date())/(1000*60*60*24));
+      return diff>=0&&diff<=2;
+    });
+    renderHistComDados(hist,true,'⏰ Vencendo em até 48h');
+    return;
+  }
+
+  // Filtro especial: só vencidos sem resposta
   if(window._filtroVencidos){
     window._filtroVencidos=false;
     // Limpar outros filtros e aplicar filtro de vencidos
@@ -1326,19 +1341,19 @@ function renderHist(){
     // Mostrar aviso no topo do histórico
     var empty=ge('hist-empty');
     if(empty)empty.innerHTML='Nenhum orçamento vencido encontrado.';
-    renderHistComDados(hist,true);
+    renderHistComDados(hist,true,'⚠️ Vencidos sem resposta');
     return;
   }
 
   var q=(val('hist-search')||'').toLowerCase(),fs=val('hist-filter');
   var f=hist.filter(function(h){return(!q||h.num.toLowerCase().includes(q)||(h.cliente.nome||'').toLowerCase().includes(q)||(h.desc||'').toLowerCase().includes(q))&&(!fs||h.status===fs);});
-  renderHistComDados(f,false);
+  renderHistComDados(f,false,'');
 }
 
-function renderHistComDados(f,isVencidoFilter){
+function renderHistComDados(f,isFilter,filterLabel){
   var tbody=ge('hist-body'),empty=ge('hist-empty'),count=ge('hist-count');
   var hist=getHist();
-  if(count)count.textContent='('+hist.length+')'+(isVencidoFilter?' — '+f.length+' vencido(s)':'');
+  if(count)count.textContent='('+hist.length+')'+(isFilter?' — '+filterLabel+': '+f.length:'');
   if(!f.length){tbody.innerHTML='';if(empty)empty.style.display='block';return;}
   if(empty)empty.style.display='none';
   var hoje2=hoje();
@@ -1573,12 +1588,12 @@ function exportarRelComissoes(){
 // FILTRO RÁPIDO HISTÓRICO
 // ═══════════════════════════════════════════════════
 function filtrarHistVencidos(){
-  // Marcar flag para renderHist saber que deve filtrar só vencidos
-  var hist=getHist();
-  var hoje2=hoje();
-  // Colocar filtro de status e busca para mostrar só pendentes vencidos
-  // Usamos um atributo temporário no DOM
   window._filtroVencidos=true;
+  showView('hist');
+}
+
+function filtrarHistVencendo(){
+  window._filtroVencendo=true;
   showView('hist');
 }
 
@@ -1608,11 +1623,11 @@ function renderDash(){
   var ticket=countAprov>0?totalAprov/countAprov:0;
   var taxa=hist.length>0?(countAprov/hist.length)*100:0;
   ge('dash-kpis').innerHTML=
-    dk('Total do mês','orange',fmt(totalMes),countMes+' orçamento'+(countMes===1?'':'s'),'','orange')+
-    dk('Aguardando','','',fmt(totalPend),'A confirmar','')+
-    dk('Aprovados','green',fmt(totalAprov),countAprov+' — Taxa: '+fmtPct(taxa),'green')+
-    dk('Ticket médio','blue',fmt(ticket),'Por orçamento aprovado','blue');
-  function dk(l,cls,v,sub,vcls,cardCls){return'<div class="dash-card '+(cardCls||cardCls===''?cls:'')+'">'+'<div class="dash-lbl">'+l+'</div><div class="dash-val '+(vcls||'')+'">'+v+'</div><div class="dash-sub">'+sub+'</div></div>';}
+    dk('Total do mês','orange',fmt(totalMes),countMes+' orçamento'+(countMes===1?'':'s'))+
+    dk('Aguardando','',fmt(totalPend),'A confirmar')+
+    dk('Aprovados','green',fmt(totalAprov),countAprov+' — Taxa: '+fmtPct(taxa))+
+    dk('Ticket médio','blue',fmt(ticket),'Por orçamento aprovado');
+  function dk(l,cls,v,sub){return'<div class="dash-card '+(cls||'')+'"><div class="dash-lbl">'+l+'</div><div class="dash-val '+(cls||'')+'">'+v+'</div><div class="dash-sub">'+sub+'</div></div>';}
 
   // Meta mensal
   var meta=parseFloat(cfg.meta)||0;
@@ -1642,7 +1657,7 @@ function renderDash(){
   });
   var alertHtml='';
   if(vencidos.length)alertHtml+='<div class="alert-box">⚠️ <strong>'+vencidos.length+' orçamento(s) vencidos</strong> sem resposta do cliente! <button class="btn btn-danger btn-sm" onclick="filtrarHistVencidos()" style="margin-left:8px">Ver histórico</button><button class="btn btn-wpp btn-sm" onclick="abrirFollowupMassa()" style="margin-left:6px">💬 Follow-up em massa</button></div>';
-  if(vencendo.length)alertHtml+='<div class="warn-box">🕐 <strong>'+vencendo.length+' orçamento(s) vencem em até 48h!</strong> Faça follow-up agora. <button class="btn btn-yellow btn-sm" onclick="showView(\'hist\')" style="margin-left:8px">Ver</button></div>';
+  if(vencendo.length)alertHtml+='<div class="warn-box">🕐 <strong>'+vencendo.length+' orçamento(s) vencem em até 48h!</strong> Faça follow-up agora. <button class="btn btn-yellow btn-sm" onclick="filtrarHistVencendo()" style="margin-left:8px">Ver</button></div>';
   alertas.innerHTML=alertHtml;
 
   // Gráfico barras faturamento 6 meses
