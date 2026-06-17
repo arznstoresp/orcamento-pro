@@ -655,6 +655,57 @@ table.cat td{padding:7px 6px;border-bottom:1px solid #F0F0F0;font-size:13px;vert
       </div>
 
       <div class="card">
+        <div class="card-title">🤖 Automações</div>
+        <p style="font-size:13px;color:var(--ink3);margin-bottom:14px;line-height:1.6">Configure as automações que o sistema executará automaticamente ao detectar eventos.</p>
+        <div class="g2">
+          <div>
+            <label class="lbl">Follow-up automático após (dias)</label>
+            <input type="number" id="cfg-auto-followup-dias" oninput="autoSave()" placeholder="Ex: 2" min="1" max="30" value="2">
+            <div style="font-size:11px;color:var(--ink3);margin-top:4px">Ao salvar orçamento, agenda follow-up automaticamente</div>
+          </div>
+          <div>
+            <label class="lbl">Auto-expirar orçamentos após (dias sem resposta)</label>
+            <input type="number" id="cfg-auto-expirar-dias" oninput="autoSave()" placeholder="Ex: 7" min="1" max="60" value="7">
+            <div style="font-size:11px;color:var(--ink3);margin-top:4px">Muda status para "Expirado" automaticamente</div>
+          </div>
+        </div>
+        <div class="g2 mt">
+          <div>
+            <label class="lbl">Prazo padrão por categoria (dias)</label>
+            <textarea id="cfg-prazo-cats" oninput="autoSave()" placeholder="Camisetas: 7&#10;Canecas: 5&#10;Adesivos: 3&#10;Impressão 3D: 10" style="min-height:80px;white-space:pre-wrap;font-size:12px"></textarea>
+            <div style="font-size:11px;color:var(--ink3);margin-top:4px">Calcula prazo automático baseado nos itens</div>
+          </div>
+          <div>
+            <label class="lbl">Prefixo por tipo de tabela</label>
+            <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+              <div class="field-row"><span style="font-size:12px;color:var(--ink3);width:70px;flex-shrink:0">Varejo:</span><input id="cfg-pfx-varejo" oninput="autoSave()" placeholder="VRJ" style="font-size:12px"></div>
+              <div class="field-row"><span style="font-size:12px;color:var(--ink3);width:70px;flex-shrink:0">Atacado:</span><input id="cfg-pfx-atacado" oninput="autoSave()" placeholder="ATK" style="font-size:12px"></div>
+              <div class="field-row"><span style="font-size:12px;color:var(--ink3);width:70px;flex-shrink:0">Serviço:</span><input id="cfg-pfx-servico" oninput="autoSave()" placeholder="SRV" style="font-size:12px"></div>
+            </div>
+            <div style="font-size:11px;color:var(--ink3);margin-top:4px">Numeração automática por tipo de orçamento</div>
+          </div>
+        </div>
+        <div class="mt" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="cfg-auto-os" oninput="autoSave()" style="width:auto;padding:0">
+            Criar OS automaticamente ao aprovar orçamento
+          </label>
+        </div>
+        <div class="mt" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="cfg-auto-preco-atacado" oninput="autoSave()" style="width:auto;padding:0">
+            Trocar preço para atacado automaticamente ao atingir quantidade mínima
+          </label>
+        </div>
+        <div class="mt" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="cfg-relatorio-semanal" oninput="autoSave()" style="width:auto;padding:0">
+            Mostrar relatório semanal toda segunda-feira ao abrir
+          </label>
+        </div>
+      </div>
+
+      <div class="card">
         <div class="card-title">PIN de Acesso <span style="font-size:11px;font-weight:400;color:var(--ink3);text-transform:none;letter-spacing:0">— protege o acesso ao sistema</span></div>
         <div class="g2">
           <div><label class="lbl">PIN atual (4 dígitos)</label><input type="password" id="pin-atual" placeholder="Deixe em branco se não tem PIN" maxlength="4" pattern="[0-9]*"></div>
@@ -837,6 +888,31 @@ table.cat td{padding:7px 6px;border-bottom:1px solid #F0F0F0;font-size:13px;vert
   </div>
 </div>
 
+<!-- MODAL RELATÓRIO SEMANAL -->
+<div class="modal-overlay" id="modal-relatorio">
+  <div class="modal" style="width:560px">
+    <div class="modal-title">📊 Relatório Semanal</div>
+    <div id="relatorio-content"></div>
+    <div class="modal-footer">
+      <button class="btn btn-out" onclick="ge('modal-relatorio').className='modal-overlay'">Fechar</button>
+      <button class="btn btn-brand" onclick="exportarRelatorioSemanal()">📊 Exportar Excel</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL AUTO FOLLOW-UP -->
+<div class="modal-overlay" id="modal-auto-followup">
+  <div class="modal" style="width:500px">
+    <div class="modal-title">🤖 Follow-ups automáticos pendentes</div>
+    <p style="font-size:13px;color:var(--ink3);margin-bottom:12px;line-height:1.5">Os orçamentos abaixo atingiram o prazo de follow-up. Envie com um clique.</p>
+    <div id="auto-followup-list" style="display:flex;flex-direction:column;gap:7px;max-height:300px;overflow-y:auto"></div>
+    <div class="modal-footer">
+      <button class="btn btn-out" onclick="fecharAutoFollowup()">Fechar</button>
+      <button class="btn btn-wpp" onclick="enviarTodosAutoFollowup()">💬 Enviar para todos</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-link">
   <div class="modal">
     <div class="modal-title">🔗 Link Público do Orçamento</div>
@@ -944,7 +1020,22 @@ function buscaCep(){
 // ═══════════════════════════════════════════════════
 function getCfg(){try{return JSON.parse(localStorage.getItem('orcpro_emp')||'{}');}catch(e){return{};}}
 function saveConfig(){
-  var cfg={nome:val('cfg-nome'),cnpj:val('cfg-cnpj'),tel:val('cfg-tel'),email:val('cfg-email'),site:val('cfg-site'),cidade:val('cfg-cidade'),end:val('cfg-end'),obs:val('cfg-obs'),termos:val('cfg-termos'),banco:val('cfg-banco'),prefixo:val('cfg-prefixo'),slogan:val('cfg-slogan'),meta:parseFloat(val('cfg-meta'))||0,categorias:val('cfg-categorias')};
+  var cfg={
+    nome:val('cfg-nome'),cnpj:val('cfg-cnpj'),tel:val('cfg-tel'),email:val('cfg-email'),
+    site:val('cfg-site'),cidade:val('cfg-cidade'),end:val('cfg-end'),obs:val('cfg-obs'),
+    termos:val('cfg-termos'),banco:val('cfg-banco'),prefixo:val('cfg-prefixo'),
+    slogan:val('cfg-slogan'),meta:parseFloat(val('cfg-meta'))||0,categorias:val('cfg-categorias'),
+    // automações
+    autoFollowupDias:parseInt(val('cfg-auto-followup-dias'))||2,
+    autoExpirarDias:parseInt(val('cfg-auto-expirar-dias'))||7,
+    prazoCats:val('cfg-prazo-cats'),
+    pfxVarejo:val('cfg-pfx-varejo')||'',
+    pfxAtacado:val('cfg-pfx-atacado')||'',
+    pfxServico:val('cfg-pfx-servico')||'',
+    autoOS:ge('cfg-auto-os')&&ge('cfg-auto-os').checked,
+    autoPrecoAtacado:ge('cfg-auto-preco-atacado')&&ge('cfg-auto-preco-atacado').checked,
+    relatorioSemanal:ge('cfg-relatorio-semanal')&&ge('cfg-relatorio-semanal').checked
+  };
   localStorage.setItem('orcpro_emp',JSON.stringify(cfg));
   updateMiniPreview();showSaved();
   atualizarVendedoresList();
@@ -958,6 +1049,16 @@ function fillConfigForm(){
   setVal('cfg-site',c.site);setVal('cfg-cidade',c.cidade);setVal('cfg-end',c.end);setVal('cfg-obs',c.obs);
   setVal('cfg-termos',c.termos);setVal('cfg-banco',c.banco);setVal('cfg-prefixo',c.prefixo);
   setVal('cfg-slogan',c.slogan);setVal('cfg-meta',c.meta||'');setVal('cfg-categorias',c.categorias||'');
+  // automações
+  setVal('cfg-auto-followup-dias',c.autoFollowupDias||2);
+  setVal('cfg-auto-expirar-dias',c.autoExpirarDias||7);
+  setVal('cfg-prazo-cats',c.prazoCats||'');
+  setVal('cfg-pfx-varejo',c.pfxVarejo||'');
+  setVal('cfg-pfx-atacado',c.pfxAtacado||'');
+  setVal('cfg-pfx-servico',c.pfxServico||'');
+  if(ge('cfg-auto-os'))ge('cfg-auto-os').checked=!!c.autoOS;
+  if(ge('cfg-auto-preco-atacado'))ge('cfg-auto-preco-atacado').checked=!!c.autoPrecoAtacado;
+  if(ge('cfg-relatorio-semanal'))ge('cfg-relatorio-semanal').checked=!!c.relatorioSemanal;
   updateMiniPreview();loadLogoPreview();renderFuncs();
 }
 function updateMiniPreview(){
@@ -1298,6 +1399,14 @@ function salvarOrcamento(){
   var hist=getHist(),idx=hist.findIndex(function(h){return h.num===num;}),estado=capturarEstado();
   if(idx>=0){if(!confirm('Sobrescrever orçamento #'+num+'?'))return;hist[idx]=estado;}else hist.unshift(estado);
   saveHist(hist);
+  // ── AUTOMAÇÕES ──
+  // 1. Agendar follow-up automático
+  agendarFollowupAuto(estado.num,estado.cliente.nome,estado.cliente.wpp,estado.data);
+  // 2. Auto-calcular prazo se estiver vazio
+  if(!val('prazo')){
+    var prazoAuto=calcularPrazoAutomatico();
+    if(prazoAuto){setVal('prazo',prazoAuto);estado.prazo=prazoAuto;}
+  }
   ge('tb-actions').querySelectorAll('.btn-out').forEach(function(b){if(b.textContent.trim().startsWith('💾')){b.textContent='✅ Salvo!';setTimeout(function(){b.innerHTML='💾 Salvar';},1800);}});
 }
 
@@ -1386,7 +1495,21 @@ function renderHistComDados(f,isFilter,filterLabel){
     '</tr>';
   }).join('');
 }
-function updateHistStatus(id,status){var hist=getHist(),idx=hist.findIndex(function(h){return h.id===id;});if(idx>=0){hist[idx].status=status;saveHist(hist);if(status==='Aprovado')ofereceOS(id);}}
+function updateHistStatus(id,status){
+  var hist=getHist(),idx=hist.findIndex(function(h){return h.id===id;});
+  if(idx>=0){
+    hist[idx].status=status;saveHist(hist);
+    var cfg=getCfg();
+    if(status==='Aprovado'){
+      if(cfg.autoOS){
+        // Auto-OS: abre modal diretamente
+        setTimeout(function(){previewOrcamento(id);setTimeout(function(){gerarOS();},200);},100);
+      } else {
+        ofereceOS(id);
+      }
+    }
+  }
+}
 function ofereceOS(id){if(confirm('Orçamento aprovado! Deseja gerar uma Ordem de Serviço agora?'))previewOrcamento(id);}
 
 function editarOrcamento(id){
@@ -2107,7 +2230,7 @@ function showView(name){
   var titles={dash:['Dashboard','Visão geral do negócio'],form:['Novo Orçamento','Preencha os dados abaixo'],preview:['Pré-visualização','Revise e envie ao cliente'],hist:['Histórico','Edite e acompanhe orçamentos'],os:['Ordens de Serviço','Acompanhe a produção'],templates:['Templates','Orçamentos reutilizáveis'],cat:['Catálogo de Produtos','Preços, custos e margens'],clientes:['Clientes & Follow-up','Gerencie relacionamentos'],config:['Minha Empresa','Dados, logotipo e backup']};
   ge('tb-title').textContent=titles[name][0];ge('tb-sub').textContent=titles[name][1];
   var acts={
-    dash:'<button class="btn btn-brand" onclick="showView(\'form\')">✏️ Novo orçamento</button>',
+    dash:'<button class="btn btn-brand" onclick="showView(\'form\')">✏️ Novo orçamento</button><button class="btn btn-out" onclick="abrirRelatorioSemanal()">📊 Relatório semanal</button>',
     form:'<button class="btn btn-out" onclick="limparForm()">↺ Novo</button><button class="btn btn-out" onclick="salvarOrcamento()">💾 Salvar</button><button class="btn btn-out" onclick="salvarComoTemplate()">⭐ Template</button><button class="btn btn-brand" onclick="showView(\'preview\')">👁 Pré-visualizar →</button>',
     preview:'<button class="btn btn-out" onclick="showView(\'form\')">← Editar</button><button class="btn btn-out" onclick="salvarOrcamento()">💾 Salvar</button><button class="btn btn-wpp" onclick="enviarWpp()">💬 Enviar</button><button class="btn btn-wpp" onclick="abrirFollowupPreview()" style="background:#128C7E">💬 Follow-up</button><button class="btn btn-email" onclick="enviarEmail()">✉️</button><button class="btn btn-pdf" onclick="window.print()">🖨️</button><button class="btn btn-green" onclick="gerarLinkPublico()">🔗</button>',
     hist:'<button class="btn btn-brand" onclick="showView(\'form\')">✏️ Novo</button><button class="btn btn-out" onclick="exportarHistXls()">📊 Excel</button>',
@@ -2188,16 +2311,328 @@ function checkLinkPublico(){
 }
 
 // ═══════════════════════════════════════════════════
+// AUTOMAÇÕES
+// ═══════════════════════════════════════════════════
+
+/* ── 1. NUMERAÇÃO INTELIGENTE POR TIPO ── */
+function nextNumPorTipo(tipo){
+  var cfg=getCfg();
+  var pfxMap={varejo:cfg.pfxVarejo,atacado:cfg.pfxAtacado,servico:cfg.pfxServico};
+  var pfx=pfxMap[tipo]||cfg.prefixo||new Date().getFullYear().toString();
+  var key='orcpro_cnt_'+(tipo||'geral');
+  var n=(parseInt(localStorage.getItem(key)||localStorage.getItem('orcpro_cnt')||'0')+1);
+  localStorage.setItem(key,n);
+  if(!pfxMap[tipo])localStorage.setItem('orcpro_cnt',n);// compatibilidade
+  return pfx+'-'+String(n).padStart(3,'0');
+}
+
+/* ── 2. AUTO-FOLLOWUP: agenda ao salvar orçamento ── */
+function agendarFollowupAuto(orcNum,clienteNome,clienteWpp,dataOrc){
+  if(!clienteWpp)return;// sem WhatsApp não agenda
+  var cfg=getCfg();
+  var dias=cfg.autoFollowupDias||2;
+  var d=new Date(dataOrc+'T12:00');d.setDate(d.getDate()+dias);
+  var followupDate=d.toISOString().split('T')[0];
+  // salvar nos clientes
+  var clientes=getClientes();
+  var idx=clientes.findIndex(function(c){return(c.wpp===clienteWpp)||(c.nome&&c.nome.toLowerCase()===clienteNome.toLowerCase());});
+  if(idx>=0){
+    // só atualiza se não tiver followup futuro já agendado
+    if(!clientes[idx].followup||clientes[idx].followup<hoje()){
+      clientes[idx].followup=followupDate;
+      saveClientes(clientes);
+    }
+  }
+  // registrar no log de automações
+  var log=getAutoLog();
+  log.push({tipo:'followup',orcNum:orcNum,cliente:clienteNome,wpp:clienteWpp,agendadoPara:followupDate,criadoEm:hoje()});
+  saveAutoLog(log);
+}
+
+function getAutoLog(){try{return JSON.parse(localStorage.getItem('orcpro_autolog')||'[]');}catch(e){return[];}}
+function saveAutoLog(arr){
+  // manter só os últimos 100 registros
+  if(arr.length>100)arr=arr.slice(-100);
+  localStorage.setItem('orcpro_autolog',JSON.stringify(arr));
+}
+
+/* ── 3. VERIFICAR FOLLOW-UPS AUTOMÁTICOS PENDENTES ── */
+var _autoFollowupPendentes=[];
+function verificarAutoFollowups(){
+  var cfg=getCfg();
+  var dias=cfg.autoFollowupDias||2;
+  var hist=getHist();
+  var hoje2=hoje();
+  var pendentes=[];
+  hist.forEach(function(h){
+    if(h.status!=='Aguardando aprovação'&&h.status!=='Em revisão')return;
+    if(!h.cliente||!h.cliente.wpp)return;
+    var d=new Date((h.data||hoje2)+'T12:00');d.setDate(d.getDate()+dias);
+    var followupDate=d.toISOString().split('T')[0];
+    // está na janela de follow-up (hoje ou ontem sem ter sido feito)
+    var jaFeito=getAutoLog().some(function(l){return l.tipo==='followup_enviado'&&l.orcNum===h.num&&l.criadoEm>=followupDate;});
+    if(followupDate<=hoje2&&!jaFeito){
+      pendentes.push(h);
+    }
+  });
+  _autoFollowupPendentes=pendentes;
+  if(pendentes.length>0){
+    var list=ge('auto-followup-list');
+    if(list){
+      list.innerHTML=pendentes.map(function(h){
+        var total=fmt(calcHistTotal(h));
+        return'<div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13px">'+
+          '<div>'+
+            '<div style="font-weight:600">'+(h.cliente.nome||'—')+'</div>'+
+            '<div style="font-size:11px;color:var(--ink3)">#'+h.num+' · '+total+'</div>'+
+          '</div>'+
+          '<button class="btn btn-wpp btn-sm" onclick="enviarAutoFollowupUm(\''+h.id+'\')">💬 Enviar</button>'+
+        '</div>';
+      }).join('');
+    }
+    ge('modal-auto-followup').className='modal-overlay open';
+  }
+}
+function enviarAutoFollowupUm(id){
+  var h=getHist().find(function(x){return x.id===id;});if(!h)return;
+  var msg=montarMsgFollowup(h,'followup');
+  var num=h.cliente.wpp.replace(/\D/g,'');
+  window.open('https://wa.me/'+num+'?text='+encodeURIComponent(msg),'_blank');
+  // registrar como enviado
+  var log=getAutoLog();
+  log.push({tipo:'followup_enviado',orcNum:h.num,cliente:h.cliente.nome,criadoEm:hoje()});
+  saveAutoLog(log);
+  // remover da lista visual
+  _autoFollowupPendentes=_autoFollowupPendentes.filter(function(x){return x.id!==id;});
+  if(!_autoFollowupPendentes.length)fecharAutoFollowup();
+  else verificarAutoFollowups();
+}
+function enviarTodosAutoFollowup(){
+  var delay=0;
+  _autoFollowupPendentes.forEach(function(h){
+    setTimeout(function(){enviarAutoFollowupUm(h.id);},delay);
+    delay+=1500;
+  });
+}
+function fecharAutoFollowup(){ge('modal-auto-followup').className='modal-overlay';}
+
+/* ── 4. AUTO-EXPIRAR ORÇAMENTOS ── */
+function autoExpirarOrcamentos(){
+  var cfg=getCfg();
+  var dias=cfg.autoExpirarDias||7;
+  var hist=getHist();
+  var hoje2=hoje();
+  var alterados=0;
+  hist.forEach(function(h,i){
+    if(h.status!=='Aguardando aprovação'&&h.status!=='Em revisão')return;
+    var valDate=new Date((h.data||hoje2)+'T12:00');
+    valDate.setDate(valDate.getDate()+(parseInt(h.validade)||3));
+    var diasVencido=Math.floor((new Date()-valDate)/(1000*60*60*24));
+    if(diasVencido>=dias){hist[i].status='Expirado';alterados++;}
+  });
+  if(alterados>0){
+    saveHist(hist);
+    // adicionar Expirado como opção nos selects se necessário
+    console.log('[AutoExpirar] '+alterados+' orçamento(s) expirado(s) automaticamente.');
+  }
+  return alterados;
+}
+
+/* ── 5. AUTO-PREÇO ATACADO POR QUANTIDADE ── */
+function verificarPrecoAtacado(itemRow){
+  var cfg=getCfg();
+  if(!cfg.autoPrecoAtacado)return;
+  var desc=itemRow.querySelector('[data-f="desc"]');
+  var qtyEl=itemRow.querySelector('[data-f="qty"]');
+  var priceEl=itemRow.querySelector('[data-f="price"]');
+  if(!desc||!qtyEl||!priceEl)return;
+  var nomeProd=desc.value.trim();
+  var qty=parseFloat(qtyEl.value)||0;
+  var prods=getProdutos();
+  var prod=prods.find(function(p){return p.nome===nomeProd;});
+  if(!prod)return;
+  var tipoAtual=val('tipo-preco')||'varejo';
+  var precoAtual=parseFloat(priceEl.value)||0;
+  if(qty>=prod.minAtacado&&precoAtual===prod.varejo&&tipoAtual==='varejo'){
+    priceEl.value=Number(prod.atacado).toFixed(2);
+    priceEl.style.background='#dcfce7';
+    priceEl.title='Preço trocado para atacado automaticamente ('+qty+' un ≥ mín. '+prod.minAtacado+')';
+    setTimeout(function(){priceEl.style.background='';},2000);
+    recalc();
+  } else if(qty<prod.minAtacado&&precoAtual===prod.atacado){
+    priceEl.value=Number(prod.varejo).toFixed(2);
+    priceEl.title='';
+    recalc();
+  }
+}
+
+/* ── 6. AUTO-PRAZO POR CATEGORIA ── */
+function calcularPrazoAutomatico(){
+  var cfg=getCfg();
+  if(!cfg.prazoCats)return null;
+  var mapPrazo={};
+  cfg.prazoCats.split('\n').forEach(function(linha){
+    var parts=linha.split(':');
+    if(parts.length>=2){
+      var cat=parts[0].trim().toLowerCase();
+      var dias=parseInt(parts[1].trim())||0;
+      if(cat&&dias)mapPrazo[cat]=dias;
+    }
+  });
+  if(!Object.keys(mapPrazo).length)return null;
+  var items=getItems();
+  var maxDias=0;
+  items.forEach(function(it){
+    var cat=(it.cat||'').toLowerCase();
+    if(mapPrazo[cat]&&mapPrazo[cat]>maxDias)maxDias=mapPrazo[cat];
+    // tentar pela categoria do produto cadastrado
+    var prod=getProdutos().find(function(p){return p.nome===it.desc;});
+    if(prod&&prod.cat){
+      var catProd=(prod.cat||'').toLowerCase();
+      if(mapPrazo[catProd]&&mapPrazo[catProd]>maxDias)maxDias=mapPrazo[catProd];
+    }
+  });
+  return maxDias>0?maxDias+' dias úteis após aprovação':null;
+}
+
+/* ── 7. RELATÓRIO SEMANAL ── */
+function getMondayLast(){
+  var d=new Date();
+  var day=d.getDay();// 0=dom,1=seg,...
+  var diff=day===0?6:day-1;// dias desde última segunda
+  var seg=new Date(d);seg.setDate(d.getDate()-diff-7);seg.setHours(0,0,0,0);
+  var fim=new Date(seg);fim.setDate(seg.getDate()+6);fim.setHours(23,59,59,999);
+  return{ini:seg,fim:fim};
+}
+function verificarRelatorioSemanal(){
+  var cfg=getCfg();
+  if(!cfg.relatorioSemanal)return;
+  var hoje2=new Date();
+  if(hoje2.getDay()!==1)return;// só segunda-feira
+  var chave='orcpro_rel_'+hoje2.toISOString().split('T')[0];
+  if(localStorage.getItem(chave))return;// já mostrou hoje
+  localStorage.setItem(chave,'1');
+  gerarRelatorioSemanal();
+}
+function gerarRelatorioSemanal(){
+  var periodo=getMondayLast();
+  var hist=getHist();
+  var semana=hist.filter(function(h){
+    var d=new Date((h.data||hoje())+'T12:00');
+    return d>=periodo.ini&&d<=periodo.fim;
+  });
+  var enviados=semana.length;
+  var aprovados=semana.filter(function(h){return h.status==='Aprovado';}).length;
+  var perdidos=semana.filter(function(h){return h.status==='Recusado'||h.status==='Expirado';}).length;
+  var faturado=semana.filter(function(h){return h.status==='Aprovado';}).reduce(function(a,h){return a+calcHistTotal(h);},0);
+  var taxa=enviados>0?Math.round((aprovados/enviados)*100):0;
+  var iniStr=periodo.ini.toLocaleDateString('pt-BR');
+  var fimStr=periodo.fim.toLocaleDateString('pt-BR');
+  var el=ge('relatorio-content');
+  if(el){
+    el.innerHTML=
+      '<div style="background:var(--surface);border-radius:10px;padding:14px 16px;margin-bottom:14px;font-size:12px;color:var(--ink3)">'+
+        '📅 Semana de <strong>'+iniStr+'</strong> a <strong>'+fimStr+'</strong>'+
+      '</div>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">'+
+        rel_card('Orçamentos enviados',enviados,'','var(--brand)')+
+        rel_card('Aprovados',aprovados,'Taxa: '+taxa+'%','var(--green)')+
+        rel_card('Perdidos / Expirados',perdidos,'','var(--red)')+
+        rel_card('Faturado na semana',fmt(faturado),'Aprovados','var(--blue)')+
+      '</div>'+
+      (semana.length?
+        '<div style="font-size:12px;font-weight:700;color:var(--ink3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Orçamentos da semana</div>'+
+        '<div style="display:flex;flex-direction:column;gap:5px;max-height:200px;overflow-y:auto">'+
+          semana.map(function(h){
+            var total=calcHistTotal(h);
+            var cor={Aprovado:'var(--green)',Recusado:'var(--red)',Expirado:'var(--red)'}[h.status]||'var(--brand)';
+            return'<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:var(--surface);border-radius:7px;font-size:12px">'+
+              '<span><strong>#'+h.num+'</strong> — '+(h.cliente.nome||'—')+'</span>'+
+              '<span style="display:flex;gap:10px;align-items:center">'+
+                '<span style="font-weight:600">'+fmt(total)+'</span>'+
+                '<span style="font-size:11px;color:'+cor+'">'+h.status+'</span>'+
+              '</span>'+
+            '</div>';
+          }).join('')+
+        '</div>'
+      :'<div style="text-align:center;padding:20px;color:var(--ink3)">Nenhum orçamento registrado nesta semana.</div>');
+  }
+  ge('modal-relatorio').className='modal-overlay open';
+}
+function rel_card(l,v,sub,cor){
+  return'<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;border-top:3px solid '+cor+'">'+
+    '<div style="font-size:10px;color:var(--ink3);font-weight:600;letter-spacing:.5px;text-transform:uppercase;margin-bottom:5px">'+l+'</div>'+
+    '<div style="font-size:20px;font-weight:700;color:'+cor+'">'+v+'</div>'+
+    (sub?'<div style="font-size:11px;color:var(--ink3);margin-top:3px">'+sub+'</div>':'')+
+  '</div>';
+}
+function exportarRelatorioSemanal(){
+  var periodo=getMondayLast();
+  var hist=getHist();
+  var semana=hist.filter(function(h){var d=new Date((h.data||hoje())+'T12:00');return d>=periodo.ini&&d<=periodo.fim;});
+  var rows=[['Nº','Cliente','Data','Total','Status','Vendedor']];
+  semana.forEach(function(h){rows.push([h.num,h.cliente.nome||'',fmtDt(h.data),+calcHistTotal(h).toFixed(2),h.status,h.vendedor||'']);});
+  var wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb,ws,'Semana');XLSX.writeFile(wb,'relatorio_semanal_'+hoje()+'.xlsx');
+}
+
+/* ── 8. AUTO-OS AO APROVAR ── */
+// já integrado no updateHistStatus — verifica cfg.autoOS
+
+/* ── 9. GATILHO DE QUANTIDADE PARA ATACADO (evento) ── */
+// Hook nos inputs de quantidade
+document.addEventListener('input',function(e){
+  if(e.target&&e.target.getAttribute('data-f')==='qty'){
+    var cfg=getCfg();
+    if(!cfg.autoPrecoAtacado)return;
+    var row=e.target.closest('tr');
+    if(row)verificarPrecoAtacado(row);
+  }
+});
+
+/* ── 10. BOTÃO RELATÓRIO SEMANAL MANUAL NO DASHBOARD ── */
+function abrirRelatorioSemanal(){gerarRelatorioSemanal();}
+
+// ═══════════════════════════════════════════════════
 // START APP
 // ═══════════════════════════════════════════════════
 function startApp(){
   ge('app').style.display='flex';
-  setVal('orc-data',hoje());setVal('orc-num',nextNum());setVal('orc-val','3');
+  // Numeração inteligente por tipo ao iniciar
+  var tipo=val('tipo-preco')||'varejo';
+  setVal('orc-data',hoje());
+  setVal('orc-num',nextNumPorTipo(tipo));
+  setVal('orc-val','3');
   var cfg=getCfg();if(cfg.termos)setVal('termos',cfg.termos);
   atualizarVendedoresList();
-  if(!cfg.nome){showView('config');setTimeout(function(){alert('👋 Bem-vindo ao Orçamento Pro v6!\n\nConfigure sua empresa para começar.\n\nNovidades: Templates, Ordens de Serviço, Gráficos, Custo e Margem, PIN de acesso e muito mais!');},300);}
-  else showView('dash');
+  if(!cfg.nome){
+    showView('config');
+    setTimeout(function(){alert('👋 Bem-vindo ao Orçamento Pro v6!\n\nConfigure sua empresa para começar.');},300);
+  } else {
+    showView('dash');
+    // ── AUTOMAÇÕES AO ABRIR ──
+    setTimeout(function(){
+      // 1. Auto-expirar orçamentos vencidos há muito tempo
+      var expirados=autoExpirarOrcamentos();
+      // 2. Verificar follow-ups automáticos pendentes
+      verificarAutoFollowups();
+      // 3. Relatório semanal (segunda-feira)
+      verificarRelatorioSemanal();
+    },800);
+  }
 }
+
+// Atualizar número ao trocar tipo de tabela
+document.addEventListener('change',function(e){
+  if(e.target&&e.target.id==='tipo-preco'){
+    var cfg=getCfg();
+    // só regera o número se o campo ainda tiver o número da sessão atual
+    var tipo=e.target.value||'varejo';
+    if(cfg.pfxVarejo||cfg.pfxAtacado||cfg.pfxServico){
+      setVal('orc-num',nextNumPorTipo(tipo));
+    }
+  }
+});
 
 window.onload=function(){
   if(checkLinkPublico())return;
