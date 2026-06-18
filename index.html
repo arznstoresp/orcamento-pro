@@ -123,8 +123,8 @@ table.itens td input,table.itens td select{padding:6px 7px;font-size:12px}
 .dash-card.green::before{background:var(--green);box-shadow:0 0 12px rgba(34,197,94,.3)}
 .dash-card.blue::before{background:var(--blue);box-shadow:0 0 12px rgba(59,130,246,.3)}
 .dash-card.yellow::before{background:var(--yellow);box-shadow:0 0 12px rgba(245,158,11,.3)}
-.dash-card-icon{position:absolute;top:14px;right:16px;font-size:22px;opacity:.08}
-.dash-lbl{font-size:10px;color:var(--dark-text3);font-weight:600;letter-spacing:.8px;margin-bottom:10px;text-transform:uppercase;display:flex;align-items:center;gap:6px}
+.dash-card-icon{position:absolute;top:14px;right:16px;font-size:24px;opacity:.15}
+.dash-lbl{font-size:10px;color:rgba(255,255,255,.55);font-weight:600;letter-spacing:.8px;margin-bottom:10px;text-transform:uppercase;display:flex;align-items:center;gap:6px}
 .dash-lbl-dot{width:5px;height:5px;border-radius:50%;background:var(--brand);flex-shrink:0;box-shadow:0 0 6px var(--brand)}
 .dash-lbl-dot.green{background:var(--green);box-shadow:0 0 6px rgba(34,197,94,.6)}
 .dash-lbl-dot.blue{background:var(--blue);box-shadow:0 0 6px rgba(59,130,246,.6)}
@@ -132,13 +132,13 @@ table.itens td input,table.itens td select{padding:6px 7px;font-size:12px}
 .dash-val.orange{color:var(--brand);text-shadow:0 0 20px var(--brand-glow)}
 .dash-val.green{color:var(--green);text-shadow:0 0 20px rgba(34,197,94,.3)}
 .dash-val.blue{color:var(--blue)}.dash-val.red{color:var(--red)}
-.dash-sub{font-size:11px;color:var(--dark-text3);margin-top:6px;display:flex;align-items:center;gap:5px}
+.dash-sub{font-size:11px;color:rgba(255,255,255,.5);margin-top:6px;display:flex;align-items:center;gap:5px}
 .dash-2col{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
 .dash-3col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px}
 .dash-panel{background:var(--dark-card);border:1px solid var(--dark-border);border-radius:16px;padding:18px 20px;transition:border-color .2s}
 .dash-panel:hover{border-color:var(--dark-border2)}
-.dash-panel-title{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--dark-text3);margin-bottom:14px;display:flex;align-items:center;gap:7px}
-.dash-panel-title-icon{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;background:rgba(255,107,0,.15)}
+.dash-panel-title{font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.dash-panel-title-icon{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;background:rgba(255,107,0,.18)}
 .followup-list,.recent-orc,.prod-rank{display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto}
 .followup-list::-webkit-scrollbar,.recent-orc::-webkit-scrollbar,.prod-rank::-webkit-scrollbar{width:3px}
 .followup-list::-webkit-scrollbar-thumb,.recent-orc::-webkit-scrollbar-thumb,.prod-rank::-webkit-scrollbar-thumb{background:var(--dark-border2);border-radius:99px}
@@ -156,7 +156,7 @@ table.itens td input,table.itens td select{padding:6px 7px;font-size:12px}
 .meta-bar-fill.done{background:linear-gradient(90deg,var(--green),#4ade80);box-shadow:0 0 8px rgba(34,197,94,.4)}
 .donut-wrap{display:flex;align-items:center;gap:16px}
 .donut-legend{display:flex;flex-direction:column;gap:10px;flex:1}
-.donut-legend-item{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dark-text2)}
+.donut-legend-item{display:flex;align-items:center;gap:8px;font-size:12px;color:rgba(255,255,255,.7)}
 .donut-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .chart-wrap{overflow:hidden;margin-top:4px}
 .chart-bar{cursor:pointer;transition:all .2s}.chart-bar:hover{filter:brightness(1.15)}
@@ -1873,8 +1873,8 @@ function renderDash(){
     '<div class="donut-wrap">'+
       '<div style="position:relative;flex-shrink:0">'+
         '<svg width="108" height="108" viewBox="0 0 108 108">'+arcs+
-          '<text x="'+cx+'" y="'+(cy+5)+'" text-anchor="middle" font-size="16" font-weight="800" fill="var(--ink)">'+totH+'</text>'+
-          '<text x="'+cx+'" y="'+(cy+18)+'" text-anchor="middle" font-size="9" fill="var(--ink3)">total</text>'+
+          '<text x="'+cx+'" y="'+(cy+6)+'" text-anchor="middle" font-size="18" font-weight="800" fill="#F0F0F5">'+totH+'</text>'+
+          '<text x="'+cx+'" y="'+(cy+20)+'" text-anchor="middle" font-size="10" fill="rgba(255,255,255,.5)" font-weight="500">total</text>'+
         '</svg>'+
       '</div>'+
       '<div class="donut-legend">'+legendItems+'</div>'+
