@@ -89,8 +89,8 @@ table.itens td input,table.itens td select{padding:6px 7px;font-size:12px}
 .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;border:none;transition:.15s;white-space:nowrap;letter-spacing:-.1px}
 .btn:active{transform:scale(.97)}
 .btn-out{background:rgba(255,255,255,.06);border:1px solid var(--dark-border2);color:var(--dark-text2)}.btn-out:hover{background:rgba(255,255,255,.1);color:var(--dark-text)}
-#view-form .btn-out,#view-preview .btn-out,#view-hist .btn-out,#view-os .btn-out,#view-templates .btn-out,#view-cat .btn-out,#view-clientes .btn-out,#view-config .btn-out,.modal .btn-out{background:transparent;border:1.5px solid var(--border);color:var(--ink2)}
-#view-form .btn-out:hover,#view-preview .btn-out:hover,#view-hist .btn-out:hover,#view-os .btn-out:hover,#view-templates .btn-out:hover,#view-cat .btn-out:hover,#view-clientes .btn-out:hover,#view-config .btn-out:hover,.modal .btn-out:hover{background:var(--surface)}
+#view-form .btn-out,#view-preview .btn-out,#view-hist .btn-out,#view-os .btn-out,#view-templates .btn-out,#view-cat .btn-out,#view-clientes .btn-out,#view-config .btn-out,.tb-light .btn-out{background:transparent;border:1.5px solid var(--border);color:var(--ink2)}
+#view-form .btn-out:hover,#view-preview .btn-out:hover,#view-hist .btn-out:hover,#view-os .btn-out:hover,#view-templates .btn-out:hover,#view-cat .btn-out:hover,#view-clientes .btn-out:hover,#view-config .btn-out:hover,.tb-light .btn-out:hover{background:var(--surface)}
 .btn-brand{background:linear-gradient(135deg,var(--brand),var(--brand-d));color:#fff;box-shadow:0 2px 12px var(--brand-glow)}.btn-brand:hover{filter:brightness(1.1)}
 .btn-ink{background:var(--dark-card2);color:var(--dark-text);border:1px solid var(--dark-border2)}.btn-ink:hover{opacity:.85}
 .btn-wpp{background:#25D366;color:#fff;box-shadow:0 2px 8px rgba(37,211,102,.25)}.btn-wpp:hover{filter:brightness(1.1)}
@@ -113,6 +113,9 @@ table.itens td input,table.itens td select{padding:6px 7px;font-size:12px}
 .success-box{background:var(--green-bg);border:1px solid var(--green-border);border-radius:var(--radius);padding:11px 14px;font-size:13px;color:var(--green);margin-bottom:12px;line-height:1.6}
 .alert-box{background:var(--red-bg);border:1px solid var(--red-border);border-radius:var(--radius);padding:11px 14px;font-size:13px;color:var(--red);margin-bottom:12px;line-height:1.6}
 .logo-upload-area{border:2px dashed var(--border);border-radius:var(--radius);padding:16px;text-align:center;cursor:pointer;transition:.15s;background:#FAFAFA}
+.modal .logo-upload-area{background:var(--dark-card2);border-color:var(--dark-border2)}
+.modal .logo-upload-area:hover{border-color:var(--brand);background:rgba(255,107,0,.06)}
+.modal .logo-upload-hint{color:rgba(255,255,255,.4)}
 .logo-upload-area:hover{border-color:var(--brand);background:var(--brand-bg)}
 .logo-preview{max-height:72px;max-width:200px;border-radius:6px;margin:0 auto;display:block}
 .logo-upload-hint{font-size:12px;color:var(--ink3);margin-top:5px}
@@ -178,9 +181,11 @@ table.cat td{padding:7px 6px;border-bottom:1px solid #F0F0F0;font-size:13px;vert
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:1000;align-items:center;justify-content:center}
 .modal-overlay.open{display:flex}
 .modal{background:var(--dark-card);border:1px solid var(--dark-border2);border-radius:16px;padding:22px;width:500px;max-width:96vw;box-shadow:0 24px 80px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.04);max-height:93vh;overflow-y:auto}
-.modal .lbl{color:var(--dark-text2)}
-.modal input,.modal select,.modal textarea{background:var(--dark-card2);border:1px solid var(--dark-border2);color:var(--dark-text)}
+.modal .lbl{color:rgba(255,255,255,.65);font-weight:600}
+.modal input,.modal select,.modal textarea{background:var(--dark-card2);border:1px solid var(--dark-border2);color:#F5F5F8}
+.modal input::placeholder,.modal textarea::placeholder{color:rgba(255,255,255,.3)}
 .modal input:focus,.modal select:focus,.modal textarea:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-glow)}
+.modal .lbl-hint{color:var(--brand-l)}
 .modal-title{font-size:15px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px;color:var(--dark-text)}
 .modal-title::before{content:'';width:4px;height:16px;background:var(--brand);border-radius:2px;box-shadow:0 0 8px var(--brand-glow)}
 .modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
@@ -2374,12 +2379,14 @@ function showView(name){
     if(tbTitle)tbTitle.style.color='var(--dark-text)';
     if(tbSub)tbSub.style.color='var(--dark-text3)';
     if(tbAccent)tbAccent.style.background='linear-gradient(180deg,var(--brand),transparent)';
+    ge('tb-actions').classList.remove('tb-light');
   }else{
     if(content){content.style.background='var(--surface)';content.style.color='var(--ink)';}
     if(topbar){topbar.style.background='var(--card)';topbar.style.borderBottomColor='var(--border)';}
     if(tbTitle)tbTitle.style.color='var(--ink)';
     if(tbSub)tbSub.style.color='var(--ink3)';
     if(tbAccent)tbAccent.style.background='var(--brand)';
+    ge('tb-actions').classList.add('tb-light');
   }
 
   var titles={dash:['Dashboard','Visão geral do negócio'],form:['Novo Orçamento','Preencha os dados abaixo'],preview:['Pré-visualização','Revise e envie ao cliente'],hist:['Histórico','Edite e acompanhe orçamentos'],os:['Ordens de Serviço','Acompanhe a produção'],templates:['Templates','Orçamentos reutilizáveis'],cat:['Catálogo de Produtos','Preços, custos e margens'],clientes:['Clientes & Follow-up','Gerencie relacionamentos'],config:['Minha Empresa','Dados, logotipo e backup']};
