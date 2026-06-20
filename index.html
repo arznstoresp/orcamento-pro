@@ -377,7 +377,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
 
     <!-- VENDA RÁPIDA -->
     <div id="view-venda-rapida" style="display:none;min-height:100%">
-      <div class="info-box">⚡ Use esta tela para registrar vendas rápidas (Shopee, Mercado Livre, balcão, Instagram) sem precisar montar um orçamento completo. A venda entra automaticamente na Receita, Estoque, MEI, DRE e demais cálculos do sistema — exatamente como um orçamento aprovado.</div>
+      <div class="info-box">⚡ Use esta tela para registrar vendas rápidas (Shopee, Mercado Livre, Balcão, Instagram) sem precisar montar um orçamento completo. A venda entra automaticamente na Receita, Estoque, MEI, DRE e demais cálculos do sistema — exatamente como um orçamento aprovado.</div>
 
       <div class="card">
         <div class="card-title">Nova Venda Rápida</div>
@@ -386,7 +386,10 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
           <div><label class="lbl">Canal de venda</label><select id="vr-canal"></select></div>
           <div><label class="lbl">Nº do pedido (opcional)</label><input id="vr-pedido" placeholder="Ex: Shopee #12345"></div>
         </div>
-        <div class="mt"><label class="lbl">Cliente (opcional)</label><input id="vr-cliente" placeholder="Nome do comprador, se souber" list="vr-clientes-list"><datalist id="vr-clientes-list"></datalist></div>
+        <div class="g2 mt">
+          <div><label class="lbl">Cliente (opcional)</label><input id="vr-cliente" placeholder="Nome do comprador, se souber" list="vr-clientes-list"><datalist id="vr-clientes-list"></datalist></div>
+          <div><label class="lbl">Vendedor <span class="lbl-hint">— para cálculo de comissão</span></label><input id="vr-vendedor" placeholder="Nome do vendedor" list="vendedores-list-vr"><datalist id="vendedores-list-vr"></datalist></div>
+        </div>
 
         <div class="mt">
           <label class="lbl">Itens vendidos</label>
@@ -403,6 +406,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
             </table>
           </div>
           <button class="add-row" onclick="addVendaRapidaItem()">＋ Adicionar item</button>
+          <button class="add-row" style="margin-top:5px;border-color:var(--brand);color:var(--brand)" onclick="openCatPickerVendaRapida()">📦 Inserir do catálogo</button>
         </div>
 
         <div class="totals-box mt">
@@ -1371,6 +1375,18 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-picker-vr">
+  <div class="modal" style="width:580px">
+    <div class="modal-title">Inserir do catálogo</div>
+    <div style="display:flex;gap:7px;margin-bottom:9px;align-items:center">
+      <input id="picker-vr-search" placeholder="🔍 Buscar..." style="flex:1" oninput="renderPickerVendaRapida()">
+      <span style="font-size:12px;color:rgba(255,255,255,.55)">Preço de varejo</span>
+    </div>
+    <div id="picker-vr-list" style="max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:5px"></div>
+    <div class="modal-footer"><button class="btn btn-out" onclick="closePickerVendaRapidaModal()">Fechar</button></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-cliente">
   <div class="modal" style="width:560px">
     <div class="modal-title" id="modal-cli-title">Cliente</div>
@@ -2076,6 +2092,30 @@ function insertFromCat(id){
   var p=getProdutos().find(function(x){return x.id===id;});if(!p)return;
   var tipo=val('tipo-preco')||'varejo',preco=tipo==='atacado'?p.atacado:p.varejo;
   addItem(p.nome,1,p.unit,preco,0,'',p.cat||'',p.custo||0);closePickerModal();
+}
+
+function openCatPickerVendaRapida(){
+  setVal('picker-vr-search','');renderPickerVendaRapida();
+  ge('modal-picker-vr').className='modal-overlay open';
+}
+function closePickerVendaRapidaModal(){ge('modal-picker-vr').className='modal-overlay';}
+function renderPickerVendaRapida(){
+  var prods=getProdutos(),q=(val('picker-vr-search')||'').toLowerCase();
+  var f=prods.filter(function(p){return!q||p.nome.toLowerCase().includes(q)||(p.cat||'').toLowerCase().includes(q);});
+  var list=ge('picker-vr-list');
+  if(!f.length){list.innerHTML='<div style="text-align:center;padding:18px;color:rgba(255,255,255,.4)">Nenhum produto.</div>';return;}
+  list.innerHTML=f.map(function(p){
+    var foto=p.foto?'<img src="'+p.foto+'" style="width:38px;height:38px;object-fit:cover;border-radius:5px;flex-shrink:0">':'<div style="width:38px;height:38px;background:#EFEFEF;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">📦</div>';
+    return'<div style="display:flex;align-items:center;gap:9px;background:#FAFAFA;border:1px solid #E5E5EA;border-radius:7px;padding:8px 11px">'+
+      foto+'<div style="flex:1"><div style="font-weight:600;font-size:13px;color:#111">'+p.nome+'</div><div style="font-size:10px;color:#777">'+(p.cat||'')+(p.sku?' · '+p.sku:'')+'</div></div>'+
+      '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px"><span style="font-size:14px;font-weight:700;color:var(--brand)">'+fmt(p.varejo)+'</span><button class="btn btn-brand btn-sm" onclick="insertFromCatVendaRapida(\''+p.id+'\')">＋</button></div>'+
+    '</div>';
+  }).join('');
+}
+function insertFromCatVendaRapida(id){
+  var p=getProdutos().find(function(x){return x.id===id;});if(!p)return;
+  addVendaRapidaItem(p.nome,1,p.varejo);
+  closePickerVendaRapidaModal();
 }
 
 function downloadTemplateXlsProd(){
@@ -2947,16 +2987,21 @@ function calcularVendaRapida(){
 
 function atualizarSelectCanalVendaRapida(){
   var sel=ge('vr-canal');if(!sel)return;
-  var canais=getCanaisVenda();
+  var canais=getCanaisVenda().slice().sort(function(a,b){return a.nome.localeCompare(b.nome,'pt-BR');});
   sel.innerHTML='<option value="">Não informado</option>'+canais.map(function(c){return'<option value="'+c.nome+'">'+c.nome+'</option>';}).join('');
 }
 function atualizarDatalistClientesVendaRapida(){
   var dl=ge('vr-clientes-list');if(!dl)return;
   dl.innerHTML=getClientes().map(function(c){return'<option value="'+c.nome+'">';}).join('');
 }
+function atualizarDatalistVendedoresVendaRapida(){
+  var dl=ge('vendedores-list-vr');if(!dl)return;
+  var funcs=getFuncs();
+  dl.innerHTML=funcs.map(function(f){return'<option value="'+f.nome+'">';}).join('');
+}
 
 function limparVendaRapida(){
-  setVal('vr-data',hoje());setVal('vr-pedido','');setVal('vr-cliente','');setVal('vr-canal','');
+  setVal('vr-data',hoje());setVal('vr-pedido','');setVal('vr-cliente','');setVal('vr-canal','');setVal('vr-vendedor','');
   setVal('vr-desconto','0');setVal('vr-frete','0');setVal('vr-obs','');
   ge('vr-ja-pago').checked=true;
   ge('vr-itens-body').innerHTML='';vrIid=0;
@@ -2985,7 +3030,7 @@ function salvarVendaRapida(){
     desc:'Venda rápida'+(canalNome?' — '+canalNome:'')+(val('vr-pedido')?' #'+val('vr-pedido'):''),
     pgto:jaPago?'Já recebido':'A receber',
     prazo:'',entrega:'',obs:val('vr-obs'),termos:'',
-    vendedor:'',modoOpcoes:'simples',
+    vendedor:val('vr-vendedor'),modoOpcoes:'simples',
     descGeral:val('vr-desconto'),frete:val('vr-frete'),
     parcelas:null,
     custoCalc:custoTotal,
@@ -3300,7 +3345,25 @@ function renderContasPagar(){
 // ═══════════════════════════════════════════════════
 // CANAIS DE VENDA / MARKETPLACES
 // ═══════════════════════════════════════════════════
-function getCanaisVenda(){try{return JSON.parse(localStorage.getItem('orcpro_canais')||'[]');}catch(e){return[];}}
+function getCanaisVenda(){
+  try{
+    var canais=JSON.parse(localStorage.getItem('orcpro_canais')||'[]');
+    if(canais.length===0&&!localStorage.getItem('orcpro_canais_inicializado')){
+      // Pré-popula com os canais mais comuns, em ordem alfabética, com taxas de referência
+      canais=[
+        {id:'cv_balcao',nome:'Balcão',taxaPct:0,taxaFixa:0},
+        {id:'cv_facebook',nome:'Facebook',taxaPct:0,taxaFixa:0},
+        {id:'cv_instagram',nome:'Instagram',taxaPct:0,taxaFixa:0},
+        {id:'cv_mercadolivre',nome:'Mercado Livre',taxaPct:14,taxaFixa:5},
+        {id:'cv_shopee',nome:'Shopee',taxaPct:14,taxaFixa:2},
+        {id:'cv_whatsapp',nome:'WhatsApp',taxaPct:0,taxaFixa:0}
+      ];
+      saveCanaisVenda(canais);
+      localStorage.setItem('orcpro_canais_inicializado','1');
+    }
+    return canais;
+  }catch(e){return[];}
+}
 function saveCanaisVenda(arr){localStorage.setItem('orcpro_canais',JSON.stringify(arr));}
 
 function openCanalModal(id){
@@ -3327,7 +3390,7 @@ function saveCanal(){
 function deleteCanal(id){if(!confirm('Excluir este canal?'))return;saveCanaisVenda(getCanaisVenda().filter(function(c){return c.id!==id;}));renderCanais();atualizarSelectCanais();}
 
 function renderCanais(){
-  var canais=getCanaisVenda();
+  var canais=getCanaisVenda().slice().sort(function(a,b){return a.nome.localeCompare(b.nome,'pt-BR');});
   var tbody=ge('canais-body'),empty=ge('canais-empty');
   if(!tbody)return;
   if(!canais.length){tbody.innerHTML='';if(empty)empty.style.display='block';return;}
@@ -3344,7 +3407,7 @@ function renderCanais(){
 
 function atualizarSelectCanais(){
   var sel=ge('precif-canal');if(!sel)return;
-  var canais=getCanaisVenda();
+  var canais=getCanaisVenda().slice().sort(function(a,b){return a.nome.localeCompare(b.nome,'pt-BR');});
   var opts='<option value="">Nenhum (venda direta, sem taxa)</option>';
   opts+=canais.map(function(c){return'<option value="'+c.id+'">'+c.nome+' ('+c.taxaPct+'% + '+fmt(c.taxaFixa)+')</option>';}).join('');
   sel.innerHTML=opts;
@@ -5416,6 +5479,7 @@ function showView(name){
   if(name==='venda-rapida'){
     atualizarSelectCanalVendaRapida();
     atualizarDatalistClientesVendaRapida();
+    atualizarDatalistVendedoresVendaRapida();
     if(!ge('vr-data').value)limparVendaRapida();
     renderVendasRapidas();
   }
