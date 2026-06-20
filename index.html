@@ -1194,6 +1194,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
           <option value="">— Novo cálculo —</option>
         </select>
         <button class="btn btn-out btn-sm" onclick="salvarModeloPrecificador()">💾 Salvar modelo</button>
+        <button class="btn btn-out btn-sm" onclick="duplicarModeloPrecificador()" title="Cria uma cópia deste modelo com novo nome">📋 Duplicar modelo</button>
         <button class="btn btn-danger btn-sm" onclick="excluirModeloPrecificador()">🗑 Excluir modelo</button>
       </span>
     </div>
@@ -3671,6 +3672,31 @@ function excluirModeloPrecificador(){
   ge('precif-modelo-id').value='';
   atualizarSelectModelosPrecificador();
   carregarModeloPrecificador('');
+}
+
+function duplicarModeloPrecificador(){
+  var idAtual=val('precif-modelo-id')||val('precif-modelo-select');
+  if(!idAtual){alert('Carregue um modelo salvo primeiro (ou salve o cálculo atual como modelo) antes de duplicar.');return;}
+  var modeloOrigem=getModelosPrecificador().find(function(m){return m.id===idAtual;});
+  if(!modeloOrigem){alert('Modelo não encontrado.');return;}
+
+  var nomeSugerido=modeloOrigem.nome+' (cópia)';
+  var novoNome=prompt('Nome do novo modelo (ex: troque "Caneca 325ml" por "Caneca 400ml"):',nomeSugerido);
+  if(!novoNome)return;
+
+  var novoModelo=JSON.parse(JSON.stringify(modeloOrigem));// cópia profunda — não compartilha referência com o original
+  novoModelo.id='pm'+Date.now();
+  novoModelo.nome=novoNome;
+
+  var modelos=getModelosPrecificador();
+  modelos.push(novoModelo);
+  saveModelosPrecificador(modelos);
+
+  atualizarSelectModelosPrecificador();
+  setVal('precif-modelo-select',novoModelo.id);
+  carregarModeloPrecificador(novoModelo.id);
+
+  alert('✅ Modelo duplicado como "'+novoNome+'"! Agora você pode ajustar só os itens que mudam (ex: o valor da caneca) e salvar.');
 }
 
 // ═══════════════════════════════════════════════════
