@@ -127,15 +127,18 @@ table.itens td input,table.itens td select{padding:6px 7px;font-size:12px}
 .dash-card.green::before{background:var(--green);box-shadow:0 0 12px rgba(34,197,94,.3)}
 .dash-card.blue::before{background:var(--blue);box-shadow:0 0 12px rgba(59,130,246,.3)}
 .dash-card.yellow::before{background:var(--yellow);box-shadow:0 0 12px rgba(245,158,11,.3)}
-.dash-card-icon{position:absolute;top:14px;right:16px;font-size:24px;opacity:.15}
+.dash-card-icon{position:absolute;top:14px;right:16px;font-size:26px;opacity:.3;filter:drop-shadow(0 2px 4px rgba(0,0,0,.3))}
+.dash-card.yellow::before{background:var(--yellow);box-shadow:0 0 12px rgba(245,158,11,.35)}
 .dash-lbl{font-size:10px;color:rgba(255,255,255,.55);font-weight:600;letter-spacing:.8px;margin-bottom:10px;text-transform:uppercase;display:flex;align-items:center;gap:6px}
 .dash-lbl-dot{width:5px;height:5px;border-radius:50%;background:var(--brand);flex-shrink:0;box-shadow:0 0 6px var(--brand)}
 .dash-lbl-dot.green{background:var(--green);box-shadow:0 0 6px rgba(34,197,94,.6)}
 .dash-lbl-dot.blue{background:var(--blue);box-shadow:0 0 6px rgba(59,130,246,.6)}
+.dash-lbl-dot.yellow{background:var(--yellow);box-shadow:0 0 6px rgba(245,158,11,.6)}
 .dash-val{font-size:24px;font-weight:800;color:var(--dark-text);line-height:1;letter-spacing:-.5px}
 .dash-val.orange{color:var(--brand);text-shadow:0 0 20px var(--brand-glow)}
 .dash-val.green{color:var(--green);text-shadow:0 0 20px rgba(34,197,94,.3)}
 .dash-val.blue{color:var(--blue)}.dash-val.red{color:var(--red)}
+.dash-val.yellow{color:var(--yellow);text-shadow:0 0 20px rgba(245,158,11,.25)}
 .dash-sub{font-size:11px;color:rgba(255,255,255,.5);margin-top:6px;display:flex;align-items:center;gap:5px}
 .dash-2col{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
 .dash-3col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px}
@@ -1771,7 +1774,7 @@ function renderDash(){
   // ── KPI CARDS ──
   ge('dash-kpis').innerHTML=
     dkv('Total do mês','orange','💰',fmt(totalMes),countMes+' orçamento'+(countMes===1?'':'s'),varMes)+
-    dkv('Aguardando','','⏳',fmt(totalPend),(countPend=hist.filter(function(h){return h.status==='Aguardando aprovação'||h.status==='Em revisão';}).length)+' orçamento'+(countPend===1?'':'s'),null)+
+    dkv('Aguardando','yellow','⏳',fmt(totalPend),(countPend=hist.filter(function(h){return h.status==='Aguardando aprovação'||h.status==='Em revisão';}).length)+' orçamento'+(countPend===1?'':'s'),null)+
     dkv('Aprovados','green','✅',fmt(totalAprov),countAprov+' — Taxa '+fmtPct(taxa),null)+
     dkv('Ticket médio','blue','📈',fmt(ticket),'Por orçamento aprovado',null);
 
@@ -1827,20 +1830,20 @@ function renderDash(){
   // ── GRÁFICO BARRAS — mais elegante com gradiente e linha de base ──
   var mesesOrd=[];for(var i=5;i>=0;i--){var dd=new Date();dd.setMonth(dd.getMonth()-i);mesesOrd.push(dd.toISOString().substring(0,7));}
   var maxV=mesesOrd.reduce(function(mx,m){return Math.max(mx,meses[m]||0);},1);
-  var bW=52,bGap=18,padL=44,padTop=26,svgH=190,barArea=110,svgW=(bW+bGap)*6+padL+12;
+  var bW=50,bGap=16,padL=68,padR=14,padTop=28,svgH=190,barArea=108,svgW=(bW+bGap)*6+padL+padR;
   var baseY=svgH-30;
   var bars='';
-  // linha de grade (cor visível no dark, com texto do eixo Y legível)
+  // linha de grade (cor visível no dark, com texto do eixo Y legível e sem corte)
   [0,.5,1].forEach(function(frac){
     var y=baseY-Math.round(frac*barArea);
-    bars+='<line x1="'+padL+'" y1="'+y+'" x2="'+(svgW-8)+'" y2="'+y+'" stroke="rgba(255,255,255,.08)" stroke-width="1"/>';
+    bars+='<line x1="'+padL+'" y1="'+y+'" x2="'+(svgW-padR)+'" y2="'+y+'" stroke="rgba(255,255,255,.08)" stroke-width="1"/>';
     var lbl=frac===0?'R$ 0':fmt(maxV*frac).replace('R$\u00a0','R$ ');
-    bars+='<text x="'+(padL-8)+'" y="'+(y+4)+'" text-anchor="end" font-size="10" fill="rgba(255,255,255,.4)">'+lbl+'</text>';
+    bars+='<text x="'+(padL-10)+'" y="'+(y+4)+'" text-anchor="end" font-size="10" fill="rgba(255,255,255,.42)">'+lbl+'</text>';
   });
-  // defs gradiente
+  // defs gradiente — paleta diferenciada: laranja marca (mês atual), azul-acinzentado (meses passados)
   bars='<defs>'+
-    '<linearGradient id="gbar" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--brand)" stop-opacity="1"/><stop offset="100%" stop-color="var(--brand)" stop-opacity=".65"/></linearGradient>'+
-    '<linearGradient id="gbarpast" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#8A8FA3" stop-opacity="1"/><stop offset="100%" stop-color="#8A8FA3" stop-opacity=".45"/></linearGradient>'+
+    '<linearGradient id="gbar" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#FF8533" stop-opacity="1"/><stop offset="100%" stop-color="var(--brand-d)" stop-opacity="1"/></linearGradient>'+
+    '<linearGradient id="gbarpast" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#6D7A99" stop-opacity=".95"/><stop offset="100%" stop-color="#3F4A63" stop-opacity=".85"/></linearGradient>'+
   '</defs>'+bars;
   mesesOrd.forEach(function(m,i){
     var v=meses[m]||0;var bh=v?Math.max(4,Math.round((v/maxV)*barArea)):0;
@@ -1848,11 +1851,16 @@ function renderDash(){
     var isCur=m===mes;
     var label=m.substring(5)+'/'+m.substring(2,4);
     var fill=isCur?'url(#gbar)':'url(#gbarpast)';
-    bars+='<rect class="chart-bar" x="'+x+'" y="'+y+'" width="'+bW+'" height="'+bh+'" fill="'+fill+'" rx="5" onclick="alert(\''+label+': '+fmt(v)+'\')"/>';
+    if(v>0){
+      bars+='<rect class="chart-bar" x="'+x+'" y="'+y+'" width="'+bW+'" height="'+bh+'" fill="'+fill+'" rx="6" onclick="alert(\''+label+': '+fmt(v)+'\')"/>';
+    } else {
+      // mês sem dados — barra fantasma pontilhada para indicar ausência, não some do eixo
+      bars+='<rect x="'+x+'" y="'+(baseY-4)+'" width="'+bW+'" height="4" fill="rgba(255,255,255,.06)" rx="2"/>';
+    }
     // rótulo valor — sempre acima da barra, com respiro mínimo garantido e nunca encostando na grade superior
     if(v>0){
       var labelY=Math.max(y-8,padTop-6);
-      bars+='<text x="'+(x+bW/2)+'" y="'+labelY+'" text-anchor="middle" font-size="11" font-weight="'+(isCur?'700':'600')+'" fill="'+(isCur?'var(--brand-l)':'rgba(255,255,255,.55)')+'">'+fmt(v).replace('R$\u00a0','')+'</text>';
+      bars+='<text x="'+(x+bW/2)+'" y="'+labelY+'" text-anchor="middle" font-size="11" font-weight="'+(isCur?'700':'600')+'" fill="'+(isCur?'#FF8533':'rgba(255,255,255,.55)')+'">'+fmt(v).replace('R$\u00a0','')+'</text>';
     }
     // rótulo mês
     bars+='<text x="'+(x+bW/2)+'" y="'+(svgH-10)+'" text-anchor="middle" font-size="11" fill="'+(isCur?'var(--brand)':'rgba(255,255,255,.4)')+'" font-weight="'+(isCur?'700':'400')+'">'+label+'</text>';
