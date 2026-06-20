@@ -305,6 +305,8 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
   <nav class="sb-nav">
     <div class="sb-sec">Início</div>
     <button class="nb active" id="nb-dash"      onclick="showView('dash')">     🏠 Dashboard</button>
+    <div class="sb-sec">Vendas</div>
+    <button class="nb" id="nb-venda-rapida" onclick="showView('venda-rapida')">⚡ Registrar Venda</button>
     <div class="sb-sec">Orçamento</div>
     <button class="nb" id="nb-form"      onclick="showView('form')">     ✏️ Novo orçamento</button>
     <button class="nb" id="nb-preview"   onclick="showView('preview')">  👁 Pré-visualizar</button>
@@ -370,6 +372,76 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
           <div class="dash-panel-title"><span class="dash-panel-title-icon">📊</span>Status geral</div>
           <div id="dash-status-chart"></div>
         </div>
+      </div>
+    </div>
+
+    <!-- VENDA RÁPIDA -->
+    <div id="view-venda-rapida" style="display:none;min-height:100%">
+      <div class="info-box">⚡ Use esta tela para registrar vendas rápidas (Shopee, Mercado Livre, balcão, Instagram) sem precisar montar um orçamento completo. A venda entra automaticamente na Receita, Estoque, MEI, DRE e demais cálculos do sistema — exatamente como um orçamento aprovado.</div>
+
+      <div class="card">
+        <div class="card-title">Nova Venda Rápida</div>
+        <div class="g3">
+          <div><label class="lbl">Data da venda *</label><input type="date" id="vr-data"></div>
+          <div><label class="lbl">Canal de venda</label><select id="vr-canal"></select></div>
+          <div><label class="lbl">Nº do pedido (opcional)</label><input id="vr-pedido" placeholder="Ex: Shopee #12345"></div>
+        </div>
+        <div class="mt"><label class="lbl">Cliente (opcional)</label><input id="vr-cliente" placeholder="Nome do comprador, se souber" list="vr-clientes-list"><datalist id="vr-clientes-list"></datalist></div>
+
+        <div class="mt">
+          <label class="lbl">Itens vendidos</label>
+          <div class="items-wrap">
+            <table class="itens" style="min-width:0">
+              <thead><tr>
+                <th style="width:34%">Produto</th>
+                <th style="width:12%">Qtd.</th>
+                <th style="width:18%">Valor unit.</th>
+                <th style="width:18%;text-align:right">Subtotal</th>
+                <th style="width:8%"></th>
+              </tr></thead>
+              <tbody id="vr-itens-body"></tbody>
+            </table>
+          </div>
+          <button class="add-row" onclick="addVendaRapidaItem()">＋ Adicionar item</button>
+        </div>
+
+        <div class="totals-box mt">
+          <div class="trow"><span>Subtotal</span><span id="vr-subtotal">R$ 0,00</span></div>
+          <div class="g2 mt">
+            <div><label class="lbl">Desconto geral (%)</label><input type="number" id="vr-desconto" value="0" min="0" max="100" step="0.1" oninput="calcularVendaRapida()"></div>
+            <div><label class="lbl">Frete cobrado do cliente (R$)</label><input type="number" id="vr-frete" value="0" min="0" step="0.01" oninput="calcularVendaRapida()"></div>
+          </div>
+          <div class="tfinal"><span>TOTAL</span><span id="vr-total">R$ 0,00</span></div>
+        </div>
+
+        <div class="mt">
+          <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="vr-ja-pago" checked style="width:auto;padding:0"> Já recebi o pagamento (não gera Conta a Receber)
+          </label>
+        </div>
+        <div class="mt"><label class="lbl">Observações</label><textarea id="vr-obs" style="min-height:44px" placeholder="Opcional..."></textarea></div>
+
+        <div class="mt" style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-out" onclick="limparVendaRapida()">↺ Limpar</button>
+          <button class="btn btn-brand" onclick="salvarVendaRapida()">💾 Registrar Venda</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          Vendas Rápidas Registradas
+          <span style="margin-left:auto;display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+            <input id="vr-search" placeholder="🔍 Cliente, pedido..." style="max-width:200px" oninput="renderVendasRapidas()">
+          </span>
+        </div>
+        <div class="items-wrap">
+          <table class="cat"><thead><tr>
+            <th style="width:11%">Data</th><th style="width:20%">Canal</th>
+            <th style="width:18%">Cliente/Pedido</th><th style="width:10%">Itens</th>
+            <th style="width:13%">Total</th><th style="width:13%">Status</th><th style="width:15%"></th>
+          </tr></thead><tbody id="vr-lista-body"></tbody></table>
+        </div>
+        <div id="vr-lista-empty" style="text-align:center;padding:26px;color:rgba(255,255,255,.4);font-size:13px;display:none">Nenhuma venda rápida registrada ainda.</div>
       </div>
     </div>
 
@@ -2814,6 +2886,207 @@ function getStatusContaReceber(c){
   return venc<new Date()?'vencido':'pendente';
 }
 
+// ═══════════════════════════════════════════════════
+// VENDA RÁPIDA — registro de vendas de marketplace fora do fluxo de orçamento
+// ═══════════════════════════════════════════════════
+// Estratégia: salva no MESMO array do histórico (orcpro_hist), com tipoRegistro:'venda_rapida'
+// e status 'Aprovado' direto — assim TODOS os cálculos que já leem getHist() (Dashboard,
+// MEI, DRE, Margem por Produto, Rateio do Precificador, Limite MEI, Estoque) funcionam
+// automaticamente, sem precisar duplicar nenhuma lógica de cálculo.
+var vrIid=0;
+
+function addVendaRapidaItem(nome,qty,price){
+  var id=++vrIid;
+  var tbody=ge('vr-itens-body');
+  var tr=document.createElement('tr');tr.id='vri'+id;
+  var prods=getProdutos();
+  var datalistId='vr-prod-list';
+  if(!ge(datalistId)){
+    var dl=document.createElement('datalist');dl.id=datalistId;
+    dl.innerHTML=prods.map(function(p){return'<option value="'+p.nome+'">';}).join('');
+    document.body.appendChild(dl);
+  }
+  tr.innerHTML=
+    '<td><input placeholder="Nome do produto" value="'+(nome||'')+'" list="'+datalistId+'" oninput="calcularVendaRapida()" data-f="desc"></td>'+
+    '<td><input type="number" value="'+(qty||1)+'" min="0" step="1" oninput="calcularVendaRapida()" data-f="qty"></td>'+
+    '<td><input type="number" value="'+(price!=null?Number(price).toFixed(2):'')+'" min="0" step="0.01" placeholder="0,00" oninput="calcularVendaRapida()" data-f="price"></td>'+
+    '<td class="sub-cell" id="vrsc'+id+'">R$\u00a00,00</td>'+
+    '<td><button class="del-btn" onclick="removeVendaRapidaItem('+id+')">×</button></td>';
+  tbody.appendChild(tr);
+  // auto-preencher preço se o produto já existir no catálogo
+  var nomeInput=tr.querySelector('[data-f="desc"]');
+  nomeInput.addEventListener('change',function(){
+    var prod=getProdutos().find(function(p){return p.nome===nomeInput.value;});
+    if(prod){var priceInput=tr.querySelector('[data-f="price"]');if(!priceInput.value)priceInput.value=Number(prod.varejo).toFixed(2);calcularVendaRapida();}
+  });
+  calcularVendaRapida();
+}
+function removeVendaRapidaItem(id){var r=ge('vri'+id);if(r)r.remove();calcularVendaRapida();}
+function getVendaRapidaItens(){
+  return Array.from(document.querySelectorAll('#vr-itens-body tr')).map(function(tr){
+    function g(f){var e=tr.querySelector('[data-f="'+f+'"]');return e?e.value:'';}
+    var qty=parseFloat(g('qty'))||0,price=parseFloat(g('price'))||0;
+    var prod=getProdutos().find(function(p){return p.nome===g('desc');});
+    return{desc:g('desc'),qty:qty,unit:prod?prod.unit:'un',price:price,di:0,sub:qty*price,custo:(prod?(parseFloat(prod.custo)||0):0)*qty};
+  });
+}
+function calcularVendaRapida(){
+  var itens=getVendaRapidaItens();
+  document.querySelectorAll('#vr-itens-body tr').forEach(function(tr,i){
+    var c=tr.querySelector('.sub-cell');if(c&&itens[i])c.textContent=fmt(itens[i].sub);
+  });
+  var subtotal=itens.reduce(function(a,it){return a+it.sub;},0);
+  var desconto=parseFloat(val('vr-desconto'))||0;
+  var frete=parseFloat(val('vr-frete'))||0;
+  var dv=subtotal*desconto/100;
+  var total=subtotal-dv+frete;
+  ge('vr-subtotal').textContent=fmt(subtotal);
+  ge('vr-total').textContent=fmt(total);
+}
+
+function atualizarSelectCanalVendaRapida(){
+  var sel=ge('vr-canal');if(!sel)return;
+  var canais=getCanaisVenda();
+  sel.innerHTML='<option value="">Não informado</option>'+canais.map(function(c){return'<option value="'+c.nome+'">'+c.nome+'</option>';}).join('');
+}
+function atualizarDatalistClientesVendaRapida(){
+  var dl=ge('vr-clientes-list');if(!dl)return;
+  dl.innerHTML=getClientes().map(function(c){return'<option value="'+c.nome+'">';}).join('');
+}
+
+function limparVendaRapida(){
+  setVal('vr-data',hoje());setVal('vr-pedido','');setVal('vr-cliente','');setVal('vr-canal','');
+  setVal('vr-desconto','0');setVal('vr-frete','0');setVal('vr-obs','');
+  ge('vr-ja-pago').checked=true;
+  ge('vr-itens-body').innerHTML='';vrIid=0;
+  addVendaRapidaItem();
+}
+
+function salvarVendaRapida(){
+  var data=val('vr-data');
+  var itens=getVendaRapidaItens().filter(function(it){return it.desc&&it.qty>0;});
+  if(!data){alert('Informe a data da venda.');return;}
+  if(!itens.length){alert('Adicione ao menos um item com nome e quantidade.');return;}
+
+  var custoTotal=itens.reduce(function(a,it){return a+it.custo;},0);
+  var jaPago=ge('vr-ja-pago').checked;
+  var canalNome=val('vr-canal');
+
+  var venda={
+    id:'vr'+Date.now(),
+    num:nextNumPorTipo('servico'),// numeração própria, prefixo de serviço para não conflitar com orçamentos
+    data:data,
+    status:'Aprovado',// vendas rápidas já entram aprovadas — é uma venda que já aconteceu
+    tipoRegistro:'venda_rapida',
+    tipoPreco:'varejo',
+    canalVenda:canalNome,
+    pedidoRef:val('vr-pedido'),
+    desc:'Venda rápida'+(canalNome?' — '+canalNome:'')+(val('vr-pedido')?' #'+val('vr-pedido'):''),
+    pgto:jaPago?'Já recebido':'A receber',
+    prazo:'',entrega:'',obs:val('vr-obs'),termos:'',
+    vendedor:'',modoOpcoes:'simples',
+    descGeral:val('vr-desconto'),frete:val('vr-frete'),
+    parcelas:null,
+    custoCalc:custoTotal,
+    cliente:{nome:val('vr-cliente')||'Cliente não identificado',doc:'',wpp:'',email:'',cep:'',end:''},
+    items:itens,savedAt:new Date().toLocaleString('pt-BR'),
+    _estoqueBaixado:false,_contasGeradas:false
+  };
+
+  var hist=getHist();
+  hist.unshift(venda);
+  saveHist(hist);
+
+  // Reaproveita exatamente a mesma lógica usada quando um orçamento é aprovado
+  baixarEstoquePorAprovacao(venda);
+  venda._estoqueBaixado=true;
+
+  if(!jaPago){
+    gerarContasReceber(venda);
+    venda._contasGeradas=true;
+    // atualiza o registro já com as flags marcadas
+    var histAtualizado=getHist();
+    var idx=histAtualizado.findIndex(function(h){return h.id===venda.id;});
+    if(idx>=0){histAtualizado[idx]=venda;saveHist(histAtualizado);}
+  }
+
+  // registra/atualiza o cliente, se informado (mesma lógica do orçamento)
+  if(val('vr-cliente')){
+    setVal('cli-nome-temp',val('vr-cliente'));// não interfere no form de orçamento, só usamos a lógica abaixo
+  }
+  var nomeCliente=val('vr-cliente');
+  if(nomeCliente){
+    var clientes=getClientes();
+    var idxCli=clientes.findIndex(function(c){return c.nome.toLowerCase()===nomeCliente.toLowerCase();});
+    if(idxCli>=0){
+      clientes[idxCli].orcamentos=clientes[idxCli].orcamentos||[];
+      if(clientes[idxCli].orcamentos.indexOf(venda.num)<0)clientes[idxCli].orcamentos.push(venda.num);
+      clientes[idxCli].ultimoContato=hoje();
+      if(!clientes[idxCli].status||clientes[idxCli].status==='Novo')clientes[idxCli].status='Fechado';
+    }else{
+      clientes.push({id:'c'+Date.now(),nome:nomeCliente,wpp:'',email:'',doc:'',end:'',status:'Fechado',followup:'',obs:'Cliente de venda rápida — '+canalNome,orcamentos:[venda.num],ultimoContato:hoje()});
+    }
+    saveClientes(clientes);
+  }
+
+  limparVendaRapida();
+  renderVendasRapidas();
+  alert('✅ Venda registrada! Estoque, receita e indicadores já foram atualizados automaticamente.');
+}
+
+function renderVendasRapidas(){
+  var hist=getHist().filter(function(h){return h.tipoRegistro==='venda_rapida';});
+  var q=(val('vr-search')||'').toLowerCase();
+  var f=hist.filter(function(h){
+    return!q||(h.cliente.nome||'').toLowerCase().includes(q)||(h.pedidoRef||'').toLowerCase().includes(q)||(h.canalVenda||'').toLowerCase().includes(q);
+  });
+  var tbody=ge('vr-lista-body'),empty=ge('vr-lista-empty');
+  if(!f.length){tbody.innerHTML='';if(empty)empty.style.display='block';return;}
+  if(empty)empty.style.display='none';
+  tbody.innerHTML=f.map(function(h){
+    var total=calcHistTotal(h);
+    var contas=getContasReceber().filter(function(c){return c.orcId===h.id;});
+    var statusPgto=contas.length?(contas.every(function(c){return c.status==='pago';})?'pago':'pendente'):'recebido_direto';
+    var statusHtml={pago:'<span class="badge bo">✅ Pago</span>',pendente:'<span class="badge bp">⏳ A receber</span>',recebido_direto:'<span class="badge bo">✅ Já recebido</span>'}[statusPgto];
+    return'<tr>'+
+      '<td style="font-size:12px;white-space:nowrap">'+fmtDt(h.data)+'</td>'+
+      '<td style="white-space:nowrap">'+(h.canalVenda||'<span style="color:rgba(255,255,255,.3)">—</span>')+'</td>'+
+      '<td style="white-space:nowrap"><strong>'+(h.cliente.nome||'—')+'</strong>'+(h.pedidoRef?'<br><span style="font-size:10px;color:rgba(255,255,255,.4)">#'+h.pedidoRef+'</span>':'')+'</td>'+
+      '<td style="text-align:center">'+(h.items?h.items.length:0)+'</td>'+
+      '<td style="font-weight:700;color:var(--brand);white-space:nowrap">'+fmt(total)+'</td>'+
+      '<td style="white-space:nowrap">'+statusHtml+'</td>'+
+      '<td style="white-space:nowrap"><button class="btn btn-out btn-sm" onclick="editarVendaRapida(\''+h.id+'\')">✏️</button> <button class="btn btn-danger btn-sm" onclick="deletarVendaRapida(\''+h.id+'\')">🗑</button></td>'+
+    '</tr>';
+  }).join('');
+}
+
+function editarVendaRapida(id){
+  var h=getHist().find(function(x){return x.id===id;});if(!h)return;
+  setVal('vr-data',h.data);setVal('vr-canal',h.canalVenda||'');setVal('vr-pedido',h.pedidoRef||'');
+  setVal('vr-cliente',h.cliente.nome==='Cliente não identificado'?'':h.cliente.nome);
+  setVal('vr-desconto',h.descGeral||'0');setVal('vr-frete',h.frete||'0');setVal('vr-obs',h.obs||'');
+  ge('vr-itens-body').innerHTML='';vrIid=0;
+  (h.items||[]).forEach(function(it){addVendaRapidaItem(it.desc,it.qty,it.price);});
+  // remove o registro antigo (será re-salvo ao clicar em Registrar Venda de novo)
+  deletarVendaRapida(id,true);
+}
+function deletarVendaRapida(id,silencioso){
+  if(!silencioso&&!confirm('Excluir esta venda? Isso reverte a entrada no estoque e remove contas a receber associadas.'))return;
+  var hist=getHist();
+  var venda=hist.find(function(h){return h.id===id;});
+  if(venda){
+    // reverte estoque
+    (venda.items||[]).forEach(function(it){
+      var prod=getProdutos().find(function(p){return p.nome===it.desc;});
+      if(prod&&prod.controlaEstoque)ajustarEstoque(prod.id,Math.abs(parseFloat(it.qty)||0),'Reversão — exclusão de venda rápida',venda.id);
+    });
+    // remove contas a receber associadas
+    saveContasReceber(getContasReceber().filter(function(c){return c.orcId!==id;}));
+  }
+  saveHist(hist.filter(function(h){return h.id!==id;}));
+  renderVendasRapidas();
+}
+
 function openMarcarPagoModal(id){
   ge('receber-edit-id').value=id;
   setVal('receber-data-pgto',hoje());
@@ -5059,7 +5332,7 @@ function verificarAutoSyncGoogleDrive(){
 // NAVEGAÇÃO
 // ═══════════════════════════════════════════════════
 function showView(name){
-  var views=['dash','form','preview','hist','os','templates','cat','clientes','config','mei','notas','fornec','receber','pagar','dre','usuarios'];
+  var views=['dash','form','preview','hist','os','templates','cat','clientes','config','mei','notas','fornec','receber','pagar','dre','usuarios','venda-rapida'];
   views.forEach(function(n){
     var v=ge('view-'+n);if(v)v.style.display=n===name?'block':'none';
     var nb=ge('nb-'+n);if(nb){var badge=nb.querySelector('.nb-badge');nb.className='nb'+(n===name?' active':'');if(badge)nb.appendChild(badge);}
@@ -5080,7 +5353,7 @@ function showView(name){
   if(tbSub)tbSub.style.color='var(--dark-text3)';
   if(tbAccent)tbAccent.style.background='linear-gradient(180deg,var(--brand),transparent)';
 
-  var titles={dash:['Dashboard','Visão geral do negócio'],form:['Novo Orçamento','Preencha os dados abaixo'],preview:['Pré-visualização','Revise e envie ao cliente'],hist:['Histórico','Edite e acompanhe orçamentos'],os:['Ordens de Serviço','Acompanhe a produção'],templates:['Templates','Orçamentos reutilizáveis'],cat:['Catálogo de Produtos','Preços, custos e margens'],clientes:['Clientes & Follow-up','Gerencie relacionamentos'],config:['Minha Empresa','Dados, logotipo e backup'],mei:['Dashboard MEI','Controle financeiro para declaração anual'],notas:['Notas de Compra','Entrada de estoque e despesas automáticas'],fornec:['Fornecedores','Gerencie seus fornecedores'],receber:['Contas a Receber','Controle de pagamentos dos clientes'],pagar:['Contas a Pagar','RH, custos fixos e fornecedores'],dre:['DRE Simplificado','Demonstrativo de resultado mês a mês'],usuarios:['Usuários','Perfis de acesso da equipe']};
+  var titles={dash:['Dashboard','Visão geral do negócio'],form:['Novo Orçamento','Preencha os dados abaixo'],preview:['Pré-visualização','Revise e envie ao cliente'],hist:['Histórico','Edite e acompanhe orçamentos'],os:['Ordens de Serviço','Acompanhe a produção'],templates:['Templates','Orçamentos reutilizáveis'],cat:['Catálogo de Produtos','Preços, custos e margens'],clientes:['Clientes & Follow-up','Gerencie relacionamentos'],config:['Minha Empresa','Dados, logotipo e backup'],mei:['Dashboard MEI','Controle financeiro para declaração anual'],notas:['Notas de Compra','Entrada de estoque e despesas automáticas'],fornec:['Fornecedores','Gerencie seus fornecedores'],receber:['Contas a Receber','Controle de pagamentos dos clientes'],pagar:['Contas a Pagar','RH, custos fixos e fornecedores'],dre:['DRE Simplificado','Demonstrativo de resultado mês a mês'],usuarios:['Usuários','Perfis de acesso da equipe'],'venda-rapida':['Registrar Venda','Vendas rápidas de marketplace e balcão']};
   ge('tb-title').textContent=titles[name][0];ge('tb-sub').textContent=titles[name][1];
   var acts={
     dash:'<button class="btn btn-brand" onclick="showView(\'form\')">✏️ Novo orçamento</button> <button class="btn btn-out" onclick="abrirRelatorioSemanal()">📊 Relatório semanal</button>',
@@ -5095,7 +5368,8 @@ function showView(name){
     notas:'<button class="btn btn-brand" onclick="openNotaModal()">＋ Nova nota de compra</button>',
     fornec:'<button class="btn btn-brand" onclick="openFornecedorModal()">＋ Novo fornecedor</button>',
     receber:'',pagar:'',dre:'<button class="btn btn-out" onclick="exportarDREExcel()">📊 Exportar Excel</button>',
-    usuarios:'<button class="btn btn-brand" onclick="openUsuarioModal()">＋ Novo usuário</button>'
+    usuarios:'<button class="btn btn-brand" onclick="openUsuarioModal()">＋ Novo usuário</button>',
+    'venda-rapida':''
   };
   ge('tb-actions').innerHTML=acts[name]||'';
   if(name==='preview')buildPreview();
@@ -5113,6 +5387,12 @@ function showView(name){
   if(name==='pagar')renderContasPagar();
   if(name==='dre')renderDRE();
   if(name==='usuarios')renderUsuarios();
+  if(name==='venda-rapida'){
+    atualizarSelectCanalVendaRapida();
+    atualizarDatalistClientesVendaRapida();
+    if(!ge('vr-data').value)limparVendaRapida();
+    renderVendasRapidas();
+  }
 }
 
 // ═══════════════════════════════════════════════════
@@ -5474,7 +5754,7 @@ function startApp(){
     showView('config');
     setTimeout(function(){alert('👋 Bem-vindo ao Orçamento Pro v6!\n\nConfigure sua empresa para começar.');},300);
   } else {
-    var validViews=['dash','form','hist','os','templates','cat','clientes','config','mei','notas','fornec','receber','pagar','dre','usuarios'];
+    var validViews=['dash','form','hist','os','templates','cat','clientes','config','mei','notas','fornec','receber','pagar','dre','usuarios','venda-rapida'];
     var lastView=localStorage.getItem('orcpro_last_view');
     var viewToShow=(lastView&&validViews.indexOf(lastView)>=0)?lastView:'dash';
     showView(viewToShow);
