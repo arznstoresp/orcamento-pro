@@ -922,9 +922,9 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
         </div>
         <div class="items-wrap">
           <table class="cat"><thead><tr>
-            <th style="width:12%">Data</th><th style="width:32%">Descrição</th>
-            <th style="width:18%">Categoria</th><th style="width:14%">Valor</th>
-            <th style="width:14%">Recorrente</th><th style="width:10%"></th>
+            <th style="width:10%">Lançamento</th><th style="width:24%">Descrição</th>
+            <th style="width:14%">Categoria</th><th style="width:11%">Valor</th>
+            <th style="width:11%">Vencimento</th><th style="width:10%">Status</th><th style="width:20%"></th>
           </tr></thead><tbody id="mei-despesas-body"></tbody></table>
         </div>
         <div id="mei-despesas-empty" style="text-align:center;padding:26px;color:rgba(255,255,255,.4);font-size:13px;display:none">Nenhuma despesa lançada ainda neste ano.</div>
@@ -988,6 +988,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
               <option value="rh">RH</option>
               <option value="custo">Custo Fixo/Variável</option>
               <option value="nota">Nota de Compra</option>
+              <option value="despesa">Despesa Pontual</option>
             </select>
           </span>
         </div>
@@ -1196,8 +1197,20 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
     <div class="modal-title" id="modal-despesa-title">Nova Despesa</div>
     <input type="hidden" id="despesa-edit-id">
     <div class="g2">
-      <div><label class="lbl">Data *</label><input type="date" id="desp-data"></div>
+      <div><label class="lbl">Data do lançamento *</label><input type="date" id="desp-data"></div>
       <div><label class="lbl">Valor (R$) *</label><input type="number" id="desp-valor" placeholder="0,00" min="0" step="0.01"></div>
+    </div>
+    <div class="g2 mt">
+      <div><label class="lbl">Data de vencimento *</label><input type="date" id="desp-vencimento"></div>
+      <div><label class="lbl">Status</label>
+        <select id="desp-status" onchange="toggleDespDataPgto()">
+          <option value="pendente">⏳ Pendente</option>
+          <option value="pago">✅ Pago</option>
+        </select>
+      </div>
+    </div>
+    <div class="mt" id="desp-data-pgto-wrap" style="display:none">
+      <label class="lbl">Data em que foi pago</label><input type="date" id="desp-data-pgto">
     </div>
     <div class="mt"><label class="lbl">Descrição *</label><input id="desp-desc" placeholder="Ex: Compra de canecas em branco"></div>
     <div class="g2 mt">
@@ -2779,10 +2792,24 @@ function montarListaContasPagar(){
     lista.push({id:key,desc:'Nota '+(n.numero?'#'+n.numero:'')+' — '+n.fornecedorNome,tipo:'nota',tipoLabel:'Fornecedor',valor:n.total,vencimento:n.data,pago:!!pagas[key]});
   });
 
+  // Despesas pontuais com vencimento próprio (usa o status/vencimento real cadastrado nelas)
+  getDespesas().filter(function(d){
+    var venc=d.vencimento||d.data;
+    return venc&&venc.substring(0,7)===(anoAtual+'-'+String(mesAtual+1).padStart(2,'0'));
+  }).forEach(function(d){
+    lista.push({id:'desp_'+d.id,desc:d.desc,tipo:'despesa',tipoLabel:'Despesa',valor:d.valor,vencimento:d.vencimento||d.data,pago:d.status==='pago',despesaId:d.id});
+  });
+
   return lista.sort(function(a,b){return a.vencimento<b.vencimento?-1:1;});
 }
 
 function marcarContaPagarPago(id,pago){
+  // Se for uma despesa pontual, atualiza o status diretamente no registro da despesa (fonte única de verdade)
+  if(id.indexOf('desp_')===0){
+    var despesaId=id.substring(5);
+    marcarDespesaPaga(despesaId,pago);
+    return;
+  }
   var pagas=getContasPagarPagas();
   if(pago)pagas[id]=true;else delete pagas[id];
   saveContasPagarPagas(pagas);
@@ -2815,7 +2842,7 @@ function renderContasPagar(){
   if(!f.length){tbody.innerHTML='';if(empty)empty.style.display='block';return;}
   if(empty)empty.style.display='none';
 
-  var tipoCor={rh:'bbl',custo:'by',nota:'br'};
+  var tipoCor={rh:'bbl',custo:'by',nota:'br',despesa:'bp'};
   tbody.innerHTML=f.map(function(l){
     var vencido=!l.pago&&l.vencimento<hojeStr;
     return'<tr style="'+(vencido?'background:rgba(239,68,68,.06)':'')+'">'+
@@ -3001,28 +3028,61 @@ var LIMITE_MEI_ANUAL=81000;
 function getDespesas(){try{return JSON.parse(localStorage.getItem('orcpro_despesas')||'[]');}catch(e){return[];}}
 function saveDespesas(arr){localStorage.setItem('orcpro_despesas',JSON.stringify(arr));}
 
+function toggleDespDataPgto(){
+  ge('desp-data-pgto-wrap').style.display=val('desp-status')==='pago'?'block':'none';
+}
+
 function openDespesaModal(id){
   ge('despesa-edit-id').value=id||'';
   ge('modal-despesa-title').textContent=id?'Editar Despesa':'Nova Despesa';
   if(id){
     var d=getDespesas().find(function(x){return x.id===id;});
-    if(d){setVal('desp-data',d.data);setVal('desp-valor',d.valor);setVal('desp-desc',d.desc);setVal('desp-cat',d.cat);setVal('desp-recorrente',d.recorrente||'');setVal('desp-obs',d.obs);}
+    if(d){
+      setVal('desp-data',d.data);setVal('desp-valor',d.valor);setVal('desp-desc',d.desc);setVal('desp-cat',d.cat);setVal('desp-recorrente',d.recorrente||'');setVal('desp-obs',d.obs);
+      // retrocompatibilidade: despesas antigas sem vencimento/status usam a própria data e ficam pendentes
+      setVal('desp-vencimento',d.vencimento||d.data);
+      setVal('desp-status',d.status||'pendente');
+      setVal('desp-data-pgto',d.dataPgto||'');
+      toggleDespDataPgto();
+    }
   }else{
     setVal('desp-data',hoje());setVal('desp-valor','');setVal('desp-desc','');setVal('desp-cat','Matéria-prima / Insumos');setVal('desp-recorrente','');setVal('desp-obs','');
+    setVal('desp-vencimento',hoje());setVal('desp-status','pendente');setVal('desp-data-pgto','');
+    toggleDespDataPgto();
   }
   ge('modal-despesa').className='modal-overlay open';
 }
 function closeDespesaModal(){ge('modal-despesa').className='modal-overlay';}
 function saveDespesa(){
-  var data=val('desp-data'),valor=parseFloat(val('desp-valor'))||0,desc=val('desp-desc');
+  var data=val('desp-data'),valor=parseFloat(val('desp-valor'))||0,desc=val('desp-desc'),vencimento=val('desp-vencimento');
   if(!data||!valor||!desc){alert('Preencha data, valor e descrição.');return;}
+  if(!vencimento){alert('Preencha a data de vencimento.');return;}
+  var status=val('desp-status');
   var despesas=getDespesas(),editId=val('despesa-edit-id');
-  var d={id:editId||'d'+Date.now(),data:data,valor:valor,desc:desc,cat:val('desp-cat'),recorrente:val('desp-recorrente'),obs:val('desp-obs')};
+  var d={
+    id:editId||'d'+Date.now(),data:data,valor:valor,desc:desc,cat:val('desp-cat'),recorrente:val('desp-recorrente'),obs:val('desp-obs'),
+    vencimento:vencimento,status:status,dataPgto:status==='pago'?(val('desp-data-pgto')||hoje()):''
+  };
   if(editId){var idx=despesas.findIndex(function(x){return x.id===editId;});if(idx>=0)despesas[idx]=d;else despesas.push(d);}
   else despesas.push(d);
   saveDespesas(despesas);closeDespesaModal();renderMEI();
 }
 function deleteDespesa(id){if(!confirm('Excluir despesa?'))return;saveDespesas(getDespesas().filter(function(d){return d.id!==id;}));renderMEI();}
+function marcarDespesaPaga(id,pago){
+  var despesas=getDespesas();
+  var idx=despesas.findIndex(function(d){return d.id===id;});
+  if(idx>=0){
+    despesas[idx].status=pago?'pago':'pendente';
+    despesas[idx].dataPgto=pago?hoje():'';
+    saveDespesas(despesas);
+  }
+  renderMEI();
+}
+function getStatusDespesa(d){
+  if(d.status==='pago')return'pago';
+  var venc=d.vencimento||d.data;
+  return venc<hoje()?'vencido':'pendente';
+}
 
 function getAnosDisponiveis(){
   var hist=getHist(),despesas=getDespesas(),anos={};
@@ -3423,14 +3483,25 @@ function renderMEI(){
   } else {
     if(empty)empty.style.display='none';
     despesasOriginais.sort(function(a,b){return a.data<b.data?1:-1;});
+    var statusBadgeDesp={pendente:'<span class="badge bp">⏳ Pendente</span>',vencido:'<span class="badge br">⚠️ Vencido</span>',pago:'<span class="badge bo">✅ Pago</span>'};
     tbody.innerHTML=despesasOriginais.map(function(d){
+      var st=getStatusDespesa(d);
+      var venc=d.vencimento||d.data;
       return'<tr>'+
-        '<td style="font-size:12px">'+fmtDt(d.data)+'</td>'+
-        '<td><strong>'+d.desc+'</strong>'+(d.obs?'<br><span style="font-size:10px;color:rgba(255,255,255,.4)">'+d.obs+'</span>':'')+'</td>'+
-        '<td style="font-size:12px;color:rgba(255,255,255,.6)">'+d.cat+'</td>'+
-        '<td style="font-weight:700;color:var(--red)">'+fmt(d.valor)+'</td>'+
-        '<td>'+(d.recorrente==='mensal'?'<span class="badge bbl">🔁 Mensal</span>':'<span style="color:rgba(255,255,255,.35);font-size:12px">Única</span>')+'</td>'+
-        '<td style="white-space:nowrap"><button class="btn btn-out btn-sm" onclick="openDespesaModal(\''+d.id+'\')">✏️</button> <button class="btn btn-danger btn-sm" onclick="deleteDespesa(\''+d.id+'\')">🗑</button></td>'+
+        '<td style="font-size:12px;white-space:nowrap">'+fmtDt(d.data)+'</td>'+
+        '<td><strong>'+d.desc+'</strong>'+(d.recorrente==='mensal'?' <span class="badge bbl" style="font-size:9px">🔁 Mensal</span>':'')+(d.obs?'<br><span style="font-size:10px;color:rgba(255,255,255,.4)">'+d.obs+'</span>':'')+'</td>'+
+        '<td style="font-size:12px;color:rgba(255,255,255,.6);white-space:nowrap">'+d.cat+'</td>'+
+        '<td style="font-weight:700;color:var(--red);white-space:nowrap">'+fmt(d.valor)+'</td>'+
+        '<td style="font-size:12px;white-space:nowrap;'+(st==='vencido'?'color:var(--red);font-weight:600':'')+'">'+fmtDt(venc)+'</td>'+
+        '<td style="white-space:nowrap">'+statusBadgeDesp[st]+'</td>'+
+        '<td style="white-space:nowrap">'+
+          (st==='pago'?
+            '<button class="btn btn-out btn-sm" onclick="marcarDespesaPaga(\''+d.id+'\',false)">↺</button>'
+          :
+            '<button class="btn btn-green btn-sm" onclick="marcarDespesaPaga(\''+d.id+'\',true)">✅</button>'
+          )+
+          ' <button class="btn btn-out btn-sm" onclick="openDespesaModal(\''+d.id+'\')">✏️</button> <button class="btn btn-danger btn-sm" onclick="deleteDespesa(\''+d.id+'\')">🗑</button>'+
+        '</td>'+
       '</tr>';
     }).join('');
   }
