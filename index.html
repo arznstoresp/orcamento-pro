@@ -2863,20 +2863,21 @@ function renderMEI(){
     custosTbody.innerHTML=todosCustos.map(function(c){
       var valoresAno=(c.valoresPorMes&&c.valoresPorMes[anoSel])||{};
       var valorMesAtual=valoresAno[mesParaEditar];
+      var valorMesAtualFmt=valorMesAtual!=null?Number(valorMesAtual).toFixed(2):'';
       // histórico: quantos meses já preenchidos e total do ano
       var mesesPreenchidos=Object.keys(valoresAno).length;
       var totalAno=Object.values(valoresAno).reduce(function(a,v){return a+v;},0);
       var historicoTxt=mesesPreenchidos?mesesPreenchidos+' mês'+(mesesPreenchidos===1?'':'es')+' preenchido'+(mesesPreenchidos===1?'':'s')+' · total '+fmt(totalAno):'<span style="color:rgba(255,255,255,.3)">Nenhum mês preenchido ainda</span>';
       return'<tr>'+
-        '<td><strong>'+c.desc+'</strong></td>'+
-        '<td>'+(c.tipo==='fixo'?'<span class="badge bbl">Fixo</span>':'<span class="badge by">Variável</span>')+'</td>'+
+        '<td style="white-space:nowrap"><strong>'+c.desc+'</strong></td>'+
+        '<td style="white-space:nowrap">'+(c.tipo==='fixo'?'<span class="badge bbl">Fixo</span>':'<span class="badge by">Variável</span>')+'</td>'+
         '<td>'+
-          '<input type="number" value="'+(valorMesAtual!=null?valorMesAtual:'')+'" placeholder="0,00" min="0" step="0.01" '+
+          '<input type="number" value="'+valorMesAtualFmt+'" placeholder="0,00" min="0" step="0.01" '+
           'style="max-width:120px;border-color:var(--brand);background:rgba(255,107,0,.06)" '+
           'onchange="quickEditCustoMes(\''+c.id+'\','+anoSel+','+mesParaEditar+',this.value)">'+
         '</td>'+
-        '<td style="font-size:11px;color:rgba(255,255,255,.5)">'+historicoTxt+'</td>'+
-        '<td style="display:flex;gap:3px;align-items:center"><button class="btn btn-out btn-sm" onclick="openCustoModal(\''+c.id+'\')" title="Editar todos os meses">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteCusto(\''+c.id+'\')">🗑</button></td>'+
+        '<td style="font-size:11px;color:rgba(255,255,255,.5);white-space:nowrap">'+historicoTxt+'</td>'+
+        '<td style="display:flex;gap:3px;align-items:center;white-space:nowrap"><button class="btn btn-out btn-sm" onclick="openCustoModal(\''+c.id+'\')" title="Editar todos os meses">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteCusto(\''+c.id+'\')">🗑</button></td>'+
       '</tr>';
     }).join('');
   }
@@ -2890,11 +2891,11 @@ function renderMEI(){
     if(rhEmpty)rhEmpty.style.display='none';
     rhTbody.innerHTML=pagamentosRH.map(function(p){
       return'<tr>'+
-        '<td><strong>'+p.nome+'</strong></td>'+
-        '<td style="font-weight:700;color:var(--blue)">'+fmt(p.valor)+'</td>'+
-        '<td style="font-size:12px">Todo dia <strong>'+p.dia+'</strong></td>'+
+        '<td style="white-space:nowrap"><strong>'+p.nome+'</strong></td>'+
+        '<td style="font-weight:700;color:var(--blue);white-space:nowrap">'+fmt(p.valor)+'</td>'+
+        '<td style="font-size:12px;white-space:nowrap">Todo dia <strong>'+p.dia+'</strong></td>'+
         '<td style="font-size:12px;color:rgba(255,255,255,.5)">'+(p.obs||'—')+'</td>'+
-        '<td style="display:flex;gap:3px;align-items:center"><button class="btn btn-out btn-sm" onclick="openPagamentoModal(\''+p.id+'\')">✏️</button><button class="btn btn-danger btn-sm" onclick="deletePagamento(\''+p.id+'\')">🗑</button></td>'+
+        '<td style="display:flex;gap:3px;align-items:center;white-space:nowrap"><button class="btn btn-out btn-sm" onclick="openPagamentoModal(\''+p.id+'\')">✏️</button><button class="btn btn-danger btn-sm" onclick="deletePagamento(\''+p.id+'\')">🗑</button></td>'+
       '</tr>';
     }).join('');
   }
@@ -3628,6 +3629,9 @@ function showView(name){
     var nb=ge('nb-'+n);if(nb){var badge=nb.querySelector('.nb-badge');nb.className='nb'+(n===name?' active':'');if(badge)nb.appendChild(badge);}
   });
 
+  // Lembrar a última tela visitada para restaurar após F5 (exceto preview, que depende do form preenchido)
+  if(name!=='preview')localStorage.setItem('orcpro_last_view',name);
+
   // ── Tema dark unificado em todas as telas ──
   var content=document.querySelector('.content');
   var topbar=document.querySelector('.topbar');
@@ -4028,7 +4032,10 @@ function startApp(){
     showView('config');
     setTimeout(function(){alert('👋 Bem-vindo ao Orçamento Pro v6!\n\nConfigure sua empresa para começar.');},300);
   } else {
-    showView('dash');
+    var validViews=['dash','form','hist','os','templates','cat','clientes','config','mei','notas','fornec'];
+    var lastView=localStorage.getItem('orcpro_last_view');
+    var viewToShow=(lastView&&validViews.indexOf(lastView)>=0)?lastView:'dash';
+    showView(viewToShow);
     // ── AUTOMAÇÕES AO ABRIR ──
     setTimeout(function(){
       // 1. Auto-expirar orçamentos vencidos há muito tempo
