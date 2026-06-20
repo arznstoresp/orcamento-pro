@@ -312,6 +312,9 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
     <button class="nb" id="nb-templates" onclick="showView('templates')">⭐ Templates</button>
     <div class="sb-sec">Catálogo</div>
     <button class="nb" id="nb-cat"       onclick="showView('cat')">      📦 Produtos</button>
+    <div class="sb-sec">Estoque</div>
+    <button class="nb" id="nb-notas"     onclick="showView('notas')">    🧾 Notas de Compra</button>
+    <button class="nb" id="nb-fornec"    onclick="showView('fornec')">   🚚 Fornecedores</button>
     <div class="sb-sec">CRM</div>
     <button class="nb" id="nb-clientes"  onclick="showView('clientes')"> 👥 Clientes &amp; Follow-up</button>
     <div class="sb-sec">Financeiro</div>
@@ -570,23 +573,65 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
 
     <!-- CATÁLOGO -->
     <div id="view-cat" style="display:none;min-height:100%">
+      <div id="cat-alertas"></div>
       <div class="card">
         <div class="card-title">Produtos <span id="cat-count" style="margin-left:6px;font-size:12px;color:var(--brand);font-weight:700"></span></div>
         <div style="display:flex;gap:7px;margin-bottom:11px;flex-wrap:wrap;align-items:center">
           <input id="cat-search" placeholder="🔍 Buscar..." style="max-width:200px" oninput="renderCat()">
+          <label style="font-size:12px;color:rgba(255,255,255,.55);font-weight:400;display:flex;align-items:center;gap:5px;cursor:pointer">
+            <input type="checkbox" id="cat-filtro-estoque-baixo" onchange="renderCat()" style="width:auto;padding:0"> Só estoque baixo
+          </label>
           <button class="btn btn-brand btn-sm" onclick="openProdModal()">＋ Novo produto</button>
           <button class="btn btn-out btn-sm" onclick="downloadTemplateXlsProd()">📥 Modelo Excel</button>
           <label class="btn btn-out btn-sm" style="cursor:pointer">📤 Importar<input type="file" id="import-prod-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importProdExcel(event)"></label>
         </div>
         <div class="items-wrap">
           <table class="cat"><thead><tr>
-            <th style="width:5%">Foto</th><th style="width:24%">Nome</th><th style="width:12%">Categoria</th>
-            <th style="width:6%">Un.</th><th style="width:10%">Custo</th>
-            <th style="width:11%">Varejo</th><th style="width:11%">Atacado</th>
-            <th style="width:9%">Margem</th><th style="width:12%"></th>
+            <th style="width:5%">Foto</th><th style="width:21%">Nome</th><th style="width:10%">Categoria</th>
+            <th style="width:5%">Un.</th><th style="width:9%">Custo</th>
+            <th style="width:10%">Varejo</th><th style="width:10%">Atacado</th>
+            <th style="width:8%">Margem</th><th style="width:10%">Estoque</th><th style="width:12%"></th>
           </tr></thead><tbody id="cat-body"></tbody></table>
         </div>
         <div id="cat-empty" style="text-align:center;padding:26px;color:rgba(255,255,255,.5);font-size:13px;display:none">Nenhum produto cadastrado.</div>
+      </div>
+    </div>
+
+    <!-- NOTAS DE COMPRA -->
+    <div id="view-notas" style="display:none;min-height:100%">
+      <div class="info-box">🧾 Cadastre suas notas de compra para dar entrada automática no estoque e registrar a despesa no Dashboard MEI — tudo em um único lançamento.</div>
+      <div class="card">
+        <div class="card-title">Notas de Compra <span id="notas-count" style="margin-left:6px;font-size:12px;color:var(--brand);font-weight:700"></span></div>
+        <div style="display:flex;gap:7px;margin-bottom:11px;flex-wrap:wrap;align-items:center">
+          <input id="notas-search" placeholder="🔍 Fornecedor ou nº da nota..." style="max-width:220px" oninput="renderNotas()">
+          <button class="btn btn-brand btn-sm" onclick="openNotaModal()">＋ Nova nota de compra</button>
+        </div>
+        <div class="items-wrap">
+          <table class="cat"><thead><tr>
+            <th style="width:12%">Data</th><th style="width:25%">Fornecedor</th>
+            <th style="width:13%">Nº Nota</th><th style="width:12%">Itens</th>
+            <th style="width:16%">Valor Total</th><th style="width:22%"></th>
+          </tr></thead><tbody id="notas-body"></tbody></table>
+        </div>
+        <div id="notas-empty" style="text-align:center;padding:26px;color:rgba(255,255,255,.5);font-size:13px;display:none">Nenhuma nota de compra cadastrada.</div>
+      </div>
+    </div>
+
+    <!-- FORNECEDORES -->
+    <div id="view-fornec" style="display:none;min-height:100%">
+      <div class="card">
+        <div class="card-title">Fornecedores <span id="fornec-count" style="margin-left:6px;font-size:12px;color:var(--brand);font-weight:700"></span></div>
+        <div style="display:flex;gap:7px;margin-bottom:11px;flex-wrap:wrap;align-items:center">
+          <input id="fornec-search" placeholder="🔍 Buscar..." style="max-width:220px" oninput="renderFornecedores()">
+          <button class="btn btn-brand btn-sm" onclick="openFornecedorModal()">＋ Novo fornecedor</button>
+        </div>
+        <div class="items-wrap">
+          <table class="cat"><thead><tr>
+            <th style="width:25%">Nome</th><th style="width:18%">WhatsApp</th>
+            <th style="width:22%">Contato</th><th style="width:15%">Notas</th><th style="width:20%"></th>
+          </tr></thead><tbody id="fornec-body"></tbody></table>
+        </div>
+        <div id="fornec-empty" style="text-align:center;padding:26px;color:rgba(255,255,255,.5);font-size:13px;display:none">Nenhum fornecedor cadastrado.</div>
       </div>
     </div>
 
@@ -850,6 +895,20 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
       <div><label class="lbl">Atacado (R$)</label><input type="number" id="prod-atacado" placeholder="0,00" min="0" step="0.01"></div>
     </div>
     <div class="mt"><label class="lbl">Qtd mínima atacado</label><input type="number" id="prod-min" value="10" min="1"></div>
+
+    <div class="mt" style="background:rgba(255,255,255,.04);border:1px solid var(--dark-border2);border-radius:10px;padding:12px 14px">
+      <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer;font-weight:600;color:rgba(255,255,255,.8)">
+        <input type="checkbox" id="prod-controla-estoque" onchange="toggleEstoqueFields()" style="width:auto;padding:0"> 📦 Controlar estoque deste produto
+      </label>
+      <div id="prod-estoque-fields" style="display:none;margin-top:10px">
+        <div class="g2">
+          <div><label class="lbl">Qtd. atual em estoque</label><input type="number" id="prod-estoque-qtd" value="0" min="0" step="1"></div>
+          <div><label class="lbl">Estoque mínimo (alerta)</label><input type="number" id="prod-estoque-min" value="5" min="0" step="1"></div>
+        </div>
+        <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:6px">⚠️ Quando o estoque ficar igual ou abaixo do mínimo, você recebe um alerta no Dashboard e no Catálogo. A quantidade some automaticamente quando um orçamento com este item for aprovado, e aumenta ao cadastrar uma nota de compra.</div>
+      </div>
+    </div>
+
     <div class="mt">
       <label class="lbl">Foto <span class="lbl-hint">— aparece no PDF</span></label>
       <div class="logo-upload-area" onclick="document.getElementById('prod-foto-file').click()" style="padding:10px">
@@ -946,6 +1005,68 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
     <div class="modal-footer">
       <button class="btn btn-out" onclick="closeDespesaModal()">Cancelar</button>
       <button class="btn btn-brand" onclick="saveDespesa()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FORNECEDOR -->
+<div class="modal-overlay" id="modal-fornecedor">
+  <div class="modal" style="width:460px">
+    <div class="modal-title" id="modal-fornecedor-title">Novo Fornecedor</div>
+    <input type="hidden" id="fornecedor-edit-id">
+    <div><label class="lbl">Nome *</label><input id="forn-nome" placeholder="Nome da empresa ou pessoa"></div>
+    <div class="g2 mt">
+      <div><label class="lbl">WhatsApp</label><input id="forn-wpp" oninput="maskPhone(this)" maxlength="15" placeholder="(11) 99999-0000"></div>
+      <div><label class="lbl">E-mail</label><input id="forn-email" type="email" placeholder="contato@fornecedor.com"></div>
+    </div>
+    <div class="mt"><label class="lbl">Pessoa de contato</label><input id="forn-contato" placeholder="Nome de quem você fala"></div>
+    <div class="mt"><label class="lbl">Observações</label><textarea id="forn-obs" style="min-height:48px" placeholder="Prazo de entrega, condições, etc..."></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-out" onclick="closeFornecedorModal()">Cancelar</button>
+      <button class="btn btn-brand" onclick="saveFornecedor()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NOTA DE COMPRA -->
+<div class="modal-overlay" id="modal-nota">
+  <div class="modal" style="width:640px">
+    <div class="modal-title" id="modal-nota-title">Nova Nota de Compra</div>
+    <input type="hidden" id="nota-edit-id">
+    <div class="g3">
+      <div><label class="lbl">Data *</label><input type="date" id="nota-data"></div>
+      <div><label class="lbl">Fornecedor *</label><select id="nota-fornecedor"></select></div>
+      <div><label class="lbl">Nº da Nota</label><input id="nota-numero" placeholder="Opcional"></div>
+    </div>
+
+    <div class="mt">
+      <label class="lbl">Itens comprados</label>
+      <div class="items-wrap">
+        <table class="itens" style="min-width:0">
+          <thead><tr>
+            <th style="width:35%">Produto</th>
+            <th style="width:15%">Qtd.</th>
+            <th style="width:20%">Valor unit.</th>
+            <th style="width:20%;text-align:right">Subtotal</th>
+            <th style="width:10%"></th>
+          </tr></thead>
+          <tbody id="nota-itens-body"></tbody>
+        </table>
+      </div>
+      <button class="add-row" onclick="addNotaItem()">＋ Adicionar item</button>
+    </div>
+
+    <div class="totals-box mt">
+      <div class="tfinal" style="font-size:18px"><span>Total da Nota</span><span id="nota-total">R$ 0,00</span></div>
+    </div>
+
+    <div class="mt"><label class="lbl">Observações</label><textarea id="nota-obs" style="min-height:44px" placeholder="Opcional..."></textarea></div>
+
+    <div class="info-box mt" style="margin-bottom:0">✅ Ao salvar: a quantidade entra automaticamente no estoque de cada produto (se ele controla estoque) e o valor total é lançado como despesa em "Matéria-prima / Insumos" no Dashboard MEI.</div>
+
+    <div class="modal-footer">
+      <button class="btn btn-out" onclick="closeNotaModal()">Cancelar</button>
+      <button class="btn btn-brand" onclick="saveNota()">💾 Salvar Nota</button>
     </div>
   </div>
 </div>
@@ -1319,15 +1440,34 @@ function calcMargem(custo,venda){if(!custo||!venda||venda===0)return null;return
 
 function renderCat(){
   var prods=getProdutos(),q=(val('cat-search')||'').toLowerCase();
-  var f=prods.filter(function(p){return!q||p.nome.toLowerCase().includes(q)||(p.cat||'').toLowerCase().includes(q);});
+  var soBaixo=ge('cat-filtro-estoque-baixo')&&ge('cat-filtro-estoque-baixo').checked;
+  var f=prods.filter(function(p){
+    var matchQ=!q||p.nome.toLowerCase().includes(q)||(p.cat||'').toLowerCase().includes(q);
+    var matchBaixo=!soBaixo||(p.controlaEstoque&&(parseFloat(p.estoqueQtd)||0)<=(parseFloat(p.estoqueMin)||0));
+    return matchQ&&matchBaixo;
+  });
   var tbody=ge('cat-body'),empty=ge('cat-empty'),count=ge('cat-count');
   if(count)count.textContent='('+prods.length+')';
+
+  // Alerta de estoque baixo
+  var baixos=getProdutosEstoqueBaixo();
+  var alertEl=ge('cat-alertas');
+  if(alertEl){
+    alertEl.innerHTML=baixos.length?'<div class="warn-box">📦 <strong>'+baixos.length+' produto(s) com estoque baixo:</strong> '+baixos.map(function(p){return p.nome+' ('+(parseFloat(p.estoqueQtd)||0)+' '+p.unit+')';}).join(', ')+'</div>':'';
+  }
+
   if(!f.length){tbody.innerHTML='';if(empty)empty.style.display='block';return;}
   if(empty)empty.style.display='none';
   tbody.innerHTML=f.map(function(p){
     var foto=p.foto?'<img src="'+p.foto+'" class="prod-thumb">':'<div class="prod-thumb-placeholder">📦</div>';
     var mg=calcMargem(p.custo,p.varejo);
     var mgHtml=mg!==null?'<span style="font-weight:600;color:'+(mg>30?'var(--green)':mg>15?'var(--yellow)':'var(--red)')+'">'+fmtPct(mg)+'</span>':'<span style="color:rgba(255,255,255,.5)">—</span>';
+    var estoqueHtml='<span style="color:rgba(255,255,255,.3)">—</span>';
+    if(p.controlaEstoque){
+      var qtd=parseFloat(p.estoqueQtd)||0,min=parseFloat(p.estoqueMin)||0;
+      var baixo=qtd<=min;
+      estoqueHtml='<span style="font-weight:700;color:'+(baixo?'var(--red)':'var(--green)')+'">'+qtd+' '+p.unit+'</span>'+(baixo?' <span title="Estoque baixo">⚠️</span>':'');
+    }
     return'<tr>'+
       '<td>'+foto+'</td>'+
       '<td><strong>'+p.nome+'</strong>'+(p.sku?'<br><span style="font-size:10px;color:rgba(255,255,255,.5)">'+p.sku+'</span>':'')+'</td>'+
@@ -1337,6 +1477,7 @@ function renderCat(){
       '<td style="font-weight:600;color:var(--brand)">'+fmt(p.varejo)+'</td>'+
       '<td style="font-weight:600">'+fmt(p.atacado)+'</td>'+
       '<td>'+mgHtml+'</td>'+
+      '<td>'+estoqueHtml+'</td>'+
       '<td style="display:flex;gap:3px"><button class="btn btn-out btn-sm" onclick="editProd(\''+p.id+'\')">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteProd(\''+p.id+'\')">🗑</button></td>'+
     '</tr>';
   }).join('');
@@ -1347,8 +1488,23 @@ function openProdModal(id){
   // Atualizar datalist de categorias
   var catsDl=ge('cats-datalist');
   if(catsDl)catsDl.innerHTML=getCategorias().map(function(c){return'<option value="'+c+'">';}).join('');
-  if(id){var p=getProdutos().find(function(x){return x.id===id;});if(p){setVal('prod-nome',p.nome);setVal('prod-cat',p.cat);setVal('prod-unit',p.unit);setVal('prod-sku',p.sku);setVal('prod-custo',p.custo||'');setVal('prod-varejo',p.varejo);setVal('prod-atacado',p.atacado);setVal('prod-min',p.minAtacado);setVal('prod-desc',p.desc);setVal('prod-foto-data',p.foto||'');var prev=ge('prod-foto-preview');if(p.foto&&prev)prev.innerHTML='<img src="'+p.foto+'" style="max-height:72px;max-width:150px;border-radius:6px;object-fit:cover"><div class="logo-upload-hint">Clique para trocar</div>';}}
-  else{['prod-nome','prod-cat','prod-sku','prod-custo','prod-varejo','prod-atacado','prod-desc','prod-foto-data'].forEach(function(i){setVal(i,'');});setVal('prod-unit','un');setVal('prod-min','10');var prev=ge('prod-foto-preview');if(prev)prev.innerHTML='<div style="font-size:20px">📷</div><div class="logo-upload-hint">Clique para selecionar (até 1MB)</div>';ge('prod-foto-file').value='';}
+  if(id){
+    var p=getProdutos().find(function(x){return x.id===id;});
+    if(p){
+      setVal('prod-nome',p.nome);setVal('prod-cat',p.cat);setVal('prod-unit',p.unit);setVal('prod-sku',p.sku);setVal('prod-custo',p.custo||'');setVal('prod-varejo',p.varejo);setVal('prod-atacado',p.atacado);setVal('prod-min',p.minAtacado);setVal('prod-desc',p.desc);setVal('prod-foto-data',p.foto||'');
+      var prev=ge('prod-foto-preview');if(p.foto&&prev)prev.innerHTML='<img src="'+p.foto+'" style="max-height:72px;max-width:150px;border-radius:6px;object-fit:cover"><div class="logo-upload-hint">Clique para trocar</div>';
+      ge('prod-controla-estoque').checked=!!p.controlaEstoque;
+      setVal('prod-estoque-qtd',p.estoqueQtd||0);setVal('prod-estoque-min',p.estoqueMin||5);
+      toggleEstoqueFields();
+    }
+  }
+  else{
+    ['prod-nome','prod-cat','prod-sku','prod-custo','prod-varejo','prod-atacado','prod-desc','prod-foto-data'].forEach(function(i){setVal(i,'');});
+    setVal('prod-unit','un');setVal('prod-min','10');
+    var prev=ge('prod-foto-preview');if(prev)prev.innerHTML='<div style="font-size:20px">📷</div><div class="logo-upload-hint">Clique para selecionar (até 1MB)</div>';ge('prod-foto-file').value='';
+    ge('prod-controla-estoque').checked=false;setVal('prod-estoque-qtd','0');setVal('prod-estoque-min','5');
+    toggleEstoqueFields();
+  }
   ge('modal-prod').className='modal-overlay open';
 }
 function closeProdModal(){ge('modal-prod').className='modal-overlay';}
@@ -1359,7 +1515,8 @@ function saveProd(){
   var varejo=parseFloat(val('prod-varejo'))||0,atacado=parseFloat(val('prod-atacado'))||0,custo=parseFloat(val('prod-custo'))||0;
   if(!varejo&&!atacado){alert('Informe ao menos um preço.');return;}
   var prods=getProdutos(),editId=val('prod-edit-id');
-  var prod={id:editId||'p'+Date.now(),nome:nome,cat:val('prod-cat'),unit:val('prod-unit'),sku:val('prod-sku'),custo:custo,varejo:varejo,atacado:atacado||varejo,minAtacado:parseInt(val('prod-min'))||10,desc:val('prod-desc'),foto:val('prod-foto-data')};
+  var controlaEstoque=ge('prod-controla-estoque').checked;
+  var prod={id:editId||'p'+Date.now(),nome:nome,cat:val('prod-cat'),unit:val('prod-unit'),sku:val('prod-sku'),custo:custo,varejo:varejo,atacado:atacado||varejo,minAtacado:parseInt(val('prod-min'))||10,desc:val('prod-desc'),foto:val('prod-foto-data'),controlaEstoque:controlaEstoque,estoqueQtd:controlaEstoque?(parseFloat(val('prod-estoque-qtd'))||0):0,estoqueMin:controlaEstoque?(parseFloat(val('prod-estoque-min'))||0):0};
   if(editId){var idx=prods.findIndex(function(x){return x.id===editId;});if(idx>=0)prods[idx]=prod;else prods.push(prod);}
   else prods.push(prod);
   saveProdutos(prods);closeProdModal();renderCat();
@@ -1616,9 +1773,16 @@ function renderHistComDados(f,isFilter,filterLabel){
 function updateHistStatus(id,status){
   var hist=getHist(),idx=hist.findIndex(function(h){return h.id===id;});
   if(idx>=0){
-    hist[idx].status=status;saveHist(hist);
+    var statusAnterior=hist[idx].status;
+    hist[idx].status=status;
+    // Baixa de estoque só ocorre na transição PARA "Aprovado" (evita baixar de novo se já estava aprovado)
+    if(status==='Aprovado'&&statusAnterior!=='Aprovado'&&!hist[idx]._estoqueBaixado){
+      baixarEstoquePorAprovacao(hist[idx]);
+      hist[idx]._estoqueBaixado=true;
+    }
+    saveHist(hist);
     var cfg=getCfg();
-    if(status==='Aprovado'){
+    if(status==='Aprovado'&&statusAnterior!=='Aprovado'){
       if(cfg.autoOS){
         // Auto-OS: abre modal diretamente
         setTimeout(function(){previewOrcamento(id);setTimeout(function(){gerarOS();},200);},100);
@@ -1836,6 +2000,280 @@ function filtrarHistVencidos(){
 function filtrarHistVencendo(){
   window._filtroVencendo=true;
   showView('hist');
+}
+
+// ═══════════════════════════════════════════════════
+// CONTROLE DE ESTOQUE
+// ═══════════════════════════════════════════════════
+function toggleEstoqueFields(){
+  var checked=ge('prod-controla-estoque').checked;
+  ge('prod-estoque-fields').style.display=checked?'block':'none';
+}
+
+function getMovEstoque(){try{return JSON.parse(localStorage.getItem('orcpro_mov_estoque')||'[]');}catch(e){return[];}}
+function saveMovEstoque(arr){
+  if(arr.length>500)arr=arr.slice(-500);// manter histórico gerenciável
+  localStorage.setItem('orcpro_mov_estoque',JSON.stringify(arr));
+}
+function registrarMovEstoque(produtoId,produtoNome,tipo,qtd,motivo,refId){
+  var mov=getMovEstoque();
+  mov.unshift({id:'mv'+Date.now()+Math.random().toString(36).substr(2,4),produtoId:produtoId,produtoNome:produtoNome,tipo:tipo,qtd:qtd,motivo:motivo,refId:refId||'',data:hoje(),dataHora:new Date().toLocaleString('pt-BR')});
+  saveMovEstoque(mov);
+}
+
+function ajustarEstoque(produtoId,delta,motivo,refId){
+  // delta positivo = entrada, negativo = saída
+  var prods=getProdutos();
+  var idx=prods.findIndex(function(p){return p.id===produtoId;});
+  if(idx<0||!prods[idx].controlaEstoque)return false;
+  var atual=parseFloat(prods[idx].estoqueQtd)||0;
+  var novo=Math.max(0,atual+delta);
+  prods[idx].estoqueQtd=novo;
+  saveProdutos(prods);
+  registrarMovEstoque(produtoId,prods[idx].nome,delta>=0?'entrada':'saida',Math.abs(delta),motivo,refId);
+  return true;
+}
+
+function getProdutosEstoqueBaixo(){
+  return getProdutos().filter(function(p){
+    if(!p.controlaEstoque)return false;
+    var qtd=parseFloat(p.estoqueQtd)||0,min=parseFloat(p.estoqueMin)||0;
+    return qtd<=min;
+  });
+}
+
+function baixarEstoquePorAprovacao(h){
+  // Quando um orçamento é aprovado, desconta do estoque os produtos que controlam estoque
+  if(!h.items)return;
+  var prods=getProdutos();
+  h.items.forEach(function(it){
+    var prod=prods.find(function(p){return p.nome===it.desc;});
+    if(prod&&prod.controlaEstoque){
+      ajustarEstoque(prod.id,-Math.abs(parseFloat(it.qty)||0),'Venda — Orçamento #'+(h.num||''),h.id);
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════
+// FORNECEDORES
+// ═══════════════════════════════════════════════════
+function getFornecedores(){try{return JSON.parse(localStorage.getItem('orcpro_fornecedores')||'[]');}catch(e){return[];}}
+function saveFornecedores(arr){localStorage.setItem('orcpro_fornecedores',JSON.stringify(arr));}
+
+function openFornecedorModal(id){
+  ge('fornecedor-edit-id').value=id||'';
+  ge('modal-fornecedor-title').textContent=id?'Editar Fornecedor':'Novo Fornecedor';
+  if(id){
+    var f=getFornecedores().find(function(x){return x.id===id;});
+    if(f){setVal('forn-nome',f.nome);setVal('forn-wpp',f.wpp);setVal('forn-email',f.email);setVal('forn-contato',f.contato);setVal('forn-obs',f.obs);}
+  }else{
+    ['forn-nome','forn-wpp','forn-email','forn-contato','forn-obs'].forEach(function(i){setVal(i,'');});
+  }
+  ge('modal-fornecedor').className='modal-overlay open';
+}
+function closeFornecedorModal(){ge('modal-fornecedor').className='modal-overlay';}
+function saveFornecedor(){
+  var nome=val('forn-nome');if(!nome){alert('Informe o nome do fornecedor.');return;}
+  var fornecedores=getFornecedores(),editId=val('fornecedor-edit-id');
+  var f={id:editId||'fn'+Date.now(),nome:nome,wpp:val('forn-wpp'),email:val('forn-email'),contato:val('forn-contato'),obs:val('forn-obs')};
+  if(editId){var idx=fornecedores.findIndex(function(x){return x.id===editId;});if(idx>=0)fornecedores[idx]=f;else fornecedores.push(f);}
+  else fornecedores.push(f);
+  saveFornecedores(fornecedores);closeFornecedorModal();renderFornecedores();
+}
+function deleteFornecedor(id){
+  if(getNotasCompra().some(function(n){return n.fornecedorId===id;})){
+    if(!confirm('Este fornecedor tem notas de compra cadastradas. As notas serão mantidas, mas o fornecedor será excluído. Continuar?'))return;
+  } else if(!confirm('Excluir fornecedor?'))return;
+  saveFornecedores(getFornecedores().filter(function(f){return f.id!==id;}));renderFornecedores();
+}
+
+function renderFornecedores(){
+  var fornecedores=getFornecedores(),q=(val('fornec-search')||'').toLowerCase();
+  var notas=getNotasCompra();
+  var f=fornecedores.filter(function(x){return!q||x.nome.toLowerCase().includes(q);});
+  var tbody=ge('fornec-body'),empty=ge('fornec-empty'),count=ge('fornec-count');
+  if(count)count.textContent='('+fornecedores.length+')';
+  if(!f.length){tbody.innerHTML='';if(empty)empty.style.display='block';return;}
+  if(empty)empty.style.display='none';
+  tbody.innerHTML=f.map(function(x){
+    var nNotas=notas.filter(function(n){return n.fornecedorId===x.id;}).length;
+    return'<tr>'+
+      '<td><strong>'+x.nome+'</strong></td>'+
+      '<td style="font-size:12px">'+(x.wpp?'<a href="https://wa.me/'+x.wpp.replace(/\D/g,'')+'" target="_blank" style="color:var(--brand)">'+x.wpp+'</a>':'—')+'</td>'+
+      '<td style="font-size:12px;color:rgba(255,255,255,.6)">'+(x.contato||'—')+'</td>'+
+      '<td style="text-align:center;font-weight:700;color:var(--brand)">'+nNotas+'</td>'+
+      '<td style="display:flex;gap:3px"><button class="btn btn-out btn-sm" onclick="openFornecedorModal(\''+x.id+'\')">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteFornecedor(\''+x.id+'\')">🗑</button></td>'+
+    '</tr>';
+  }).join('');
+}
+
+function atualizarFornecedoresSelect(){
+  var sel=ge('nota-fornecedor');if(!sel)return;
+  var fornecedores=getFornecedores();
+  if(!fornecedores.length){sel.innerHTML='<option value="">Cadastre um fornecedor primeiro</option>';return;}
+  sel.innerHTML=fornecedores.map(function(f){return'<option value="'+f.id+'">'+f.nome+'</option>';}).join('');
+}
+
+// ═══════════════════════════════════════════════════
+// NOTAS DE COMPRA
+// ═══════════════════════════════════════════════════
+var notaIid=0;
+function getNotasCompra(){try{return JSON.parse(localStorage.getItem('orcpro_notas')||'[]');}catch(e){return[];}}
+function saveNotasCompra(arr){localStorage.setItem('orcpro_notas',JSON.stringify(arr));}
+
+function addNotaItem(nome,qty,valorUnit){
+  var id=++notaIid;
+  var tbody=ge('nota-itens-body');
+  var tr=document.createElement('tr');tr.id='ni'+id;
+  var prods=getProdutos();
+  var datalistId='nota-prod-list';
+  if(!ge(datalistId)){
+    var dl=document.createElement('datalist');dl.id=datalistId;
+    dl.innerHTML=prods.map(function(p){return'<option value="'+p.nome+'">';}).join('');
+    document.body.appendChild(dl);
+  }
+  tr.innerHTML=
+    '<td><input placeholder="Nome do produto" value="'+(nome||'')+'" list="'+datalistId+'" oninput="recalcNota()" data-f="nome"></td>'+
+    '<td><input type="number" value="'+(qty||1)+'" min="0" step="1" oninput="recalcNota()" data-f="qty"></td>'+
+    '<td><input type="number" value="'+(valorUnit?Number(valorUnit).toFixed(2):'')+'" min="0" step="0.01" placeholder="0,00" oninput="recalcNota()" data-f="valor"></td>'+
+    '<td class="sub-cell" id="nsc'+id+'">R$\u00a00,00</td>'+
+    '<td><button class="del-btn" onclick="removeNotaItem('+id+')">×</button></td>';
+  tbody.appendChild(tr);
+  recalcNota();
+}
+function removeNotaItem(id){var r=ge('ni'+id);if(r)r.remove();recalcNota();}
+function getNotaItens(){
+  return Array.from(document.querySelectorAll('#nota-itens-body tr')).map(function(tr){
+    function g(f){var e=tr.querySelector('[data-f="'+f+'"]');return e?e.value:'';}
+    var qty=parseFloat(g('qty'))||0,valor=parseFloat(g('valor'))||0;
+    return{nome:g('nome'),qty:qty,valorUnit:valor,sub:qty*valor};
+  });
+}
+function recalcNota(){
+  var itens=getNotaItens();
+  document.querySelectorAll('#nota-itens-body tr').forEach(function(tr,i){
+    var c=tr.querySelector('.sub-cell');if(c&&itens[i])c.textContent=fmt(itens[i].sub);
+  });
+  var total=itens.reduce(function(a,it){return a+it.sub;},0);
+  ge('nota-total').textContent=fmt(total);
+}
+
+function openNotaModal(id){
+  ge('nota-edit-id').value=id||'';
+  ge('modal-nota-title').textContent=id?'Editar Nota de Compra':'Nova Nota de Compra';
+  atualizarFornecedoresSelect();
+  ge('nota-itens-body').innerHTML='';notaIid=0;
+  if(id){
+    var n=getNotasCompra().find(function(x){return x.id===id;});
+    if(n){
+      setVal('nota-data',n.data);setVal('nota-numero',n.numero);setVal('nota-obs',n.obs);
+      setTimeout(function(){setVal('nota-fornecedor',n.fornecedorId);},10);
+      (n.itens||[]).forEach(function(it){addNotaItem(it.nome,it.qty,it.valorUnit);});
+    }
+  }else{
+    setVal('nota-data',hoje());setVal('nota-numero','');setVal('nota-obs','');
+    addNotaItem();
+  }
+  ge('modal-nota').className='modal-overlay open';
+}
+function closeNotaModal(){ge('modal-nota').className='modal-overlay';}
+
+function saveNota(){
+  var data=val('nota-data'),fornecedorId=val('nota-fornecedor');
+  var itens=getNotaItens().filter(function(it){return it.nome&&it.qty>0;});
+  if(!data){alert('Informe a data.');return;}
+  if(!fornecedorId){alert('Selecione um fornecedor. Cadastre um em "Fornecedores" se ainda não tiver.');return;}
+  if(!itens.length){alert('Adicione ao menos um item com nome e quantidade.');return;}
+
+  var fornecedor=getFornecedores().find(function(f){return f.id===fornecedorId;});
+  var total=itens.reduce(function(a,it){return a+it.sub;},0);
+  var editId=val('nota-edit-id');
+  var notas=getNotasCompra();
+
+  // Se está editando, primeiro revertemos os efeitos da nota antiga (estoque e despesa)
+  if(editId){
+    var antiga=notas.find(function(n){return n.id===editId;});
+    if(antiga)reverterEfeitosNota(antiga);
+  }
+
+  var nota={
+    id:editId||'nt'+Date.now(),
+    data:data,
+    fornecedorId:fornecedorId,
+    fornecedorNome:fornecedor?fornecedor.nome:'',
+    numero:val('nota-numero'),
+    itens:itens,
+    total:total,
+    obs:val('nota-obs'),
+    despesaId:null,
+    savedAt:new Date().toLocaleString('pt-BR')
+  };
+
+  // Lançar despesa no MEI automaticamente
+  var despesas=getDespesas();
+  var despesaId='d'+Date.now();
+  despesas.push({id:despesaId,data:data,valor:total,desc:'Nota de compra'+(nota.numero?' #'+nota.numero:'')+' — '+nota.fornecedorNome,cat:'Matéria-prima / Insumos',recorrente:'',obs:'Gerado automaticamente pela nota de compra.'});
+  saveDespesas(despesas);
+  nota.despesaId=despesaId;
+
+  // Dar entrada no estoque de cada produto (se ele controla estoque e existir no catálogo)
+  var prods=getProdutos();
+  itens.forEach(function(it){
+    var prod=prods.find(function(p){return p.nome.toLowerCase()===it.nome.toLowerCase();});
+    if(prod&&prod.controlaEstoque){
+      ajustarEstoque(prod.id,Math.abs(it.qty),'Compra — Nota'+(nota.numero?' #'+nota.numero:'')+' ('+nota.fornecedorNome+')',nota.id);
+    }
+  });
+
+  if(editId){var idx=notas.findIndex(function(n){return n.id===editId;});if(idx>=0)notas[idx]=nota;else notas.unshift(nota);}
+  else notas.unshift(nota);
+  saveNotasCompra(notas);
+
+  closeNotaModal();renderNotas();
+  alert('✅ Nota salva! Estoque atualizado e despesa lançada no Dashboard MEI.');
+}
+
+function reverterEfeitosNota(nota){
+  // Remove a despesa associada
+  if(nota.despesaId){
+    saveDespesas(getDespesas().filter(function(d){return d.id!==nota.despesaId;}));
+  }
+  // Reverte a entrada de estoque
+  var prods=getProdutos();
+  (nota.itens||[]).forEach(function(it){
+    var prod=prods.find(function(p){return p.nome.toLowerCase()===it.nome.toLowerCase();});
+    if(prod&&prod.controlaEstoque){
+      ajustarEstoque(prod.id,-Math.abs(it.qty),'Reversão — edição/exclusão de nota',nota.id);
+    }
+  });
+}
+
+function deletarNota(id){
+  var nota=getNotasCompra().find(function(n){return n.id===id;});
+  if(!nota)return;
+  if(!confirm('Excluir esta nota? Isso vai remover a despesa lançada e reverter a entrada no estoque.'))return;
+  reverterEfeitosNota(nota);
+  saveNotasCompra(getNotasCompra().filter(function(n){return n.id!==id;}));
+  renderNotas();
+}
+
+function renderNotas(){
+  var notas=getNotasCompra(),q=(val('notas-search')||'').toLowerCase();
+  var f=notas.filter(function(n){return!q||(n.fornecedorNome||'').toLowerCase().includes(q)||(n.numero||'').toLowerCase().includes(q);});
+  var tbody=ge('notas-body'),empty=ge('notas-empty'),count=ge('notas-count');
+  if(count)count.textContent='('+notas.length+')';
+  if(!f.length){tbody.innerHTML='';if(empty)empty.style.display='block';return;}
+  if(empty)empty.style.display='none';
+  tbody.innerHTML=f.map(function(n){
+    return'<tr>'+
+      '<td style="font-size:12px">'+fmtDt(n.data)+'</td>'+
+      '<td><strong>'+(n.fornecedorNome||'—')+'</strong></td>'+
+      '<td style="font-size:12px;color:rgba(255,255,255,.55)">'+(n.numero||'—')+'</td>'+
+      '<td style="text-align:center">'+(n.itens?n.itens.length:0)+'</td>'+
+      '<td style="font-weight:700;color:var(--red)">'+fmt(n.total)+'</td>'+
+      '<td style="display:flex;gap:3px"><button class="btn btn-out btn-sm" onclick="openNotaModal(\''+n.id+'\')">✏️</button><button class="btn btn-danger btn-sm" onclick="deletarNota(\''+n.id+'\')">🗑</button></td>'+
+    '</tr>';
+  }).join('');
 }
 
 // ═══════════════════════════════════════════════════
@@ -2752,7 +3190,7 @@ function closeFollowupMassaModal(){ge('modal-followup-massa').className='modal-o
 // BACKUP / RESTAURAÇÃO
 // ═══════════════════════════════════════════════════
 function exportarBackup(){
-  var dados={versao:'6.1',exportadoEm:new Date().toISOString(),empresa:getCfg(),produtos:getProdutos(),clientes:getClientes(),historico:getHist(),os:getOS(),templates:getTemplates(),funcionarios:getFuncs(),despesas:getDespesas(),contador:localStorage.getItem('orcpro_cnt')||'0',os_contador:localStorage.getItem('orcpro_os_cnt')||'0'};
+  var dados={versao:'6.2',exportadoEm:new Date().toISOString(),empresa:getCfg(),produtos:getProdutos(),clientes:getClientes(),historico:getHist(),os:getOS(),templates:getTemplates(),funcionarios:getFuncs(),despesas:getDespesas(),fornecedores:getFornecedores(),notasCompra:getNotasCompra(),movEstoque:getMovEstoque(),contador:localStorage.getItem('orcpro_cnt')||'0',os_contador:localStorage.getItem('orcpro_os_cnt')||'0'};
   var blob=new Blob([JSON.stringify(dados,null,2)],{type:'application/json'});
   var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='orcamentopro_backup_'+hoje()+'.json';a.click();
 }
@@ -2770,6 +3208,9 @@ function importarBackup(e){
       if(d.templates)localStorage.setItem('orcpro_templates',JSON.stringify(d.templates));
       if(d.funcionarios)localStorage.setItem('orcpro_funcs',JSON.stringify(d.funcionarios));
       if(d.despesas)localStorage.setItem('orcpro_despesas',JSON.stringify(d.despesas));
+      if(d.fornecedores)localStorage.setItem('orcpro_fornecedores',JSON.stringify(d.fornecedores));
+      if(d.notasCompra)localStorage.setItem('orcpro_notas',JSON.stringify(d.notasCompra));
+      if(d.movEstoque)localStorage.setItem('orcpro_mov_estoque',JSON.stringify(d.movEstoque));
       if(d.contador)localStorage.setItem('orcpro_cnt',d.contador);
       if(d.os_contador)localStorage.setItem('orcpro_os_cnt',d.os_contador);
       ge('backup-file').value='';alert('✅ Backup restaurado!');location.reload();
@@ -2781,7 +3222,7 @@ function importarBackup(e){
 // NAVEGAÇÃO
 // ═══════════════════════════════════════════════════
 function showView(name){
-  var views=['dash','form','preview','hist','os','templates','cat','clientes','config','mei'];
+  var views=['dash','form','preview','hist','os','templates','cat','clientes','config','mei','notas','fornec'];
   views.forEach(function(n){
     var v=ge('view-'+n);if(v)v.style.display=n===name?'block':'none';
     var nb=ge('nb-'+n);if(nb){var badge=nb.querySelector('.nb-badge');nb.className='nb'+(n===name?' active':'');if(badge)nb.appendChild(badge);}
@@ -2799,7 +3240,7 @@ function showView(name){
   if(tbSub)tbSub.style.color='var(--dark-text3)';
   if(tbAccent)tbAccent.style.background='linear-gradient(180deg,var(--brand),transparent)';
 
-  var titles={dash:['Dashboard','Visão geral do negócio'],form:['Novo Orçamento','Preencha os dados abaixo'],preview:['Pré-visualização','Revise e envie ao cliente'],hist:['Histórico','Edite e acompanhe orçamentos'],os:['Ordens de Serviço','Acompanhe a produção'],templates:['Templates','Orçamentos reutilizáveis'],cat:['Catálogo de Produtos','Preços, custos e margens'],clientes:['Clientes & Follow-up','Gerencie relacionamentos'],config:['Minha Empresa','Dados, logotipo e backup'],mei:['Dashboard MEI','Controle financeiro para declaração anual']};
+  var titles={dash:['Dashboard','Visão geral do negócio'],form:['Novo Orçamento','Preencha os dados abaixo'],preview:['Pré-visualização','Revise e envie ao cliente'],hist:['Histórico','Edite e acompanhe orçamentos'],os:['Ordens de Serviço','Acompanhe a produção'],templates:['Templates','Orçamentos reutilizáveis'],cat:['Catálogo de Produtos','Preços, custos e margens'],clientes:['Clientes & Follow-up','Gerencie relacionamentos'],config:['Minha Empresa','Dados, logotipo e backup'],mei:['Dashboard MEI','Controle financeiro para declaração anual'],notas:['Notas de Compra','Entrada de estoque e despesas automáticas'],fornec:['Fornecedores','Gerencie seus fornecedores']};
   ge('tb-title').textContent=titles[name][0];ge('tb-sub').textContent=titles[name][1];
   var acts={
     dash:'<button class="btn btn-brand" onclick="showView(\'form\')">✏️ Novo orçamento</button><button class="btn btn-out" onclick="abrirRelatorioSemanal()">📊 Relatório semanal</button>',
@@ -2810,7 +3251,9 @@ function showView(name){
     cat:'<button class="btn btn-brand" onclick="openProdModal()">＋ Produto</button>',
     clientes:'<button class="btn btn-brand" onclick="openClienteModal()">＋ Cliente</button>',
     config:'<button class="btn btn-brand" onclick="saveConfig()">💾 Salvar</button><button class="btn btn-out" onclick="exportarBackup()">📦 Backup</button>',
-    mei:'<button class="btn btn-brand" onclick="openDespesaModal()">＋ Nova despesa</button><button class="btn btn-out" onclick="exportarMEIExcel()">📊 Exportar para contador</button>'
+    mei:'<button class="btn btn-brand" onclick="openDespesaModal()">＋ Nova despesa</button><button class="btn btn-out" onclick="exportarMEIExcel()">📊 Exportar para contador</button>',
+    notas:'<button class="btn btn-brand" onclick="openNotaModal()">＋ Nova nota de compra</button>',
+    fornec:'<button class="btn btn-brand" onclick="openFornecedorModal()">＋ Novo fornecedor</button>'
   };
   ge('tb-actions').innerHTML=acts[name]||'';
   if(name==='preview')buildPreview();
@@ -2822,6 +3265,8 @@ function showView(name){
   if(name==='os')renderOS();
   if(name==='templates')renderTemplates();
   if(name==='mei')renderMEI();
+  if(name==='notas')renderNotas();
+  if(name==='fornec')renderFornecedores();
 }
 
 // ═══════════════════════════════════════════════════
