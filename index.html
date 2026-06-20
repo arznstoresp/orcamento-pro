@@ -127,7 +127,7 @@ table.itens td input,table.itens td select{padding:6px 7px;font-size:12px}
 .dash-card.green::before{background:var(--green);box-shadow:0 0 12px rgba(34,197,94,.3)}
 .dash-card.blue::before{background:var(--blue);box-shadow:0 0 12px rgba(59,130,246,.3)}
 .dash-card.yellow::before{background:var(--yellow);box-shadow:0 0 12px rgba(245,158,11,.3)}
-.dash-card-icon{position:absolute;top:14px;right:16px;font-size:26px;opacity:.3;filter:drop-shadow(0 2px 4px rgba(0,0,0,.3))}
+.dash-card-icon{position:absolute;top:14px;right:16px;font-size:26px;opacity:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,.3))}
 .dash-card.yellow::before{background:var(--yellow);box-shadow:0 0 12px rgba(245,158,11,.35)}
 .dash-lbl{font-size:10px;color:rgba(255,255,255,.55);font-weight:600;letter-spacing:.8px;margin-bottom:10px;text-transform:uppercase;display:flex;align-items:center;gap:6px}
 .dash-lbl-dot{width:5px;height:5px;border-radius:50%;background:var(--brand);flex-shrink:0;box-shadow:0 0 6px var(--brand)}
@@ -353,7 +353,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid #F0F0F0;font-size:13px;vert
       </div>
       <div class="dash-3col">
         <div class="dash-panel">
-          <div class="dash-panel-title"><span class="dash-panel-title-icon">⚠️</span>Follow-ups pendentes</div>
+          <div class="dash-panel-title" id="dash-followups-title"><span class="dash-panel-title-icon">⚠️</span>Follow-ups pendentes</div>
           <div class="followup-list" id="dash-followups"></div>
         </div>
         <div class="dash-panel">
@@ -1928,11 +1928,11 @@ function renderDash(){
     }).join('');
   }
 
-  // ── FOLLOW-UPS ──
+  // ── FOLLOW-UPS (com fallback inteligente) ──
   var fu=clientes.filter(function(c){return c.followup&&c.followup<=hoje2;}).sort(function(a,b){return a.followup>b.followup?1:-1;}).slice(0,5);
-  ge('dash-followups').innerHTML=!fu.length?
-    '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:6px"><div style="font-size:28px">✅</div><div style="font-size:13px;color:rgba(255,255,255,.4)">Nenhum follow-up pendente</div></div>':
-    fu.map(function(c){
+
+  if(fu.length){
+    ge('dash-followups').innerHTML=fu.map(function(c){
       var cls=c.followup<hoje2?'overdue':c.followup===hoje2?'today':'';
       var ini=c.nome?c.nome.charAt(0).toUpperCase():'?';
       var cores=['#FF6B00','#16a34a','#1d4ed8','#9333ea','#dc2626'];
@@ -1948,6 +1948,47 @@ function renderDash(){
           '<button class="btn btn-out btn-sm" onclick="editCliente(\''+c.id+'\')" title="Editar">✏️</button>'+
         '</div>'+
       '</div>';
+    }).join('');
+    var ttl=ge('dash-followups-title');if(ttl)ttl.innerHTML='<span class="dash-panel-title-icon">⚠️</span>Follow-ups pendentes';
+  } else {
+    // Sem follow-ups agendados — sugerir clientes sem contato recente (inatividade ≥ 14 dias)
+    var LIMITE_DIAS=14;
+    var hojeDate=new Date();
+    var inativos=clientes.filter(function(c){
+      if(!c.ultimoContato)return false;
+      if(c.status==='Fechado'||c.status==='Perdido')return false;
+      var ultimo=new Date(c.ultimoContato+'T12:00');
+      var diasInativo=Math.floor((hojeDate-ultimo)/(1000*60*60*24));
+      return diasInativo>=LIMITE_DIAS;
+    }).sort(function(a,b){return a.ultimoContato<b.ultimoContato?-1:1;}).slice(0,5);
+
+    var ttl=ge('dash-followups-title');
+    if(!inativos.length){
+      if(ttl)ttl.innerHTML='<span class="dash-panel-title-icon">⚠️</span>Follow-ups pendentes';
+      ge('dash-followups').innerHTML='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:6px"><div style="font-size:28px">✅</div><div style="font-size:13px;color:rgba(255,255,255,.4)">Tudo em dia — nenhum follow-up pendente</div></div>';
+    } else {
+      if(ttl)ttl.innerHTML='<span class="dash-panel-title-icon">💤</span>Sem contato recente';
+      ge('dash-followups').innerHTML=
+        '<div style="font-size:10px;color:rgba(255,255,255,.4);margin-bottom:6px;line-height:1.5">Nenhum follow-up agendado. Sugestão: reative estes clientes.</div>'+
+        inativos.map(function(c){
+          var ini=c.nome?c.nome.charAt(0).toUpperCase():'?';
+          var cores=['#FF6B00','#16a34a','#1d4ed8','#9333ea','#dc2626'];
+          var cor=cores[c.nome?c.nome.charCodeAt(0)%5:0];
+          var diasInativo=Math.floor((hojeDate-new Date(c.ultimoContato+'T12:00'))/(1000*60*60*24));
+          return'<div class="followup-item">'+
+            '<div class="avatar" style="background:'+cor+';width:30px;height:30px;font-size:12px;flex-shrink:0">'+ini+'</div>'+
+            '<div style="flex:1;margin-left:8px;min-width:0">'+
+              '<div style="font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:rgba(255,255,255,.85)">'+c.nome+'</div>'+
+              '<div style="font-size:10px;color:rgba(255,255,255,.4)">Sem contato há '+diasInativo+' dias</div>'+
+            '</div>'+
+            '<div style="display:flex;gap:4px;flex-shrink:0">'+
+              (c.wpp?'<button class="btn btn-wpp btn-sm" onclick="window.open(\'https://wa.me/'+c.wpp.replace(/\D/g,'')+'\',\'_blank\')" title="WhatsApp">💬</button>':'')+
+              '<button class="btn btn-out btn-sm" onclick="editCliente(\''+c.id+'\')" title="Editar">✏️</button>'+
+            '</div>'+
+          '</div>';
+        }).join('');
+    }
+  }
     }).join('');
 
   // ── RECENTES ──
