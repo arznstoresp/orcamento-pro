@@ -1132,7 +1132,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
       <div><label class="lbl">Ano</label><input type="number" id="custo-ano" style="max-width:110px"></div>
     </div>
     <div class="mt"><label class="lbl">Tipo</label>
-      <select id="custo-tipo" style="max-width:200px">
+      <select id="custo-tipo" style="max-width:200px" onchange="toggleTipoCusto()">
         <option value="fixo">Fixo (mesmo valor sempre)</option>
         <option value="variavel">Variável (muda todo mês)</option>
       </select>
@@ -1583,7 +1583,7 @@ function renderCat(){
       '<td style="font-weight:600">'+fmt(p.atacado)+'</td>'+
       '<td>'+mgHtml+'</td>'+
       '<td>'+estoqueHtml+'</td>'+
-      '<td style="display:flex;gap:3px"><button class="btn btn-out btn-sm" onclick="editProd(\''+p.id+'\')">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteProd(\''+p.id+'\')">🗑</button></td>'+
+      '<td style="display:flex;gap:3px;align-items:center"><button class="btn btn-out btn-sm" onclick="editProd(\''+p.id+'\')">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteProd(\''+p.id+'\')">🗑</button></td>'+
     '</tr>';
   }).join('');
 }
@@ -1707,7 +1707,7 @@ function renderClientes(){
       '<td><span class="badge" style="'+(sc[c.status]||'')+'">'+c.status+'</span></td>'+
       '<td style="font-size:12px;'+fuS+'">'+fu+(c.followup&&c.followup<hoje2?' ⚠️':'')+'</td>'+
       '<td style="text-align:center;font-weight:700;color:var(--brand)">'+(c.orcamentos?c.orcamentos.length:0)+'</td>'+
-      '<td style="display:flex;gap:3px"><button class="btn btn-out btn-sm" onclick="editCliente(\''+c.id+'\')">✏️</button><button class="btn btn-wpp btn-sm" onclick="wppCliente(\''+c.id+'\')">💬</button><button class="btn btn-danger btn-sm" onclick="deleteCliente(\''+c.id+'\')">🗑</button></td>'+
+      '<td style="display:flex;gap:3px;align-items:center"><button class="btn btn-out btn-sm" onclick="editCliente(\''+c.id+'\')">✏️</button><button class="btn btn-wpp btn-sm" onclick="wppCliente(\''+c.id+'\')">💬</button><button class="btn btn-danger btn-sm" onclick="deleteCliente(\''+c.id+'\')">🗑</button></td>'+
     '</tr>';
   }).join('');
 }
@@ -1865,7 +1865,7 @@ function renderHistComDados(f,isFilter,filterLabel){
       '<td style="font-weight:700;color:var(--brand)">'+fmt(total)+'</td>'+
       '<td>'+mgHtml+'</td>'+
       '<td>'+selHtml+'</td>'+
-      '<td style="display:flex;gap:3px;flex-wrap:wrap">'+
+      '<td style="display:flex;gap:3px;flex-wrap:wrap;align-items:center">'+
         '<button class="btn btn-brand btn-sm" onclick="editarOrcamento(\''+h.id+'\')" title="Editar">✏️</button>'+
         '<button class="btn btn-out btn-sm" onclick="previewOrcamento(\''+h.id+'\')" title="Ver">👁</button>'+
         '<button class="btn btn-wpp btn-sm" onclick="abrirFollowup(\''+h.id+'\')" title="Enviar mensagem">💬</button>'+
@@ -1959,7 +1959,7 @@ function renderTemplates(){
       '<td style="font-size:12px;color:rgba(255,255,255,.5)">'+(t.desc||'—')+'</td>'+
       '<td style="text-align:center">'+(t.itens?t.itens.length:0)+'</td>'+
       '<td style="font-weight:600;color:var(--brand)">'+fmt(sub)+'</td>'+
-      '<td style="display:flex;gap:3px"><button class="btn btn-brand btn-sm" onclick="carregarTemplate(\''+t.id+'\')">📥 Usar</button><button class="btn btn-danger btn-sm" onclick="deletarTemplate(\''+t.id+'\')">🗑</button></td>'+
+      '<td style="display:flex;gap:3px;align-items:center"><button class="btn btn-brand btn-sm" onclick="carregarTemplate(\''+t.id+'\')">📥 Usar</button><button class="btn btn-danger btn-sm" onclick="deletarTemplate(\''+t.id+'\')">🗑</button></td>'+
     '</tr>';
   }).join('');
 }
@@ -2020,7 +2020,7 @@ function renderOS(){
       '<td style="font-size:12px">'+fmtDt(o.abertura)+'</td>'+
       '<td style="font-size:12px">'+(o.previsao?fmtDt(o.previsao):'—')+'</td>'+
       '<td>'+selHtml+'</td>'+
-      '<td style="display:flex;gap:3px">'+
+      '<td style="display:flex;gap:3px;align-items:center">'+
         '<button class="btn btn-out btn-sm" onclick="verOS(\''+o.id+'\')">👁 Ver</button>'+
         (o.status==='Entregue'?'<button class="btn btn-out btn-sm" onclick="enviarSatisfacao(\''+o.id+'\')" title="Pesquisa de satisfação">⭐</button>':'')+
         '<button class="btn btn-danger btn-sm" onclick="deletarOS(\''+o.id+'\')">🗑</button>'+
@@ -2062,7 +2062,7 @@ function renderFuncs(){
       '<td style="font-size:12px">'+(f.wpp?'<a href="https://wa.me/'+f.wpp.replace(/\D/g,'')+'" target="_blank" style="color:var(--brand)">'+f.wpp+'</a>':'—')+'</td>'+
       '<td style="text-align:center;font-weight:600;color:var(--brand)">'+(f.comissao||5)+'%</td>'+
       '<td style="font-weight:700;color:var(--green)">'+fmt(comissao)+'</td>'+
-      '<td style="display:flex;gap:3px"><button class="btn btn-out btn-sm" onclick="openFuncModal(\''+f.id+'\')">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteFunc(\''+f.id+'\')">🗑</button></td>'+
+      '<td style="display:flex;gap:3px;align-items:center"><button class="btn btn-out btn-sm" onclick="openFuncModal(\''+f.id+'\')">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteFunc(\''+f.id+'\')">🗑</button></td>'+
     '</tr>';
   }).join('');
 }
@@ -2207,7 +2207,7 @@ function renderFornecedores(){
       '<td style="font-size:12px">'+(x.wpp?'<a href="https://wa.me/'+x.wpp.replace(/\D/g,'')+'" target="_blank" style="color:var(--brand)">'+x.wpp+'</a>':'—')+'</td>'+
       '<td style="font-size:12px;color:rgba(255,255,255,.6)">'+(x.contato||'—')+'</td>'+
       '<td style="text-align:center;font-weight:700;color:var(--brand)">'+nNotas+'</td>'+
-      '<td style="display:flex;gap:3px"><button class="btn btn-out btn-sm" onclick="openFornecedorModal(\''+x.id+'\')">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteFornecedor(\''+x.id+'\')">🗑</button></td>'+
+      '<td style="display:flex;gap:3px;align-items:center"><button class="btn btn-out btn-sm" onclick="openFornecedorModal(\''+x.id+'\')">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteFornecedor(\''+x.id+'\')">🗑</button></td>'+
     '</tr>';
   }).join('');
 }
@@ -2376,7 +2376,7 @@ function renderNotas(){
       '<td style="font-size:12px;color:rgba(255,255,255,.55)">'+(n.numero||'—')+'</td>'+
       '<td style="text-align:center">'+(n.itens?n.itens.length:0)+'</td>'+
       '<td style="font-weight:700;color:var(--red)">'+fmt(n.total)+'</td>'+
-      '<td style="display:flex;gap:3px"><button class="btn btn-out btn-sm" onclick="openNotaModal(\''+n.id+'\')">✏️</button><button class="btn btn-danger btn-sm" onclick="deletarNota(\''+n.id+'\')">🗑</button></td>'+
+      '<td style="display:flex;gap:3px;align-items:center"><button class="btn btn-out btn-sm" onclick="openNotaModal(\''+n.id+'\')">✏️</button><button class="btn btn-danger btn-sm" onclick="deletarNota(\''+n.id+'\')">🗑</button></td>'+
     '</tr>';
   }).join('');
 }
@@ -2818,7 +2818,7 @@ function renderMEI(){
         '<td style="font-size:12px;color:rgba(255,255,255,.6)">'+d.cat+'</td>'+
         '<td style="font-weight:700;color:var(--red)">'+fmt(d.valor)+'</td>'+
         '<td>'+(d.recorrente==='mensal'?'<span class="badge bbl">🔁 Mensal</span>':'<span style="color:rgba(255,255,255,.35);font-size:12px">Única</span>')+'</td>'+
-        '<td style="display:flex;gap:3px"><button class="btn btn-out btn-sm" onclick="openDespesaModal(\''+d.id+'\')">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteDespesa(\''+d.id+'\')">🗑</button></td>'+
+        '<td style="display:flex;gap:3px;align-items:center"><button class="btn btn-out btn-sm" onclick="openDespesaModal(\''+d.id+'\')">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteDespesa(\''+d.id+'\')">🗑</button></td>'+
       '</tr>';
     }).join('');
   }
@@ -2876,7 +2876,7 @@ function renderMEI(){
           'onchange="quickEditCustoMes(\''+c.id+'\','+anoSel+','+mesParaEditar+',this.value)">'+
         '</td>'+
         '<td style="font-size:11px;color:rgba(255,255,255,.5)">'+historicoTxt+'</td>'+
-        '<td style="display:flex;gap:3px"><button class="btn btn-out btn-sm" onclick="openCustoModal(\''+c.id+'\')" title="Editar todos os meses">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteCusto(\''+c.id+'\')">🗑</button></td>'+
+        '<td style="display:flex;gap:3px;align-items:center"><button class="btn btn-out btn-sm" onclick="openCustoModal(\''+c.id+'\')" title="Editar todos os meses">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteCusto(\''+c.id+'\')">🗑</button></td>'+
       '</tr>';
     }).join('');
   }
@@ -2894,7 +2894,7 @@ function renderMEI(){
         '<td style="font-weight:700;color:var(--blue)">'+fmt(p.valor)+'</td>'+
         '<td style="font-size:12px">Todo dia <strong>'+p.dia+'</strong></td>'+
         '<td style="font-size:12px;color:rgba(255,255,255,.5)">'+(p.obs||'—')+'</td>'+
-        '<td style="display:flex;gap:3px"><button class="btn btn-out btn-sm" onclick="openPagamentoModal(\''+p.id+'\')">✏️</button><button class="btn btn-danger btn-sm" onclick="deletePagamento(\''+p.id+'\')">🗑</button></td>'+
+        '<td style="display:flex;gap:3px;align-items:center"><button class="btn btn-out btn-sm" onclick="openPagamentoModal(\''+p.id+'\')">✏️</button><button class="btn btn-danger btn-sm" onclick="deletePagamento(\''+p.id+'\')">🗑</button></td>'+
       '</tr>';
     }).join('');
   }
