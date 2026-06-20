@@ -285,10 +285,10 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
     </div>
     <div class="pin-error" id="pin-error"></div>
     <div class="pin-pad">
-      <button class="pin-key" onclick="pinKey('1')">1</button><button class="pin-key" onclick="pinKey('2')">2</button><button class="pin-key" onclick="pinKey('3')">3</button>
-      <button class="pin-key" onclick="pinKey('4')">4</button><button class="pin-key" onclick="pinKey('5')">5</button><button class="pin-key" onclick="pinKey('6')">6</button>
-      <button class="pin-key" onclick="pinKey('7')">7</button><button class="pin-key" onclick="pinKey('8')">8</button><button class="pin-key" onclick="pinKey('9')">9</button>
-      <button class="pin-key" onclick="pinKey('C')" style="font-size:13px">✕</button><button class="pin-key" onclick="pinKey('0')">0</button><button class="pin-key" onclick="pinKey('⌫')" style="font-size:13px">⌫</button>
+      <button class="pin-key" onclick="pinKey('1')">1</button> <button class="pin-key" onclick="pinKey('2')">2</button> <button class="pin-key" onclick="pinKey('3')">3</button>
+      <button class="pin-key" onclick="pinKey('4')">4</button> <button class="pin-key" onclick="pinKey('5')">5</button> <button class="pin-key" onclick="pinKey('6')">6</button>
+      <button class="pin-key" onclick="pinKey('7')">7</button> <button class="pin-key" onclick="pinKey('8')">8</button> <button class="pin-key" onclick="pinKey('9')">9</button>
+      <button class="pin-key" onclick="pinKey('C')" style="font-size:13px">✕</button> <button class="pin-key" onclick="pinKey('0')">0</button> <button class="pin-key" onclick="pinKey('⌫')" style="font-size:13px">⌫</button>
     </div>
   </div>
 </div>
@@ -930,7 +930,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
     <input type="hidden" id="func-edit-id">
     <div class="g2"><div><label class="lbl">Nome *</label><input id="func-nome"></div><div><label class="lbl">Cargo</label><input id="func-cargo" placeholder="Ex: Vendedor"></div></div>
     <div class="g2 mt"><div><label class="lbl">WhatsApp</label><input id="func-wpp" oninput="maskPhone(this)" maxlength="15"></div><div><label class="lbl">Comissão (%)</label><input type="number" id="func-comissao" value="5" min="0" max="100" step="0.1"></div></div>
-    <div class="modal-footer"><button class="btn btn-out" onclick="closeFuncModal()">Cancelar</button><button class="btn btn-brand" onclick="saveFunc()">💾 Salvar</button></div>
+    <div class="modal-footer"><button class="btn btn-out" onclick="closeFuncModal()">Cancelar</button> <button class="btn btn-brand" onclick="saveFunc()">💾 Salvar</button></div>
   </div>
 </div>
 
@@ -969,7 +969,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
       <input type="hidden" id="prod-foto-data">
     </div>
     <div class="mt"><label class="lbl">Descrição</label><textarea id="prod-desc" style="min-height:44px"></textarea></div>
-    <div class="modal-footer"><button class="btn btn-out" onclick="closeProdModal()">Cancelar</button><button class="btn btn-brand" onclick="saveProd()">💾 Salvar</button></div>
+    <div class="modal-footer"><button class="btn btn-out" onclick="closeProdModal()">Cancelar</button> <button class="btn btn-brand" onclick="saveProd()">💾 Salvar</button></div>
   </div>
 </div>
 
@@ -993,7 +993,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
     <div class="g2 mt"><div><label class="lbl">WhatsApp</label><input id="mc-wpp" oninput="maskPhone(this)" maxlength="15"></div><div><label class="lbl">E-mail</label><input id="mc-email" type="email"></div></div>
     <div class="g2 mt"><div><label class="lbl">Status</label><select id="mc-status"><option>Novo</option><option>Em contato</option><option>Proposta enviada</option><option>Negociando</option><option>Fechado</option><option>Perdido</option></select></div><div><label class="lbl">Follow-up</label><input type="date" id="mc-followup"></div></div>
     <div class="mt"><label class="lbl">Anotações</label><textarea id="mc-obs" style="min-height:48px"></textarea></div>
-    <div class="modal-footer"><button class="btn btn-out" onclick="closeClienteModal()">Cancelar</button><button class="btn btn-brand" onclick="saveCliente()">💾 Salvar</button></div>
+    <div class="modal-footer"><button class="btn btn-out" onclick="closeClienteModal()">Cancelar</button> <button class="btn btn-brand" onclick="saveCliente()">💾 Salvar</button></div>
   </div>
 </div>
 
@@ -1007,7 +1007,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
     </div>
     <div class="mt"><label class="lbl">Responsável pela produção</label><input id="os-responsavel" placeholder="Nome do responsável"></div>
     <div class="mt"><label class="lbl">Observações da OS</label><textarea id="os-obs" placeholder="Instruções de produção, detalhes do pedido..." style="min-height:64px"></textarea></div>
-    <div class="modal-footer"><button class="btn btn-out" onclick="closeOSModal()">Cancelar</button><button class="btn btn-brand" onclick="confirmarOS()">✅ Criar OS</button></div>
+    <div class="modal-footer"><button class="btn btn-out" onclick="closeOSModal()">Cancelar</button> <button class="btn btn-brand" onclick="confirmarOS()">✅ Criar OS</button></div>
   </div>
 </div>
 
@@ -1016,7 +1016,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
     <div class="modal-title">⭐ Salvar como Template</div>
     <div><label class="lbl">Nome do template *</label><input id="tpl-nome" placeholder="Ex: Orçamento Camiseta Personalizada"></div>
     <div class="mt"><label class="lbl">Descrição (opcional)</label><input id="tpl-desc" placeholder="Breve descrição do template"></div>
-    <div class="modal-footer"><button class="btn btn-out" onclick="closeTplModal()">Cancelar</button><button class="btn btn-brand" onclick="confirmarSalvarTemplate()">⭐ Salvar</button></div>
+    <div class="modal-footer"><button class="btn btn-out" onclick="closeTplModal()">Cancelar</button> <button class="btn btn-brand" onclick="confirmarSalvarTemplate()">⭐ Salvar</button></div>
   </div>
 </div>
 
@@ -1583,7 +1583,7 @@ function renderCat(){
       '<td style="font-weight:600">'+fmt(p.atacado)+'</td>'+
       '<td>'+mgHtml+'</td>'+
       '<td>'+estoqueHtml+'</td>'+
-      '<td style="display:flex;gap:3px;align-items:center"><button class="btn btn-out btn-sm" onclick="editProd(\''+p.id+'\')">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteProd(\''+p.id+'\')">🗑</button></td>'+
+      '<td style="white-space:nowrap"><button class="btn btn-out btn-sm" onclick="editProd(\''+p.id+'\')">✏️</button> <button class="btn btn-danger btn-sm" onclick="deleteProd(\''+p.id+'\')">🗑</button></td>'+
     '</tr>';
   }).join('');
 }
@@ -1707,7 +1707,7 @@ function renderClientes(){
       '<td><span class="badge" style="'+(sc[c.status]||'')+'">'+c.status+'</span></td>'+
       '<td style="font-size:12px;'+fuS+'">'+fu+(c.followup&&c.followup<hoje2?' ⚠️':'')+'</td>'+
       '<td style="text-align:center;font-weight:700;color:var(--brand)">'+(c.orcamentos?c.orcamentos.length:0)+'</td>'+
-      '<td style="display:flex;gap:3px;align-items:center"><button class="btn btn-out btn-sm" onclick="editCliente(\''+c.id+'\')">✏️</button><button class="btn btn-wpp btn-sm" onclick="wppCliente(\''+c.id+'\')">💬</button><button class="btn btn-danger btn-sm" onclick="deleteCliente(\''+c.id+'\')">🗑</button></td>'+
+      '<td style="white-space:nowrap"><button class="btn btn-out btn-sm" onclick="editCliente(\''+c.id+'\')">✏️</button> <button class="btn btn-wpp btn-sm" onclick="wppCliente(\''+c.id+'\')">💬</button> <button class="btn btn-danger btn-sm" onclick="deleteCliente(\''+c.id+'\')">🗑</button></td>'+
     '</tr>';
   }).join('');
 }
@@ -1865,7 +1865,7 @@ function renderHistComDados(f,isFilter,filterLabel){
       '<td style="font-weight:700;color:var(--brand)">'+fmt(total)+'</td>'+
       '<td>'+mgHtml+'</td>'+
       '<td>'+selHtml+'</td>'+
-      '<td style="display:flex;gap:3px;flex-wrap:wrap;align-items:center">'+
+      '<td style="white-space:nowrap">'+
         '<button class="btn btn-brand btn-sm" onclick="editarOrcamento(\''+h.id+'\')" title="Editar">✏️</button>'+
         '<button class="btn btn-out btn-sm" onclick="previewOrcamento(\''+h.id+'\')" title="Ver">👁</button>'+
         '<button class="btn btn-wpp btn-sm" onclick="abrirFollowup(\''+h.id+'\')" title="Enviar mensagem">💬</button>'+
@@ -1959,7 +1959,7 @@ function renderTemplates(){
       '<td style="font-size:12px;color:rgba(255,255,255,.5)">'+(t.desc||'—')+'</td>'+
       '<td style="text-align:center">'+(t.itens?t.itens.length:0)+'</td>'+
       '<td style="font-weight:600;color:var(--brand)">'+fmt(sub)+'</td>'+
-      '<td style="display:flex;gap:3px;align-items:center"><button class="btn btn-brand btn-sm" onclick="carregarTemplate(\''+t.id+'\')">📥 Usar</button><button class="btn btn-danger btn-sm" onclick="deletarTemplate(\''+t.id+'\')">🗑</button></td>'+
+      '<td style="white-space:nowrap"><button class="btn btn-brand btn-sm" onclick="carregarTemplate(\''+t.id+'\')">📥 Usar</button> <button class="btn btn-danger btn-sm" onclick="deletarTemplate(\''+t.id+'\')">🗑</button></td>'+
     '</tr>';
   }).join('');
 }
@@ -2020,7 +2020,7 @@ function renderOS(){
       '<td style="font-size:12px">'+fmtDt(o.abertura)+'</td>'+
       '<td style="font-size:12px">'+(o.previsao?fmtDt(o.previsao):'—')+'</td>'+
       '<td>'+selHtml+'</td>'+
-      '<td style="display:flex;gap:3px;align-items:center">'+
+      '<td style="white-space:nowrap">'+
         '<button class="btn btn-out btn-sm" onclick="verOS(\''+o.id+'\')">👁 Ver</button>'+
         (o.status==='Entregue'?'<button class="btn btn-out btn-sm" onclick="enviarSatisfacao(\''+o.id+'\')" title="Pesquisa de satisfação">⭐</button>':'')+
         '<button class="btn btn-danger btn-sm" onclick="deletarOS(\''+o.id+'\')">🗑</button>'+
@@ -2062,7 +2062,7 @@ function renderFuncs(){
       '<td style="font-size:12px">'+(f.wpp?'<a href="https://wa.me/'+f.wpp.replace(/\D/g,'')+'" target="_blank" style="color:var(--brand)">'+f.wpp+'</a>':'—')+'</td>'+
       '<td style="text-align:center;font-weight:600;color:var(--brand)">'+(f.comissao||5)+'%</td>'+
       '<td style="font-weight:700;color:var(--green)">'+fmt(comissao)+'</td>'+
-      '<td style="display:flex;gap:3px;align-items:center"><button class="btn btn-out btn-sm" onclick="openFuncModal(\''+f.id+'\')">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteFunc(\''+f.id+'\')">🗑</button></td>'+
+      '<td style="white-space:nowrap"><button class="btn btn-out btn-sm" onclick="openFuncModal(\''+f.id+'\')">✏️</button> <button class="btn btn-danger btn-sm" onclick="deleteFunc(\''+f.id+'\')">🗑</button></td>'+
     '</tr>';
   }).join('');
 }
@@ -2207,7 +2207,7 @@ function renderFornecedores(){
       '<td style="font-size:12px">'+(x.wpp?'<a href="https://wa.me/'+x.wpp.replace(/\D/g,'')+'" target="_blank" style="color:var(--brand)">'+x.wpp+'</a>':'—')+'</td>'+
       '<td style="font-size:12px;color:rgba(255,255,255,.6)">'+(x.contato||'—')+'</td>'+
       '<td style="text-align:center;font-weight:700;color:var(--brand)">'+nNotas+'</td>'+
-      '<td style="display:flex;gap:3px;align-items:center"><button class="btn btn-out btn-sm" onclick="openFornecedorModal(\''+x.id+'\')">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteFornecedor(\''+x.id+'\')">🗑</button></td>'+
+      '<td style="white-space:nowrap"><button class="btn btn-out btn-sm" onclick="openFornecedorModal(\''+x.id+'\')">✏️</button> <button class="btn btn-danger btn-sm" onclick="deleteFornecedor(\''+x.id+'\')">🗑</button></td>'+
     '</tr>';
   }).join('');
 }
@@ -2376,7 +2376,7 @@ function renderNotas(){
       '<td style="font-size:12px;color:rgba(255,255,255,.55)">'+(n.numero||'—')+'</td>'+
       '<td style="text-align:center">'+(n.itens?n.itens.length:0)+'</td>'+
       '<td style="font-weight:700;color:var(--red)">'+fmt(n.total)+'</td>'+
-      '<td style="display:flex;gap:3px;align-items:center"><button class="btn btn-out btn-sm" onclick="openNotaModal(\''+n.id+'\')">✏️</button><button class="btn btn-danger btn-sm" onclick="deletarNota(\''+n.id+'\')">🗑</button></td>'+
+      '<td style="white-space:nowrap"><button class="btn btn-out btn-sm" onclick="openNotaModal(\''+n.id+'\')">✏️</button> <button class="btn btn-danger btn-sm" onclick="deletarNota(\''+n.id+'\')">🗑</button></td>'+
     '</tr>';
   }).join('');
 }
@@ -2818,7 +2818,7 @@ function renderMEI(){
         '<td style="font-size:12px;color:rgba(255,255,255,.6)">'+d.cat+'</td>'+
         '<td style="font-weight:700;color:var(--red)">'+fmt(d.valor)+'</td>'+
         '<td>'+(d.recorrente==='mensal'?'<span class="badge bbl">🔁 Mensal</span>':'<span style="color:rgba(255,255,255,.35);font-size:12px">Única</span>')+'</td>'+
-        '<td style="display:flex;gap:3px;align-items:center"><button class="btn btn-out btn-sm" onclick="openDespesaModal(\''+d.id+'\')">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteDespesa(\''+d.id+'\')">🗑</button></td>'+
+        '<td style="white-space:nowrap"><button class="btn btn-out btn-sm" onclick="openDespesaModal(\''+d.id+'\')">✏️</button> <button class="btn btn-danger btn-sm" onclick="deleteDespesa(\''+d.id+'\')">🗑</button></td>'+
       '</tr>';
     }).join('');
   }
@@ -2877,7 +2877,7 @@ function renderMEI(){
           'onchange="quickEditCustoMes(\''+c.id+'\','+anoSel+','+mesParaEditar+',this.value)">'+
         '</td>'+
         '<td style="font-size:11px;color:rgba(255,255,255,.5);white-space:nowrap">'+historicoTxt+'</td>'+
-        '<td style="display:flex;gap:3px;align-items:center;white-space:nowrap"><button class="btn btn-out btn-sm" onclick="openCustoModal(\''+c.id+'\')" title="Editar todos os meses">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteCusto(\''+c.id+'\')">🗑</button></td>'+
+        '<td style="white-space:nowrap"><button class="btn btn-out btn-sm" onclick="openCustoModal(\''+c.id+'\')" title="Editar todos os meses">✏️</button> <button class="btn btn-danger btn-sm" onclick="deleteCusto(\''+c.id+'\')">🗑</button></td>'+
       '</tr>';
     }).join('');
   }
@@ -2895,7 +2895,7 @@ function renderMEI(){
         '<td style="font-weight:700;color:var(--blue);white-space:nowrap">'+fmt(p.valor)+'</td>'+
         '<td style="font-size:12px;white-space:nowrap">Todo dia <strong>'+p.dia+'</strong></td>'+
         '<td style="font-size:12px;color:rgba(255,255,255,.5)">'+(p.obs||'—')+'</td>'+
-        '<td style="display:flex;gap:3px;align-items:center;white-space:nowrap"><button class="btn btn-out btn-sm" onclick="openPagamentoModal(\''+p.id+'\')">✏️</button><button class="btn btn-danger btn-sm" onclick="deletePagamento(\''+p.id+'\')">🗑</button></td>'+
+        '<td style="white-space:nowrap"><button class="btn btn-out btn-sm" onclick="openPagamentoModal(\''+p.id+'\')">✏️</button> <button class="btn btn-danger btn-sm" onclick="deletePagamento(\''+p.id+'\')">🗑</button></td>'+
       '</tr>';
     }).join('');
   }
@@ -3028,7 +3028,7 @@ function renderDash(){
     return vd<new Date();
   });
   var alertHtml='';
-  if(vencidos.length)alertHtml+='<div class="alert-box">⚠️ <strong>'+vencidos.length+' orçamento(s) vencidos</strong> sem resposta! <button class="btn btn-danger btn-sm" onclick="filtrarHistVencidos()" style="margin-left:8px">Ver histórico</button><button class="btn btn-wpp btn-sm" onclick="abrirFollowupMassa()" style="margin-left:6px">💬 Follow-up em massa</button></div>';
+  if(vencidos.length)alertHtml+='<div class="alert-box">⚠️ <strong>'+vencidos.length+' orçamento(s) vencidos</strong> sem resposta! <button class="btn btn-danger btn-sm" onclick="filtrarHistVencidos()" style="margin-left:8px">Ver histórico</button> <button class="btn btn-wpp btn-sm" onclick="abrirFollowupMassa()" style="margin-left:6px">💬 Follow-up em massa</button></div>';
   if(vencendo.length)alertHtml+='<div class="warn-box">🕐 <strong>'+vencendo.length+' orçamento(s) vencem em até 48h!</strong> <button class="btn btn-yellow btn-sm" onclick="filtrarHistVencendo()" style="margin-left:8px">Ver</button></div>';
   alertas.innerHTML=alertHtml;
 
@@ -3647,15 +3647,15 @@ function showView(name){
   var titles={dash:['Dashboard','Visão geral do negócio'],form:['Novo Orçamento','Preencha os dados abaixo'],preview:['Pré-visualização','Revise e envie ao cliente'],hist:['Histórico','Edite e acompanhe orçamentos'],os:['Ordens de Serviço','Acompanhe a produção'],templates:['Templates','Orçamentos reutilizáveis'],cat:['Catálogo de Produtos','Preços, custos e margens'],clientes:['Clientes & Follow-up','Gerencie relacionamentos'],config:['Minha Empresa','Dados, logotipo e backup'],mei:['Dashboard MEI','Controle financeiro para declaração anual'],notas:['Notas de Compra','Entrada de estoque e despesas automáticas'],fornec:['Fornecedores','Gerencie seus fornecedores']};
   ge('tb-title').textContent=titles[name][0];ge('tb-sub').textContent=titles[name][1];
   var acts={
-    dash:'<button class="btn btn-brand" onclick="showView(\'form\')">✏️ Novo orçamento</button><button class="btn btn-out" onclick="abrirRelatorioSemanal()">📊 Relatório semanal</button>',
-    form:'<button class="btn btn-out" onclick="limparForm()">↺ Novo</button><button class="btn btn-out" onclick="salvarOrcamento()">💾 Salvar</button><button class="btn btn-out" onclick="salvarComoTemplate()">⭐ Template</button><button class="btn btn-brand" onclick="showView(\'preview\')">👁 Pré-visualizar →</button>',
-    preview:'<button class="btn btn-out" onclick="showView(\'form\')">← Editar</button><button class="btn btn-out" onclick="salvarOrcamento()">💾 Salvar</button><button class="btn btn-wpp" onclick="enviarWpp()">💬 Enviar</button><button class="btn btn-wpp" onclick="abrirFollowupPreview()" style="background:#128C7E">💬 Follow-up</button><button class="btn btn-email" onclick="enviarEmail()">✉️</button><button class="btn btn-pdf" onclick="window.print()">🖨️</button><button class="btn btn-green" onclick="gerarLinkPublico()">🔗</button>',
-    hist:'<button class="btn btn-brand" onclick="showView(\'form\')">✏️ Novo</button><button class="btn btn-out" onclick="exportarHistXls()">📊 Excel</button>',
+    dash:'<button class="btn btn-brand" onclick="showView(\'form\')">✏️ Novo orçamento</button> <button class="btn btn-out" onclick="abrirRelatorioSemanal()">📊 Relatório semanal</button>',
+    form:'<button class="btn btn-out" onclick="limparForm()">↺ Novo</button> <button class="btn btn-out" onclick="salvarOrcamento()">💾 Salvar</button> <button class="btn btn-out" onclick="salvarComoTemplate()">⭐ Template</button> <button class="btn btn-brand" onclick="showView(\'preview\')">👁 Pré-visualizar →</button>',
+    preview:'<button class="btn btn-out" onclick="showView(\'form\')">← Editar</button> <button class="btn btn-out" onclick="salvarOrcamento()">💾 Salvar</button> <button class="btn btn-wpp" onclick="enviarWpp()">💬 Enviar</button> <button class="btn btn-wpp" onclick="abrirFollowupPreview()" style="background:#128C7E">💬 Follow-up</button> <button class="btn btn-email" onclick="enviarEmail()">✉️</button> <button class="btn btn-pdf" onclick="window.print()">🖨️</button> <button class="btn btn-green" onclick="gerarLinkPublico()">🔗</button>',
+    hist:'<button class="btn btn-brand" onclick="showView(\'form\')">✏️ Novo</button> <button class="btn btn-out" onclick="exportarHistXls()">📊 Excel</button>',
     os:'',templates:'<button class="btn btn-brand" onclick="salvarComoTemplate()">⭐ Salvar atual como template</button>',
     cat:'<button class="btn btn-brand" onclick="openProdModal()">＋ Produto</button>',
     clientes:'<button class="btn btn-brand" onclick="openClienteModal()">＋ Cliente</button>',
-    config:'<button class="btn btn-brand" onclick="saveConfig()">💾 Salvar</button><button class="btn btn-out" onclick="exportarBackup()">📦 Backup</button>',
-    mei:'<button class="btn btn-brand" onclick="openDespesaModal()">＋ Nova despesa</button><button class="btn btn-out" onclick="exportarMEIExcel()">📊 Exportar para contador</button>',
+    config:'<button class="btn btn-brand" onclick="saveConfig()">💾 Salvar</button> <button class="btn btn-out" onclick="exportarBackup()">📦 Backup</button>',
+    mei:'<button class="btn btn-brand" onclick="openDespesaModal()">＋ Nova despesa</button> <button class="btn btn-out" onclick="exportarMEIExcel()">📊 Exportar para contador</button>',
     notas:'<button class="btn btn-brand" onclick="openNotaModal()">＋ Nova nota de compra</button>',
     fornec:'<button class="btn btn-brand" onclick="openFornecedorModal()">＋ Novo fornecedor</button>'
   };
