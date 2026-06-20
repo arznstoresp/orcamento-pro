@@ -717,9 +717,9 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
           <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px">Sugestão: entre 20% e 30% do lucro líquido (depois de custos fixos, RH e despesas), mantendo o resto como capital de giro do negócio.</div>
         </div>
         <div class="mt">
-          <label class="lbl">% Alíquota efetiva (DAS + impostos) <span class="lbl-hint">— usada no Precificador</span></label>
-          <input type="number" id="cfg-aliquota-das" oninput="autoSave()" placeholder="Ex: 6" min="0" max="100" step="0.1" style="max-width:140px">
-          <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px">Padrão sugerido: 6% sobre o faturamento (referência aproximada para MEI de comércio/indústria — consulte seu contador para o valor exato do seu CNAE).</div>
+          <label class="lbl">Valor mensal do DAS-MEI (R$) <span class="lbl-hint">— rateado por venda no Precificador</span></label>
+          <input type="number" id="cfg-aliquota-das" oninput="autoSave()" placeholder="Ex: 76.90" min="0" step="0.01" style="max-width:140px">
+          <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px">Informe o valor fixo que você paga todo mês no DAS-MEI (consulte o boleto gerado no Portal do Empreendedor). O Precificador divide esse valor pelo volume médio de vendas do mês para embutir uma fatia do imposto em cada produto.</div>
         </div>
         <div class="mt">
           <label class="lbl">Categorias de produtos <span class="lbl-hint">— uma por linha, aparecem no catálogo e nos itens do orçamento</span></label>
@@ -1196,7 +1196,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
         <input type="checkbox" id="precif-incluir-rateio" onchange="calcularPrecificador()" style="width:auto;padding:0"> Incluir rateio de custos fixos
       </label>
       <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;white-space:nowrap">
-        <input type="checkbox" id="precif-incluir-imposto" checked onchange="calcularPrecificador()" style="width:auto;padding:0"> Incluir imposto (DAS)
+        <input type="checkbox" id="precif-incluir-imposto" checked onchange="calcularPrecificador()" style="width:auto;padding:0"> Incluir DAS-MEI (rateado por venda)
       </label>
     </div>
     <div class="mt" id="precif-extras-info" style="font-size:11px;color:rgba(255,255,255,.4)"></div>
@@ -1693,7 +1693,7 @@ function saveConfig(){
     termos:val('cfg-termos'),banco:val('cfg-banco'),prefixo:val('cfg-prefixo'),
     slogan:val('cfg-slogan'),meta:parseFloat(val('cfg-meta'))||0,categorias:val('cfg-categorias'),
     prolaborePct:parseFloat(val('cfg-prolabore-pct'))||25,
-    aliquotaDas:parseFloat(val('cfg-aliquota-das'))||6,
+    dasMensal:parseFloat(val('cfg-aliquota-das'))||76.90,
     googleClientId:val('cfg-google-client-id')||'',
     googleAutoSync:ge('cfg-google-auto-sync')&&ge('cfg-google-auto-sync').checked,
     // automações
@@ -1721,7 +1721,7 @@ function fillConfigForm(){
   setVal('cfg-termos',c.termos);setVal('cfg-banco',c.banco);setVal('cfg-prefixo',c.prefixo);
   setVal('cfg-slogan',c.slogan);setVal('cfg-meta',c.meta||'');setVal('cfg-categorias',c.categorias||'');
   setVal('cfg-prolabore-pct',c.prolaborePct||25);
-  setVal('cfg-aliquota-das',c.aliquotaDas!=null?c.aliquotaDas:6);
+  setVal('cfg-aliquota-das',c.dasMensal!=null?c.dasMensal:76.90);
   setVal('cfg-google-client-id',c.googleClientId||'');
   if(ge('cfg-google-auto-sync'))ge('cfg-google-auto-sync').checked=!!c.googleAutoSync;
   // automações
@@ -3157,6 +3157,27 @@ function openPrecificadorModal(fromProdModal){
 }
 function closePrecificadorModal(){ge('modal-precificador').className='modal-overlay';}
 
+function getRateioDasMensal(){
+  // DAS é um valor fixo mensal — rateia pelo mesmo volume médio de vendas usado no rateio de custo fixo
+  var cfg=getCfg();
+  var dasMensal=parseFloat(cfg.dasMensal)||0;
+  if(!dasMensal)return{dasMensal:0,qtdMedia:0,rateioPorUnidade:0,semDados:true};
+
+  var hist=getHist().filter(function(h){return h.status==='Aprovado';});
+  var qtdPorMes={};
+  hist.forEach(function(h){
+    if(!h.data)return;
+    var mesChave=h.data.substring(0,7);
+    var qtdOrc=(h.items||[]).reduce(function(a,it){return a+(parseFloat(it.qty)||0);},0);
+    qtdPorMes[mesChave]=(qtdPorMes[mesChave]||0)+qtdOrc;
+  });
+  var meses=Object.keys(qtdPorMes);
+  var qtdMedia=meses.length?Object.values(qtdPorMes).reduce(function(a,v){return a+v;},0)/meses.length:0;
+
+  if(!qtdMedia||qtdMedia<1)return{dasMensal:dasMensal,qtdMedia:0,rateioPorUnidade:0,semDados:true};
+  return{dasMensal:dasMensal,qtdMedia:qtdMedia,rateioPorUnidade:dasMensal/qtdMedia,semDados:false};
+}
+
 function calcularPrecificador(){
   var totalProducao=getPrecifTotal('producao');
   var totalEmbalagem=getPrecifTotal('embalagem');
@@ -3166,23 +3187,22 @@ function calcularPrecificador(){
   var canalId=val('precif-canal');
   var incluirRateio=ge('precif-incluir-rateio').checked;
   var incluirImposto=ge('precif-incluir-imposto').checked;
-  var cfg=getCfg();
-  var aliquotaDas=incluirImposto?(parseFloat(cfg.aliquotaDas)||6):0;
   var canal=canalId?getCanaisVenda().find(function(c){return c.id===canalId;}):null;
   var taxaPct=canal?canal.taxaPct:0;
   var taxaFixa=canal?canal.taxaFixa:0;
   var rateio=incluirRateio?getRateioCustoFixoPorProduto():{rateioPorUnidade:0,semDados:true};
+  var rateioDas=incluirImposto?getRateioDasMensal():{rateioPorUnidade:0,semDados:true};
 
-  var custoTotal=totalProducao+totalEmbalagem+(incluirRateio?rateio.rateioPorUnidade:0);
+  // O DAS agora é um valor fixo por unidade (rateado), não um percentual sobre a venda
+  var custoTotal=totalProducao+totalEmbalagem+(incluirRateio?rateio.rateioPorUnidade:0)+rateioDas.rateioPorUnidade;
   ge('precif-custo-total-display').textContent=fmt(custoTotal);
 
   // ── Valor de venda informado pelo usuário ──
   var vendaVarejo=parseFloat(val('precif-venda-varejo'))||0;
   if(vendaVarejo>0){
     var taxaCanalValor=vendaVarejo*(taxaPct/100)+taxaFixa;
-    var impostoValor=vendaVarejo*(aliquotaDas/100);
     var lucroBruto=vendaVarejo-custoTotal;
-    var lucroLiquido=vendaVarejo-custoTotal-taxaCanalValor-impostoValor;
+    var lucroLiquido=vendaVarejo-custoTotal-taxaCanalValor;
     var margemReal=vendaVarejo>0?(lucroBruto/vendaVarejo)*100:0;
     var retornoPct=custoTotal>0?(lucroLiquido/custoTotal)*100:0;
 
@@ -3198,8 +3218,9 @@ function calcularPrecificador(){
   }
 
   // ── Sugestão de preço pela margem desejada ──
+  // Preço = (CustoTotal já com DAS embutido) / (1 - margem% - taxaCanal%) + taxaFixa
   var margemDesejada=parseFloat(val('precif-margem-desejada'))||0;
-  var percentuaisSomados=(margemDesejada+taxaPct+aliquotaDas)/100;
+  var percentuaisSomados=(margemDesejada+taxaPct)/100;
   var precoSugerido=percentuaisSomados<1?(custoTotal/(1-percentuaisSomados))+taxaFixa:null;
   ge('precif-sugestao-preco').textContent=precoSugerido!=null?fmt(precoSugerido):'—';
   window._precifSugestaoAtual=precoSugerido;
@@ -3236,7 +3257,7 @@ function calcularPrecificador(){
   var partes=[];
   if(incluirRateio)partes.push('Rateio de custo fixo: '+fmt(rateio.rateioPorUnidade)+(rateio.semDados?' (sem histórico de vendas suficiente ainda)':''));
   if(canal)partes.push('Taxa '+canal.nome+': '+taxaPct+'% + '+fmt(taxaFixa));
-  if(aliquotaDas>0)partes.push('Imposto DAS: '+aliquotaDas+'%');
+  if(incluirImposto)partes.push('DAS-MEI: '+fmt(rateioDas.dasMensal)+'/mês'+(rateioDas.semDados?' (rateio R$ 0,00 — sem histórico de vendas suficiente ainda)':' → '+fmt(rateioDas.rateioPorUnidade)+'/unidade'));
   infoEl.textContent=partes.join(' · ');
 
   ge('precif-btn-aplicar').style.display=ge('precif-prod-id').value==='__from_prod_modal__'?'inline-flex':'none';
