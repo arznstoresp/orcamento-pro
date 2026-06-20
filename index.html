@@ -706,6 +706,11 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
           <div><label class="lbl">Meta mensal (R$)</label><input type="number" id="cfg-meta" oninput="autoSave()" placeholder="Ex: 10000" min="0" step="100"></div>
         </div>
         <div class="mt">
+          <label class="lbl">% de Pró-labore <span class="lbl-hint">— aplicada sobre o lucro líquido mensal no Dashboard MEI</span></label>
+          <input type="number" id="cfg-prolabore-pct" oninput="autoSave()" placeholder="Ex: 25" min="0" max="100" step="1" style="max-width:140px">
+          <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px">Sugestão: entre 20% e 30% do lucro líquido (depois de custos fixos, RH e despesas), mantendo o resto como capital de giro do negócio.</div>
+        </div>
+        <div class="mt">
           <label class="lbl">Categorias de produtos <span class="lbl-hint">— uma por linha, aparecem no catálogo e nos itens do orçamento</span></label>
           <textarea id="cfg-categorias" oninput="autoSave()" placeholder="Ex:&#10;Camisetas&#10;Canecas&#10;Adesivos&#10;Chaveiros&#10;Brindes&#10;Impressão 3D" style="min-height:110px;white-space:pre-wrap"></textarea>
         </div>
@@ -833,9 +838,54 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
         </div>
       </div>
 
+      <!-- BREAK-EVEN -->
+      <div class="dash-panel" style="margin-bottom:14px">
+        <div class="dash-panel-title"><span class="dash-panel-title-icon">⚖️</span>Ponto de Equilíbrio (Break-Even) — <span id="mei-be-mes-label"></span></div>
+        <div id="mei-breakeven"></div>
+      </div>
+
+      <!-- PRÓ-LABORE -->
+      <div class="dash-panel" style="margin-bottom:14px">
+        <div class="dash-panel-title"><span class="dash-panel-title-icon">👤</span>Pró-labore (sua retirada sugerida)</div>
+        <div id="mei-prolabore"></div>
+      </div>
+
       <div class="card">
         <div class="card-title">
-          Despesas do Negócio
+          Custos Fixos e Variáveis
+          <span style="margin-left:auto;display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+            <button class="btn btn-brand btn-sm" onclick="openCustoModal()">＋ Novo custo</button>
+          </span>
+        </div>
+        <p style="font-size:12px;color:rgba(255,255,255,.45);margin-bottom:11px;line-height:1.5">Água, luz, internet, softwares, aluguel — tudo que você paga para manter o negócio funcionando, com ou sem vendas.</p>
+        <div class="items-wrap">
+          <table class="cat"><thead><tr>
+            <th style="width:24%">Descrição</th><th style="width:14%">Tipo</th>
+            <th style="width:14%">Valor</th><th style="width:32%">Meses ativos</th><th style="width:16%"></th>
+          </tr></thead><tbody id="mei-custos-body"></tbody></table>
+        </div>
+        <div id="mei-custos-empty" style="text-align:center;padding:20px;color:rgba(255,255,255,.4);font-size:13px;display:none">Nenhum custo fixo/variável cadastrado.</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          RH — Folha de Pagamento
+          <span style="margin-left:auto;display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+            <button class="btn btn-brand btn-sm" onclick="openPagamentoModal()">＋ Novo pagamento</button>
+          </span>
+        </div>
+        <p style="font-size:12px;color:rgba(255,255,255,.45);margin-bottom:11px;line-height:1.5">Salários e comissões fixas que você paga todo mês, em um dia específico (ex: todo dia 5).</p>
+        <div class="items-wrap">
+          <table class="cat"><thead><tr>
+            <th style="width:24%">Nome / Função</th><th style="width:14%">Valor</th>
+            <th style="width:14%">Dia do pagamento</th><th style="width:28%">Observações</th><th style="width:20%"></th>
+          </tr></thead><tbody id="mei-rh-body"></tbody></table>
+        </div>
+        <div id="mei-rh-empty" style="text-align:center;padding:20px;color:rgba(255,255,255,.4);font-size:13px;display:none">Nenhum pagamento de RH cadastrado.</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Despesas Variáveis Pontuais
           <span style="margin-left:auto;display:flex;gap:7px;align-items:center;flex-wrap:wrap">
             <select id="mei-filtro-ano" onchange="renderMEI()" style="max-width:110px"></select>
             <button class="btn btn-brand btn-sm" onclick="openDespesaModal()">＋ Nova despesa</button>
@@ -856,9 +906,9 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
         <div class="card-title">📅 Resumo Mês a Mês — <span id="mei-ano-label2"></span></div>
         <div class="items-wrap">
           <table class="cat"><thead><tr>
-            <th style="width:16%">Mês</th><th style="width:18%">Receita (Aprovados)</th>
-            <th style="width:16%">Custo Produtos</th><th style="width:16%">Despesas</th>
-            <th style="width:16%">Lucro</th><th style="width:18%">Margem</th>
+            <th style="width:14%">Mês</th><th style="width:15%">Receita (Aprovados)</th>
+            <th style="width:13%">Custo Produtos</th><th style="width:13%">Custos Fixos</th>
+            <th style="width:13%">RH</th><th style="width:13%">Lucro</th><th style="width:19%">Margem</th>
           </tr></thead><tbody id="mei-meses-body"></tbody></table>
         </div>
       </div>
@@ -1071,6 +1121,56 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
   </div>
 </div>
 
+<!-- MODAL CUSTO FIXO/VARIÁVEL -->
+<div class="modal-overlay" id="modal-custo">
+  <div class="modal" style="width:520px">
+    <div class="modal-title" id="modal-custo-title">Novo Custo</div>
+    <input type="hidden" id="custo-edit-id">
+    <div><label class="lbl">Descrição *</label><input id="custo-desc" placeholder="Ex: Internet, Água, Luz, Adobe Photoshop..."></div>
+    <div class="g2 mt">
+      <div><label class="lbl">Tipo</label>
+        <select id="custo-tipo">
+          <option value="fixo">Fixo</option>
+          <option value="variavel">Variável</option>
+        </select>
+      </div>
+      <div><label class="lbl">Valor mensal (R$) *</label><input type="number" id="custo-valor" placeholder="0,00" min="0" step="0.01"></div>
+    </div>
+    <div class="mt">
+      <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer">
+        <input type="checkbox" id="custo-replicar" checked onchange="toggleCustoMeses()" style="width:auto;padding:0"> Mesmo valor todo mês — replicar para os 12 meses do ano
+      </label>
+    </div>
+    <div class="mt" id="custo-meses-wrap" style="display:none">
+      <label class="lbl">Selecione os meses em que este custo se aplica</label>
+      <div id="custo-meses-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:6px"></div>
+    </div>
+    <div class="mt"><label class="lbl">Ano de referência</label><input type="number" id="custo-ano" style="max-width:140px"></div>
+    <div class="modal-footer">
+      <button class="btn btn-out" onclick="closeCustoModal()">Cancelar</button>
+      <button class="btn btn-brand" onclick="saveCusto()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PAGAMENTO RH -->
+<div class="modal-overlay" id="modal-pagamento">
+  <div class="modal" style="width:500px">
+    <div class="modal-title" id="modal-pagamento-title">Novo Pagamento RH</div>
+    <input type="hidden" id="pagto-edit-id">
+    <div><label class="lbl">Nome / Função *</label><input id="pagto-nome" placeholder="Ex: Emily — Atendimento, Comissão João"></div>
+    <div class="g2 mt">
+      <div><label class="lbl">Valor mensal (R$) *</label><input type="number" id="pagto-valor" placeholder="0,00" min="0" step="0.01"></div>
+      <div><label class="lbl">Dia do pagamento</label><input type="number" id="pagto-dia" placeholder="Ex: 5" min="1" max="31"></div>
+    </div>
+    <div class="mt"><label class="lbl">Observações</label><textarea id="pagto-obs" style="min-height:48px" placeholder="Opcional..."></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-out" onclick="closePagamentoModal()">Cancelar</button>
+      <button class="btn btn-brand" onclick="savePagamento()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL FOLLOW-UP WPP -->
 <div class="modal-overlay" id="modal-followup">
   <div class="modal" style="width:520px">
@@ -1254,6 +1354,7 @@ function saveConfig(){
     site:val('cfg-site'),cidade:val('cfg-cidade'),end:val('cfg-end'),obs:val('cfg-obs'),
     termos:val('cfg-termos'),banco:val('cfg-banco'),prefixo:val('cfg-prefixo'),
     slogan:val('cfg-slogan'),meta:parseFloat(val('cfg-meta'))||0,categorias:val('cfg-categorias'),
+    prolaborePct:parseFloat(val('cfg-prolabore-pct'))||25,
     // automações
     autoFollowupDias:parseInt(val('cfg-auto-followup-dias'))||2,
     autoExpirarDias:parseInt(val('cfg-auto-expirar-dias'))||7,
@@ -1278,6 +1379,7 @@ function fillConfigForm(){
   setVal('cfg-site',c.site);setVal('cfg-cidade',c.cidade);setVal('cfg-end',c.end);setVal('cfg-obs',c.obs);
   setVal('cfg-termos',c.termos);setVal('cfg-banco',c.banco);setVal('cfg-prefixo',c.prefixo);
   setVal('cfg-slogan',c.slogan);setVal('cfg-meta',c.meta||'');setVal('cfg-categorias',c.categorias||'');
+  setVal('cfg-prolabore-pct',c.prolaborePct||25);
   // automações
   setVal('cfg-auto-followup-dias',c.autoFollowupDias||2);
   setVal('cfg-auto-expirar-dias',c.autoExpirarDias||7);
@@ -2338,6 +2440,177 @@ function expandirDespesasRecorrentes(despesas,ano){
   return resultado;
 }
 
+// ═══════════════════════════════════════════════════
+// CUSTOS FIXOS E VARIÁVEIS (com replicação mensal)
+// ═══════════════════════════════════════════════════
+var MESES_NOMES_CURTO=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+function getCustos(){try{return JSON.parse(localStorage.getItem('orcpro_custos')||'[]');}catch(e){return[];}}
+function saveCustos(arr){localStorage.setItem('orcpro_custos',JSON.stringify(arr));}
+
+function toggleCustoMeses(){
+  var replicar=ge('custo-replicar').checked;
+  ge('custo-meses-wrap').style.display=replicar?'none':'block';
+}
+
+function montarGridMeses(mesesAtivos){
+  var grid=ge('custo-meses-grid');
+  grid.innerHTML=MESES_NOMES_CURTO.map(function(nome,i){
+    var checked=mesesAtivos&&mesesAtivos.indexOf(i)>=0;
+    return'<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:rgba(255,255,255,.04);padding:5px 8px;border-radius:6px">'+
+      '<input type="checkbox" class="custo-mes-cb" value="'+i+'" '+(checked?'checked':'')+' style="width:auto;padding:0"> '+nome+
+    '</label>';
+  }).join('');
+}
+
+function openCustoModal(id){
+  ge('custo-edit-id').value=id||'';
+  ge('modal-custo-title').textContent=id?'Editar Custo':'Novo Custo';
+  setVal('custo-ano',new Date().getFullYear());
+  if(id){
+    var c=getCustos().find(function(x){return x.id===id;});
+    if(c){
+      setVal('custo-desc',c.desc);setVal('custo-tipo',c.tipo);setVal('custo-valor',c.valor);setVal('custo-ano',c.ano);
+      var replicar=(c.meses&&c.meses.length===12);
+      ge('custo-replicar').checked=replicar;
+      montarGridMeses(c.meses||[]);
+      toggleCustoMeses();
+    }
+  }else{
+    setVal('custo-desc','');setVal('custo-tipo','fixo');setVal('custo-valor','');
+    ge('custo-replicar').checked=true;
+    montarGridMeses([0,1,2,3,4,5,6,7,8,9,10,11]);
+    toggleCustoMeses();
+  }
+  ge('modal-custo').className='modal-overlay open';
+}
+function closeCustoModal(){ge('modal-custo').className='modal-overlay';}
+
+function saveCusto(){
+  var desc=val('custo-desc'),valor=parseFloat(val('custo-valor'))||0,ano=val('custo-ano')||new Date().getFullYear();
+  if(!desc||!valor){alert('Preencha descrição e valor.');return;}
+  var replicar=ge('custo-replicar').checked;
+  var meses;
+  if(replicar){
+    meses=[0,1,2,3,4,5,6,7,8,9,10,11];
+  }else{
+    meses=Array.from(document.querySelectorAll('.custo-mes-cb:checked')).map(function(cb){return parseInt(cb.value);});
+    if(!meses.length){alert('Selecione ao menos um mês, ou marque "replicar para os 12 meses".');return;}
+  }
+  var custos=getCustos(),editId=val('custo-edit-id');
+  var c={id:editId||'cf'+Date.now(),desc:desc,tipo:val('custo-tipo'),valor:valor,meses:meses,ano:parseInt(ano)};
+  if(editId){var idx=custos.findIndex(function(x){return x.id===editId;});if(idx>=0)custos[idx]=c;else custos.push(c);}
+  else custos.push(c);
+  saveCustos(custos);closeCustoModal();renderMEI();
+}
+function deleteCusto(id){if(!confirm('Excluir este custo?'))return;saveCustos(getCustos().filter(function(c){return c.id!==id;}));renderMEI();}
+
+function getCustosDoMes(ano,mesIdx){
+  return getCustos().filter(function(c){return c.ano===Number(ano)&&c.meses&&c.meses.indexOf(mesIdx)>=0;});
+}
+function getTotalCustosAno(ano){
+  var total=0;
+  for(var m=0;m<12;m++){getCustosDoMes(ano,m).forEach(function(c){total+=c.valor;});}
+  return total;
+}
+
+// ═══════════════════════════════════════════════════
+// RH — FOLHA DE PAGAMENTO
+// ═══════════════════════════════════════════════════
+function getPagamentosRH(){try{return JSON.parse(localStorage.getItem('orcpro_rh')||'[]');}catch(e){return[];}}
+function savePagamentosRH(arr){localStorage.setItem('orcpro_rh',JSON.stringify(arr));}
+
+function openPagamentoModal(id){
+  ge('pagto-edit-id').value=id||'';
+  ge('modal-pagamento-title').textContent=id?'Editar Pagamento':'Novo Pagamento RH';
+  if(id){
+    var p=getPagamentosRH().find(function(x){return x.id===id;});
+    if(p){setVal('pagto-nome',p.nome);setVal('pagto-valor',p.valor);setVal('pagto-dia',p.dia);setVal('pagto-obs',p.obs);}
+  }else{
+    setVal('pagto-nome','');setVal('pagto-valor','');setVal('pagto-dia','5');setVal('pagto-obs','');
+  }
+  ge('modal-pagamento').className='modal-overlay open';
+}
+function closePagamentoModal(){ge('modal-pagamento').className='modal-overlay';}
+function savePagamento(){
+  var nome=val('pagto-nome'),valor=parseFloat(val('pagto-valor'))||0;
+  if(!nome||!valor){alert('Preencha nome e valor.');return;}
+  var pagamentos=getPagamentosRH(),editId=val('pagto-edit-id');
+  var p={id:editId||'rh'+Date.now(),nome:nome,valor:valor,dia:parseInt(val('pagto-dia'))||5,obs:val('pagto-obs')};
+  if(editId){var idx=pagamentos.findIndex(function(x){return x.id===editId;});if(idx>=0)pagamentos[idx]=p;else pagamentos.push(p);}
+  else pagamentos.push(p);
+  savePagamentosRH(pagamentos);closePagamentoModal();renderMEI();
+}
+function deletePagamento(id){if(!confirm('Excluir este pagamento?'))return;savePagamentosRH(getPagamentosRH().filter(function(p){return p.id!==id;}));renderMEI();}
+function getTotalRHMensal(){return getPagamentosRH().reduce(function(a,p){return a+p.valor;},0);}
+
+// ═══════════════════════════════════════════════════
+// BREAK-EVEN E PRÓ-LABORE
+// ═══════════════════════════════════════════════════
+function calcularBreakEven(ano,mesIdx,ticketMedio){
+  var custosFixosVar=getCustosDoMes(ano,mesIdx).reduce(function(a,c){return a+c.valor;},0);
+  var rh=getTotalRHMensal();
+  var custosTotaisFixos=custosFixosVar+rh;
+  // Break-even simplificado: quanto preciso faturar para cobrir custos fixos + RH
+  // (assumindo que o custo variável do produto já está embutido na margem de cada orçamento)
+  return{custosFixosVar:custosFixosVar,rh:rh,totalFixo:custosTotaisFixos,faturamentoNecessario:custosTotaisFixos};
+}
+
+function renderBreakEvenEProlabore(anoSel,mesesData,mesAtualIdx){
+  var cfg=getCfg();
+  var prolaborePct=cfg.prolaborePct||25;
+  var hoje2=new Date();
+  var mesRef=(Number(anoSel)===hoje2.getFullYear())?hoje2.getMonth():11;
+  ge('mei-be-mes-label').textContent=MESES_NOMES_CURTO[mesRef]+'/'+anoSel;
+
+  var be=calcularBreakEven(anoSel,mesRef);
+  var receitaMesRef=mesesData[mesRef]?mesesData[mesRef].receita:0;
+  var faltaParaBE=be.faturamentoNecessario-receitaMesRef;
+  var statusBE=faltaParaBE<=0?'positivo':'negativo';
+
+  ge('mei-breakeven').innerHTML=
+    '<div class="g3" style="margin-bottom:12px">'+
+      beCard('Custos Fixos/Variáveis',fmt(be.custosFixosVar),'var(--yellow)')+
+      beCard('RH (Salários/Comissões)',fmt(be.rh),'var(--blue)')+
+      beCard('Total a cobrir por mês',fmt(be.totalFixo),'var(--red)')+
+    '</div>'+
+    '<div style="background:rgba(255,255,255,.04);border:1px solid '+(statusBE==='positivo'?'var(--green-border)':'var(--red-border)')+';border-radius:10px;padding:14px 16px">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'+
+        '<span style="font-size:13px;color:rgba(255,255,255,.7)">Receita aprovada em '+MESES_NOMES_CURTO[mesRef]+'</span>'+
+        '<span style="font-size:16px;font-weight:800;color:'+(statusBE==='positivo'?'var(--green)':'var(--red)')+'">'+fmt(receitaMesRef)+'</span>'+
+      '</div>'+
+      (statusBE==='positivo'?
+        '<div style="font-size:13px;color:var(--green);font-weight:600">✅ Você já cobriu seus custos fixos e RH deste mês! Excedente: '+fmt(-faltaParaBE)+'</div>'
+      :
+        '<div style="font-size:13px;color:var(--red);font-weight:600">⚠️ Faltam '+fmt(faltaParaBE)+' em faturamento para cobrir seus custos fixos e RH deste mês.</div>'
+      )+
+    '</div>';
+
+  function beCard(l,v,cor){
+    return'<div style="background:rgba(255,255,255,.04);border:1px solid var(--dark-border2);border-radius:9px;padding:10px 12px;border-top:3px solid '+cor+'">'+
+      '<div style="font-size:10px;color:rgba(255,255,255,.45);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">'+l+'</div>'+
+      '<div style="font-size:16px;font-weight:800;color:'+cor+'">'+v+'</div>'+
+    '</div>';
+  }
+
+  // ── Pró-labore ──
+  var lucroLiquidoMes=receitaMesRef-(mesesData[mesRef]?mesesData[mesRef].custo:0)-be.totalFixo-(mesesData[mesRef]?mesesData[mesRef].despesa:0);
+  var prolaboreSugerido=lucroLiquidoMes>0?lucroLiquidoMes*(prolaborePct/100):0;
+  ge('mei-prolabore').innerHTML=
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'+
+      '<span style="font-size:12px;color:rgba(255,255,255,.55)">Lucro líquido estimado de '+MESES_NOMES_CURTO[mesRef]+'</span>'+
+      '<span style="font-size:15px;font-weight:700;color:'+(lucroLiquidoMes>=0?'var(--green)':'var(--red)')+'">'+fmt(lucroLiquidoMes)+'</span>'+
+    '</div>'+
+    '<div style="background:rgba(255,107,0,.08);border:1px solid var(--brand-glow);border-radius:10px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center">'+
+      '<div>'+
+        '<div style="font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Retirada sugerida ('+prolaborePct+'% do lucro)</div>'+
+        '<div style="font-size:22px;font-weight:800;color:var(--brand)">'+fmt(Math.max(0,prolaboreSugerido))+'</div>'+
+      '</div>'+
+      '<button class="btn btn-out btn-sm" onclick="showView(\'config\')">⚙️ Ajustar %</button>'+
+    '</div>'+
+    (lucroLiquidoMes<=0?'<div style="font-size:11px;color:var(--red);margin-top:8px">⚠️ Lucro negativo ou zerado neste mês — sem margem para retirada de pró-labore sem afetar o caixa do negócio.</div>':'');
+}
+
 function renderMEI(){
   var anoSel=val('mei-filtro-ano')||new Date().getFullYear().toString();
   var anosDisp=getAnosDisponiveis();
@@ -2373,14 +2646,16 @@ function renderMEI(){
     mesesData[mIdx].despesa+=d.valor;
   });
 
-  var lucroReal=receitaBruta-custoProdutos-totalDespesas;
+  var totalCustosFixosAno=getTotalCustosAno(anoSel);
+  var totalRHAno=getTotalRHMensal()*12;
+  var lucroReal=receitaBruta-custoProdutos-totalDespesas-totalCustosFixosAno-totalRHAno;
   var pctLimite=(receitaBruta/LIMITE_MEI_ANUAL)*100;
 
   // ── KPIs ──
   ge('mei-kpis').innerHTML=
     meiCard('Receita Bruta '+anoSel,'orange','💰',fmt(receitaBruta),countAprovados+' orçamento'+(countAprovados===1?'':'s')+' aprovado'+(countAprovados===1?'':'s'))+
     meiCard('Custo de Produtos','blue','📦',fmt(custoProdutos),'Baseado no catálogo')+
-    meiCard('Despesas do Negócio','red','🧾',fmt(totalDespesas),despesasAno.length+' lançamento'+(despesasAno.length===1?'':'s'))+
+    meiCard('Custos Fixos + RH (ano)','yellow','🏠',fmt(totalCustosFixosAno+totalRHAno),'Estrutura + folha')+
     meiCard('Lucro Real','green','📈',fmt(lucroReal),lucroReal>=0?'Resultado positivo':'Atenção: resultado negativo');
 
   // ── Alerta de limite MEI ──
@@ -2487,19 +2762,62 @@ function renderMEI(){
   var mesesBody=ge('mei-meses-body');
   mesesBody.innerHTML=mesesNomes.map(function(nome,i){
     var md=mesesData[i];
-    var lucroMes=md.receita-md.custo-md.despesa;
+    var custosFixosMes=getCustosDoMes(anoSel,i).reduce(function(a,c){return a+c.valor;},0);
+    var rhMes=getTotalRHMensal();
+    var lucroMes=md.receita-md.custo-custosFixosMes-rhMes-md.despesa;
     var margemMes=md.receita>0?(lucroMes/md.receita)*100:null;
     var corMargem=margemMes===null?'rgba(255,255,255,.4)':margemMes>30?'var(--green)':margemMes>10?'var(--yellow)':'var(--red)';
-    var temDados=md.receita>0||md.custo>0||md.despesa>0;
+    var temDados=md.receita>0||md.custo>0||md.despesa>0||custosFixosMes>0;
     return'<tr style="'+(temDados?'':'opacity:.4')+'">'+
       '<td style="font-weight:600">'+nome+'</td>'+
       '<td style="color:var(--brand)">'+fmt(md.receita)+'</td>'+
       '<td style="color:rgba(255,255,255,.6)">'+fmt(md.custo)+'</td>'+
-      '<td style="color:var(--red)">'+fmt(md.despesa)+'</td>'+
+      '<td style="color:var(--yellow)">'+fmt(custosFixosMes)+'</td>'+
+      '<td style="color:var(--blue)">'+fmt(rhMes)+'</td>'+
       '<td style="font-weight:700;color:'+(lucroMes>=0?'var(--green)':'var(--red)')+'">'+fmt(lucroMes)+'</td>'+
       '<td style="color:'+corMargem+';font-weight:600">'+(margemMes===null?'—':margemMes.toFixed(1)+'%')+'</td>'+
     '</tr>';
   }).join('');
+
+  // ── Break-Even e Pró-labore ──
+  renderBreakEvenEProlabore(anoSel,mesesData);
+
+  // ── Tabela de Custos Fixos/Variáveis ──
+  var custosTbody=ge('mei-custos-body'),custosEmpty=ge('mei-custos-empty');
+  var custosAno=getCustos().filter(function(c){return c.ano===Number(anoSel);});
+  if(!custosAno.length){
+    custosTbody.innerHTML='';if(custosEmpty)custosEmpty.style.display='block';
+  } else {
+    if(custosEmpty)custosEmpty.style.display='none';
+    custosTbody.innerHTML=custosAno.map(function(c){
+      var mesesTxt=c.meses.length===12?'Todos os meses':c.meses.sort(function(a,b){return a-b;}).map(function(m){return MESES_NOMES_CURTO[m];}).join(', ');
+      return'<tr>'+
+        '<td><strong>'+c.desc+'</strong></td>'+
+        '<td>'+(c.tipo==='fixo'?'<span class="badge bbl">Fixo</span>':'<span class="badge by">Variável</span>')+'</td>'+
+        '<td style="font-weight:700;color:var(--yellow)">'+fmt(c.valor)+'</td>'+
+        '<td style="font-size:12px;color:rgba(255,255,255,.55)">'+mesesTxt+'</td>'+
+        '<td style="display:flex;gap:3px"><button class="btn btn-out btn-sm" onclick="openCustoModal(\''+c.id+'\')">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteCusto(\''+c.id+'\')">🗑</button></td>'+
+      '</tr>';
+    }).join('');
+  }
+
+  // ── Tabela de RH ──
+  var rhTbody=ge('mei-rh-body'),rhEmpty=ge('mei-rh-empty');
+  var pagamentosRH=getPagamentosRH();
+  if(!pagamentosRH.length){
+    rhTbody.innerHTML='';if(rhEmpty)rhEmpty.style.display='block';
+  } else {
+    if(rhEmpty)rhEmpty.style.display='none';
+    rhTbody.innerHTML=pagamentosRH.map(function(p){
+      return'<tr>'+
+        '<td><strong>'+p.nome+'</strong></td>'+
+        '<td style="font-weight:700;color:var(--blue)">'+fmt(p.valor)+'</td>'+
+        '<td style="font-size:12px">Todo dia <strong>'+p.dia+'</strong></td>'+
+        '<td style="font-size:12px;color:rgba(255,255,255,.5)">'+(p.obs||'—')+'</td>'+
+        '<td style="display:flex;gap:3px"><button class="btn btn-out btn-sm" onclick="openPagamentoModal(\''+p.id+'\')">✏️</button><button class="btn btn-danger btn-sm" onclick="deletePagamento(\''+p.id+'\')">🗑</button></td>'+
+      '</tr>';
+    }).join('');
+  }
 }
 
 function exportarMEIExcel(){
@@ -3190,7 +3508,7 @@ function closeFollowupMassaModal(){ge('modal-followup-massa').className='modal-o
 // BACKUP / RESTAURAÇÃO
 // ═══════════════════════════════════════════════════
 function exportarBackup(){
-  var dados={versao:'6.2',exportadoEm:new Date().toISOString(),empresa:getCfg(),produtos:getProdutos(),clientes:getClientes(),historico:getHist(),os:getOS(),templates:getTemplates(),funcionarios:getFuncs(),despesas:getDespesas(),fornecedores:getFornecedores(),notasCompra:getNotasCompra(),movEstoque:getMovEstoque(),contador:localStorage.getItem('orcpro_cnt')||'0',os_contador:localStorage.getItem('orcpro_os_cnt')||'0'};
+  var dados={versao:'6.3',exportadoEm:new Date().toISOString(),empresa:getCfg(),produtos:getProdutos(),clientes:getClientes(),historico:getHist(),os:getOS(),templates:getTemplates(),funcionarios:getFuncs(),despesas:getDespesas(),fornecedores:getFornecedores(),notasCompra:getNotasCompra(),movEstoque:getMovEstoque(),custosFixos:getCustos(),rh:getPagamentosRH(),contador:localStorage.getItem('orcpro_cnt')||'0',os_contador:localStorage.getItem('orcpro_os_cnt')||'0'};
   var blob=new Blob([JSON.stringify(dados,null,2)],{type:'application/json'});
   var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='orcamentopro_backup_'+hoje()+'.json';a.click();
 }
@@ -3211,6 +3529,8 @@ function importarBackup(e){
       if(d.fornecedores)localStorage.setItem('orcpro_fornecedores',JSON.stringify(d.fornecedores));
       if(d.notasCompra)localStorage.setItem('orcpro_notas',JSON.stringify(d.notasCompra));
       if(d.movEstoque)localStorage.setItem('orcpro_mov_estoque',JSON.stringify(d.movEstoque));
+      if(d.custosFixos)localStorage.setItem('orcpro_custos',JSON.stringify(d.custosFixos));
+      if(d.rh)localStorage.setItem('orcpro_rh',JSON.stringify(d.rh));
       if(d.contador)localStorage.setItem('orcpro_cnt',d.contador);
       if(d.os_contador)localStorage.setItem('orcpro_os_cnt',d.os_contador);
       ge('backup-file').value='';alert('✅ Backup restaurado!');location.reload();
