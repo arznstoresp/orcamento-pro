@@ -1193,10 +1193,19 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
     <div class="mt" style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
       <div style="flex:1;min-width:180px"><label class="lbl">Canal de venda</label><select id="precif-canal" onchange="calcularPrecificador()"></select></div>
       <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;white-space:nowrap">
-        <input type="checkbox" id="precif-incluir-rateio" onchange="calcularPrecificador()" style="width:auto;padding:0"> Incluir rateio de custos fixos
+        <input type="checkbox" id="precif-incluir-rateio" onchange="toggleRateioQtdManual();calcularPrecificador()" style="width:auto;padding:0"> Incluir rateio de custos fixos + DAS
       </label>
+    </div>
+    <div class="mt" id="precif-rateio-qtd-wrap" style="display:none;background:rgba(255,255,255,.03);border:1px solid var(--dark-border2);border-radius:9px;padding:10px 12px">
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px;flex-wrap:wrap">
+        <span style="color:rgba(255,255,255,.65)">Quantidade vendida por mês para o rateio:</span>
+        <input type="number" id="precif-rateio-qtd-manual" placeholder="Auto (histórico)" min="1" style="max-width:120px" oninput="calcularPrecificador()">
+        <span style="font-size:11px;color:rgba(255,255,255,.4)">— deixe em branco para usar a média do histórico de vendas, ou informe manualmente se o histórico ainda for baixo/distorcido.</span>
+      </label>
+    </div>
+    <div class="mt">
       <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;white-space:nowrap">
-        <input type="checkbox" id="precif-incluir-imposto" checked onchange="calcularPrecificador()" style="width:auto;padding:0"> Incluir DAS-MEI (rateado por venda)
+        <input type="checkbox" id="precif-incluir-imposto" checked onchange="toggleRateioQtdManual();calcularPrecificador()" style="width:auto;padding:0"> Incluir DAS-MEI (rateado por venda)
       </label>
     </div>
     <div class="mt" id="precif-extras-info" style="font-size:11px;color:rgba(255,255,255,.4)"></div>
@@ -3070,12 +3079,15 @@ function atualizarSelectCanais(){
 // ═══════════════════════════════════════════════════
 // PRECIFICADOR — estilo planilha (Produção / Embalagem / Venda)
 // ═══════════════════════════════════════════════════
-function getRateioCustoFixoPorProduto(){
-  // Break-Even do mês atual (custos fixos + RH) dividido pela quantidade média de itens vendidos por mês
+function getRateioCustoFixoPorProduto(qtdManual){
+  // Break-Even do mês atual (custos fixos + RH) dividido pela quantidade média de itens vendidos por mês.
+  // Se qtdManual for informada, usa ela em vez do histórico (corrige distorções de poucas vendas registradas).
   var hoje2=new Date(),anoAtual=hoje2.getFullYear(),mesAtual=hoje2.getMonth();
   var custosFixosMes=getCustosDoMes(anoAtual,mesAtual).reduce(function(a,c){return a+c.valor;},0);
   var rhMes=getTotalRHMensal();
   var totalFixo=custosFixosMes+rhMes;
+
+  if(qtdManual&&qtdManual>0)return{totalFixo:totalFixo,qtdMedia:qtdManual,rateioPorUnidade:totalFixo/qtdManual,semDados:false,manual:true};
 
   var hist=getHist().filter(function(h){return h.status==='Aprovado';});
   var qtdPorMes={};
@@ -3136,8 +3148,11 @@ function openPrecificadorModal(fromProdModal){
   setVal('precif-venda-varejo','');
   setVal('precif-margem-desejada','45');
   setVal('precif-canal','');
+  setVal('precif-rateio-qtd-manual','');
   ge('precif-incluir-rateio').checked=false;
   ge('precif-incluir-imposto').checked=true;
+  precifAtacadoState=JSON.parse(JSON.stringify(PRECIF_ATACADO_PADRAO));
+  toggleRateioQtdManual();
 
   if(fromProdModal){
     var custoAtual=parseFloat(val('prod-custo'))||0;
@@ -3157,11 +3172,13 @@ function openPrecificadorModal(fromProdModal){
 }
 function closePrecificadorModal(){ge('modal-precificador').className='modal-overlay';}
 
-function getRateioDasMensal(){
-  // DAS é um valor fixo mensal — rateia pelo mesmo volume médio de vendas usado no rateio de custo fixo
+function getRateioDasMensal(qtdManual){
+  // DAS é um valor fixo mensal — rateia pelo mesmo volume de vendas usado no rateio de custo fixo (manual ou histórico)
   var cfg=getCfg();
   var dasMensal=parseFloat(cfg.dasMensal)||0;
   if(!dasMensal)return{dasMensal:0,qtdMedia:0,rateioPorUnidade:0,semDados:true};
+
+  if(qtdManual&&qtdManual>0)return{dasMensal:dasMensal,qtdMedia:qtdManual,rateioPorUnidade:dasMensal/qtdManual,semDados:false,manual:true};
 
   var hist=getHist().filter(function(h){return h.status==='Aprovado';});
   var qtdPorMes={};
@@ -3178,6 +3195,12 @@ function getRateioDasMensal(){
   return{dasMensal:dasMensal,qtdMedia:qtdMedia,rateioPorUnidade:dasMensal/qtdMedia,semDados:false};
 }
 
+function toggleRateioQtdManual(){
+  var incluirRateio=ge('precif-incluir-rateio').checked;
+  var incluirImposto=ge('precif-incluir-imposto')&&ge('precif-incluir-imposto').checked;
+  ge('precif-rateio-qtd-wrap').style.display=(incluirRateio||incluirImposto)?'block':'none';
+}
+
 function calcularPrecificador(){
   var totalProducao=getPrecifTotal('producao');
   var totalEmbalagem=getPrecifTotal('embalagem');
@@ -3190,8 +3213,9 @@ function calcularPrecificador(){
   var canal=canalId?getCanaisVenda().find(function(c){return c.id===canalId;}):null;
   var taxaPct=canal?canal.taxaPct:0;
   var taxaFixa=canal?canal.taxaFixa:0;
-  var rateio=incluirRateio?getRateioCustoFixoPorProduto():{rateioPorUnidade:0,semDados:true};
-  var rateioDas=incluirImposto?getRateioDasMensal():{rateioPorUnidade:0,semDados:true};
+  var qtdManual=parseFloat(val('precif-rateio-qtd-manual'))||0;
+  var rateio=incluirRateio?getRateioCustoFixoPorProduto(qtdManual):{rateioPorUnidade:0,semDados:true};
+  var rateioDas=incluirImposto?getRateioDasMensal(qtdManual):{rateioPorUnidade:0,semDados:true};
 
   // O DAS agora é um valor fixo por unidade (rateado), não um percentual sobre a venda
   var custoTotal=totalProducao+totalEmbalagem+(incluirRateio?rateio.rateioPorUnidade:0)+rateioDas.rateioPorUnidade;
@@ -3224,43 +3248,70 @@ function calcularPrecificador(){
   var precoSugerido=percentuaisSomados<1?(custoTotal/(1-percentuaisSomados))+taxaFixa:null;
   ge('precif-sugestao-preco').textContent=precoSugerido!=null?fmt(precoSugerido):'—';
   window._precifSugestaoAtual=precoSugerido;
+  window._precifCustoTotalAtual=custoTotal;
 
-  // ── 3 níveis de atacado (mesma margem desejada, com desconto progressivo sugerido) ──
-  var descontosAtacado=[10,20,30];// % de desconto sugerido por nível em relação ao varejo sugerido
-  var qtdsMinimas=[10,30,50];
+  // ── 3 Níveis de Atacado — qtd. mínima e % desconto editáveis pelo usuário ──
+  renderNiveisAtacado(custoTotal,precoSugerido,vendaVarejo);
+
+  // info extra
+  var infoEl=ge('precif-extras-info');
+  var partes=[];
+  if(incluirRateio)partes.push('Rateio de custo fixo: '+fmt(rateio.rateioPorUnidade)+' por unidade'+(rateio.semDados?' (sem histórico — informe a quantidade manualmente acima)':' (base: '+rateio.qtdMedia.toFixed(0)+' un./mês'+(rateio.manual?' — manual':' — média do histórico')+')'));
+  if(canal)partes.push('Taxa '+canal.nome+': '+taxaPct+'% + '+fmt(taxaFixa));
+  if(incluirImposto)partes.push('DAS-MEI: '+fmt(rateioDas.dasMensal)+'/mês'+(rateioDas.semDados?' (rateio R$ 0,00 — informe a quantidade manualmente acima)':' → '+fmt(rateioDas.rateioPorUnidade)+'/unidade'));
+  infoEl.textContent=partes.join(' · ');
+
+  ge('precif-btn-aplicar').style.display=ge('precif-prod-id').value==='__from_prod_modal__'?'inline-flex':'none';
+}
+
+// ── Níveis de atacado: qtd mínima + % desconto editáveis, com lucro por unidade visível ──
+var PRECIF_ATACADO_PADRAO=[
+  {qtd:10,desconto:10},
+  {qtd:30,desconto:20},
+  {qtd:50,desconto:30}
+];
+var precifAtacadoState=JSON.parse(JSON.stringify(PRECIF_ATACADO_PADRAO));
+
+function renderNiveisAtacado(custoTotal,precoSugerido,vendaVarejo){
+  var precoBase=precoSugerido!=null?precoSugerido:vendaVarejo;
+  window._precifAtacadoPrecos=[0,0,0];
   for(var i=0;i<3;i++){
-    var precoBase=precoSugerido!=null?precoSugerido:vendaVarejo;
-    var precoAtacado=precoBase?precoBase*(1-descontosAtacado[i]/100):0;
+    var nivel=precifAtacadoState[i];
+    var precoAtacado=precoBase?precoBase*(1-nivel.desconto/100):0;
+    var lucroUnidade=precoAtacado-custoTotal;
     var elAtacado=ge('precif-atacado-'+(i+1));
     if(elAtacado){
       elAtacado.innerHTML=
         '<div style="font-size:10px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Nível '+(i+1)+'</div>'+
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">'+
           '<span style="font-size:11px;color:rgba(255,255,255,.6)">Qtd. mínima</span>'+
-          '<input type="number" id="precif-atacado-qtd-'+i+'" value="'+qtdsMinimas[i]+'" min="1" style="width:60px;font-size:11px;padding:4px 6px;text-align:right">'+
+          '<input type="number" id="precif-atacado-qtd-'+i+'" value="'+nivel.qtd+'" min="1" style="width:60px;font-size:11px;padding:4px 6px;text-align:right" data-idx="'+i+'" data-campo="qtd" onchange="atualizarNivelAtacado(this)">'+
         '</div>'+
-        '<div style="display:flex;justify-content:space-between;align-items:center">'+
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">'+
+          '<span style="font-size:11px;color:rgba(255,255,255,.6)">Desconto</span>'+
+          '<div style="display:flex;align-items:center;gap:3px">'+
+            '<input type="number" id="precif-atacado-desc-'+i+'" value="'+nivel.desconto+'" min="0" max="95" style="width:48px;font-size:11px;padding:4px 6px;text-align:right" data-idx="'+i+'" data-campo="desconto" onchange="atualizarNivelAtacado(this)">'+
+            '<span style="font-size:11px;color:rgba(255,255,255,.5)">%</span>'+
+          '</div>'+
+        '</div>'+
+        '<div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--dark-border2);padding-top:5px;margin-top:2px">'+
           '<span style="font-size:11px;color:rgba(255,255,255,.6)">Preço/un.</span>'+
           '<strong style="font-size:14px;color:var(--brand)">'+(precoAtacado?fmt(precoAtacado):'—')+'</strong>'+
         '</div>'+
-        '<div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:3px;text-align:right">desconto de '+descontosAtacado[i]+'%</div>';
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:3px">'+
+          '<span style="font-size:10px;color:rgba(255,255,255,.5)">Lucro/un.</span>'+
+          '<strong style="font-size:12px;color:'+(lucroUnidade>=0?'var(--green)':'var(--red)')+'">'+(precoAtacado?fmt(lucroUnidade):'—')+'</strong>'+
+        '</div>';
     }
+    window._precifAtacadoPrecos[i]=precoAtacado;
   }
-  window._precifAtacadoPrecos=[
-    precoSugerido!=null?precoSugerido*(1-descontosAtacado[0]/100):0,
-    precoSugerido!=null?precoSugerido*(1-descontosAtacado[1]/100):0,
-    precoSugerido!=null?precoSugerido*(1-descontosAtacado[2]/100):0
-  ];
-
-  // info extra
-  var infoEl=ge('precif-extras-info');
-  var partes=[];
-  if(incluirRateio)partes.push('Rateio de custo fixo: '+fmt(rateio.rateioPorUnidade)+(rateio.semDados?' (sem histórico de vendas suficiente ainda)':''));
-  if(canal)partes.push('Taxa '+canal.nome+': '+taxaPct+'% + '+fmt(taxaFixa));
-  if(incluirImposto)partes.push('DAS-MEI: '+fmt(rateioDas.dasMensal)+'/mês'+(rateioDas.semDados?' (rateio R$ 0,00 — sem histórico de vendas suficiente ainda)':' → '+fmt(rateioDas.rateioPorUnidade)+'/unidade'));
-  infoEl.textContent=partes.join(' · ');
-
-  ge('precif-btn-aplicar').style.display=ge('precif-prod-id').value==='__from_prod_modal__'?'inline-flex':'none';
+}
+function atualizarNivelAtacado(el){
+  var idx=parseInt(el.getAttribute('data-idx'));
+  var campo=el.getAttribute('data-campo');
+  var v=parseFloat(el.value)||0;
+  precifAtacadoState[idx][campo]=v;
+  calcularPrecificador();
 }
 
 function usarPrecoSugeridoVarejo(){
@@ -3273,13 +3324,12 @@ function aplicarPrecoSugerido(){
   var preco=parseFloat(val('precif-venda-varejo'))||window._precifSugestaoAtual;
   if(!preco)return;
   setVal('prod-varejo',preco.toFixed(2));
-  var custoTotal=getPrecifTotal('producao')+getPrecifTotal('embalagem');
+  var custoTotal=window._precifCustoTotalAtual||(getPrecifTotal('producao')+getPrecifTotal('embalagem'));
   if(custoTotal>0)setVal('prod-custo',custoTotal.toFixed(2));
-  // aplica o nível de atacado 1 sugerido, se existir
+  // aplica o nível de atacado 1 (com qtd e desconto definidos pelo usuário), se existir
   if(window._precifAtacadoPrecos&&window._precifAtacadoPrecos[0]){
     setVal('prod-atacado',window._precifAtacadoPrecos[0].toFixed(2));
-    var qtdMinEl=ge('precif-atacado-qtd-0');
-    if(qtdMinEl)setVal('prod-min',qtdMinEl.value);
+    setVal('prod-min',precifAtacadoState[0].qtd);
   }
   closePrecificadorModal();
 }
@@ -3299,7 +3349,8 @@ function salvarModeloPrecificador(){
     id:editId||'pm'+Date.now(),nome:nome,
     producao:getPrecifItens('producao'),embalagem:getPrecifItens('embalagem'),
     vendaVarejo:val('precif-venda-varejo'),margemDesejada:val('precif-margem-desejada'),
-    canalId:val('precif-canal'),incluirRateio:ge('precif-incluir-rateio').checked,incluirImposto:ge('precif-incluir-imposto').checked
+    canalId:val('precif-canal'),incluirRateio:ge('precif-incluir-rateio').checked,incluirImposto:ge('precif-incluir-imposto').checked,
+    rateioQtdManual:val('precif-rateio-qtd-manual'),atacadoState:JSON.parse(JSON.stringify(precifAtacadoState))
   };
   if(editId){var idx=modelos.findIndex(function(m){return m.id===editId;});if(idx>=0)modelos[idx]=modelo;else modelos.push(modelo);}
   else modelos.push(modelo);
@@ -3314,8 +3365,10 @@ function carregarModeloPrecificador(id){
     ge('precif-modelo-id').value='';
     limparBlocoPrecif('producao');limparBlocoPrecif('embalagem');
     addPrecifItem('producao');addPrecifItem('embalagem');
-    setVal('precif-venda-varejo','');setVal('precif-margem-desejada','45');setVal('precif-canal','');
+    setVal('precif-venda-varejo','');setVal('precif-margem-desejada','45');setVal('precif-canal','');setVal('precif-rateio-qtd-manual','');
     ge('precif-incluir-rateio').checked=false;ge('precif-incluir-imposto').checked=true;
+    precifAtacadoState=JSON.parse(JSON.stringify(PRECIF_ATACADO_PADRAO));
+    toggleRateioQtdManual();
     calcularPrecificador();
     return;
   }
@@ -3330,8 +3383,11 @@ function carregarModeloPrecificador(id){
   setVal('precif-venda-varejo',modelo.vendaVarejo||'');
   setVal('precif-margem-desejada',modelo.margemDesejada||'45');
   setVal('precif-canal',modelo.canalId||'');
+  setVal('precif-rateio-qtd-manual',modelo.rateioQtdManual||'');
   ge('precif-incluir-rateio').checked=!!modelo.incluirRateio;
   ge('precif-incluir-imposto').checked=modelo.incluirImposto!==false;
+  precifAtacadoState=modelo.atacadoState?JSON.parse(JSON.stringify(modelo.atacadoState)):JSON.parse(JSON.stringify(PRECIF_ATACADO_PADRAO));
+  toggleRateioQtdManual();
   calcularPrecificador();
 }
 function excluirModeloPrecificador(){
