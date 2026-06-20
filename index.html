@@ -587,6 +587,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
             <input type="checkbox" id="cat-filtro-estoque-baixo" onchange="renderCat()" style="width:auto;padding:0"> Só estoque baixo
           </label>
           <button class="btn btn-brand btn-sm" onclick="openProdModal()">＋ Novo produto</button>
+          <button class="btn btn-out btn-sm" onclick="openPrecificadorModal()">🧮 Precificador</button>
           <button class="btn btn-out btn-sm" onclick="downloadTemplateXlsProd()">📥 Modelo Excel</button>
           <label class="btn btn-out btn-sm" style="cursor:pointer">📤 Importar<input type="file" id="import-prod-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importProdExcel(event)"></label>
         </div>
@@ -716,6 +717,11 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
           <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px">Sugestão: entre 20% e 30% do lucro líquido (depois de custos fixos, RH e despesas), mantendo o resto como capital de giro do negócio.</div>
         </div>
         <div class="mt">
+          <label class="lbl">% Alíquota efetiva (DAS + impostos) <span class="lbl-hint">— usada no Precificador</span></label>
+          <input type="number" id="cfg-aliquota-das" oninput="autoSave()" placeholder="Ex: 6" min="0" max="100" step="0.1" style="max-width:140px">
+          <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px">Padrão sugerido: 6% sobre o faturamento (referência aproximada para MEI de comércio/indústria — consulte seu contador para o valor exato do seu CNAE).</div>
+        </div>
+        <div class="mt">
           <label class="lbl">Categorias de produtos <span class="lbl-hint">— uma por linha, aparecem no catálogo e nos itens do orçamento</span></label>
           <textarea id="cfg-categorias" oninput="autoSave()" placeholder="Ex:&#10;Camisetas&#10;Canecas&#10;Adesivos&#10;Chaveiros&#10;Brindes&#10;Impressão 3D" style="min-height:110px;white-space:pre-wrap"></textarea>
         </div>
@@ -802,6 +808,22 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
           </tr></thead><tbody id="func-body"></tbody></table>
         </div>
         <div id="func-empty" style="text-align:center;padding:18px;color:rgba(255,255,255,.5);font-size:13px;display:none">Nenhum funcionário cadastrado.</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          Canais de Venda e Taxas de Marketplace
+          <span style="margin-left:auto;display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+            <button class="btn btn-brand btn-sm" onclick="openCanalModal()">＋ Novo canal</button>
+          </span>
+        </div>
+        <p style="font-size:12px;color:rgba(255,255,255,.45);margin-bottom:11px;line-height:1.5">Cadastre cada lugar onde você vende (Shopee, Mercado Livre, WhatsApp direto, Instagram) com a taxa de comissão cobrada. Usado no Precificador para calcular o preço líquido real.</p>
+        <div class="items-wrap">
+          <table class="cat"><thead><tr>
+            <th style="width:35%">Canal</th><th style="width:20%">Taxa (%)</th><th style="width:25%">Taxa fixa (R$)</th><th style="width:20%"></th>
+          </tr></thead><tbody id="canais-body"></tbody></table>
+        </div>
+        <div id="canais-empty" style="text-align:center;padding:18px;color:rgba(255,255,255,.4);font-size:13px;display:none">Nenhum canal cadastrado. Adicione "Venda Direta" com 0% para vendas sem comissão.</div>
       </div>
 
       <div class="card">
@@ -1072,6 +1094,54 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
   </div>
 </div>
 
+<!-- MODAL CANAL DE VENDA -->
+<div class="modal-overlay" id="modal-canal">
+  <div class="modal" style="width:440px">
+    <div class="modal-title" id="modal-canal-title">Novo Canal de Venda</div>
+    <input type="hidden" id="canal-edit-id">
+    <div><label class="lbl">Nome do canal *</label><input id="canal-nome" placeholder="Ex: Shopee, Mercado Livre, WhatsApp Direto"></div>
+    <div class="g2 mt">
+      <div><label class="lbl">Taxa percentual (%)</label><input type="number" id="canal-taxa-pct" placeholder="Ex: 14" min="0" max="100" step="0.1"></div>
+      <div><label class="lbl">Taxa fixa por venda (R$)</label><input type="number" id="canal-taxa-fixa" placeholder="Ex: 5.00" min="0" step="0.01"></div>
+    </div>
+    <div class="info-box mt" style="margin-bottom:0">💡 Shopee costuma cobrar ~14-20% + taxa fixa. Mercado Livre varia ~12-16%. WhatsApp/Instagram direto geralmente é 0%.</div>
+    <div class="modal-footer">
+      <button class="btn btn-out" onclick="closeCanalModal()">Cancelar</button>
+      <button class="btn btn-brand" onclick="saveCanal()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PRECIFICADOR -->
+<div class="modal-overlay" id="modal-precificador">
+  <div class="modal" style="width:620px">
+    <div class="modal-title">🧮 Precificador Automático</div>
+    <input type="hidden" id="precif-prod-id">
+    <div class="g3">
+      <div><label class="lbl">Custo do produto (R$) *</label><input type="number" id="precif-custo" placeholder="0,00" min="0" step="0.01" oninput="calcularPrecificador()"></div>
+      <div><label class="lbl">Margem de lucro desejada (%)</label><input type="number" id="precif-margem" value="40" min="0" max="500" step="1" oninput="calcularPrecificador()"></div>
+      <div><label class="lbl">Canal de venda</label><select id="precif-canal" onchange="calcularPrecificador()"></select></div>
+    </div>
+    <div class="mt">
+      <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer">
+        <input type="checkbox" id="precif-incluir-rateio" onchange="calcularPrecificador()" style="width:auto;padding:0"> Incluir rateio de custos fixos + RH (dividido pelo volume médio de vendas do mês)
+      </label>
+    </div>
+    <div class="mt">
+      <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer">
+        <input type="checkbox" id="precif-incluir-imposto" checked onchange="calcularPrecificador()" style="width:auto;padding:0"> Incluir alíquota de imposto (DAS) configurada em Minha Empresa
+      </label>
+    </div>
+
+    <div class="mt" id="precif-resultado"></div>
+
+    <div class="modal-footer">
+      <button class="btn btn-out" onclick="closePrecificadorModal()">Fechar</button>
+      <button class="btn btn-brand" id="precif-btn-aplicar" onclick="aplicarPrecoSugerido()" style="display:none">✅ Usar este preço no produto</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-marcar-pago">
   <div class="modal" style="width:440px">
     <div class="modal-title">💵 Registrar Pagamento</div>
@@ -1112,6 +1182,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
       <div><label class="lbl">Varejo (R$) *</label><input type="number" id="prod-varejo" placeholder="0,00" min="0" step="0.01"></div>
       <div><label class="lbl">Atacado (R$)</label><input type="number" id="prod-atacado" placeholder="0,00" min="0" step="0.01"></div>
     </div>
+    <div class="mt"><button type="button" class="btn btn-out btn-sm" onclick="openPrecificadorModal(true)">🧮 Calcular preço sugerido a partir do custo</button></div>
     <div class="mt"><label class="lbl">Qtd mínima atacado</label><input type="number" id="prod-min" value="10" min="1"></div>
 
     <div class="mt" style="background:rgba(255,255,255,.04);border:1px solid var(--dark-border2);border-radius:10px;padding:12px 14px">
@@ -1556,6 +1627,7 @@ function saveConfig(){
     termos:val('cfg-termos'),banco:val('cfg-banco'),prefixo:val('cfg-prefixo'),
     slogan:val('cfg-slogan'),meta:parseFloat(val('cfg-meta'))||0,categorias:val('cfg-categorias'),
     prolaborePct:parseFloat(val('cfg-prolabore-pct'))||25,
+    aliquotaDas:parseFloat(val('cfg-aliquota-das'))||6,
     googleClientId:val('cfg-google-client-id')||'',
     googleAutoSync:ge('cfg-google-auto-sync')&&ge('cfg-google-auto-sync').checked,
     // automações
@@ -1583,6 +1655,7 @@ function fillConfigForm(){
   setVal('cfg-termos',c.termos);setVal('cfg-banco',c.banco);setVal('cfg-prefixo',c.prefixo);
   setVal('cfg-slogan',c.slogan);setVal('cfg-meta',c.meta||'');setVal('cfg-categorias',c.categorias||'');
   setVal('cfg-prolabore-pct',c.prolaborePct||25);
+  setVal('cfg-aliquota-das',c.aliquotaDas!=null?c.aliquotaDas:6);
   setVal('cfg-google-client-id',c.googleClientId||'');
   if(ge('cfg-google-auto-sync'))ge('cfg-google-auto-sync').checked=!!c.googleAutoSync;
   // automações
@@ -1595,7 +1668,7 @@ function fillConfigForm(){
   if(ge('cfg-auto-os'))ge('cfg-auto-os').checked=!!c.autoOS;
   if(ge('cfg-auto-preco-atacado'))ge('cfg-auto-preco-atacado').checked=!!c.autoPrecoAtacado;
   if(ge('cfg-relatorio-semanal'))ge('cfg-relatorio-semanal').checked=!!c.relatorioSemanal;
-  updateMiniPreview();loadLogoPreview();renderFuncs();
+  updateMiniPreview();loadLogoPreview();renderFuncs();renderCanais();
   atualizarStatusGoogleDrive();
 }
 function updateMiniPreview(){
@@ -2873,6 +2946,182 @@ function renderContasPagar(){
       '</td>'+
     '</tr>';
   }).join('');
+}
+
+// ═══════════════════════════════════════════════════
+// CANAIS DE VENDA / MARKETPLACES
+// ═══════════════════════════════════════════════════
+function getCanaisVenda(){try{return JSON.parse(localStorage.getItem('orcpro_canais')||'[]');}catch(e){return[];}}
+function saveCanaisVenda(arr){localStorage.setItem('orcpro_canais',JSON.stringify(arr));}
+
+function openCanalModal(id){
+  ge('canal-edit-id').value=id||'';
+  ge('modal-canal-title').textContent=id?'Editar Canal':'Novo Canal de Venda';
+  if(id){
+    var c=getCanaisVenda().find(function(x){return x.id===id;});
+    if(c){setVal('canal-nome',c.nome);setVal('canal-taxa-pct',c.taxaPct);setVal('canal-taxa-fixa',c.taxaFixa);}
+  }else{
+    setVal('canal-nome','');setVal('canal-taxa-pct','');setVal('canal-taxa-fixa','');
+  }
+  ge('modal-canal').className='modal-overlay open';
+}
+function closeCanalModal(){ge('modal-canal').className='modal-overlay';}
+function saveCanal(){
+  var nome=val('canal-nome');
+  if(!nome){alert('Informe o nome do canal.');return;}
+  var canais=getCanaisVenda(),editId=val('canal-edit-id');
+  var c={id:editId||'cv'+Date.now(),nome:nome,taxaPct:parseFloat(val('canal-taxa-pct'))||0,taxaFixa:parseFloat(val('canal-taxa-fixa'))||0};
+  if(editId){var idx=canais.findIndex(function(x){return x.id===editId;});if(idx>=0)canais[idx]=c;else canais.push(c);}
+  else canais.push(c);
+  saveCanaisVenda(canais);closeCanalModal();renderCanais();atualizarSelectCanais();
+}
+function deleteCanal(id){if(!confirm('Excluir este canal?'))return;saveCanaisVenda(getCanaisVenda().filter(function(c){return c.id!==id;}));renderCanais();atualizarSelectCanais();}
+
+function renderCanais(){
+  var canais=getCanaisVenda();
+  var tbody=ge('canais-body'),empty=ge('canais-empty');
+  if(!tbody)return;
+  if(!canais.length){tbody.innerHTML='';if(empty)empty.style.display='block';return;}
+  if(empty)empty.style.display='none';
+  tbody.innerHTML=canais.map(function(c){
+    return'<tr>'+
+      '<td style="white-space:nowrap"><strong>'+c.nome+'</strong></td>'+
+      '<td style="white-space:nowrap;color:var(--yellow);font-weight:600">'+c.taxaPct+'%</td>'+
+      '<td style="white-space:nowrap">'+fmt(c.taxaFixa)+'</td>'+
+      '<td style="white-space:nowrap"><button class="btn btn-out btn-sm" onclick="openCanalModal(\''+c.id+'\')">✏️</button> <button class="btn btn-danger btn-sm" onclick="deleteCanal(\''+c.id+'\')">🗑</button></td>'+
+    '</tr>';
+  }).join('');
+}
+
+function atualizarSelectCanais(){
+  var sel=ge('precif-canal');if(!sel)return;
+  var canais=getCanaisVenda();
+  var opts='<option value="">Nenhum (venda direta, sem taxa)</option>';
+  opts+=canais.map(function(c){return'<option value="'+c.id+'">'+c.nome+' ('+c.taxaPct+'% + '+fmt(c.taxaFixa)+')</option>';}).join('');
+  sel.innerHTML=opts;
+}
+
+// ═══════════════════════════════════════════════════
+// PRECIFICADOR AUTOMÁTICO
+// ═══════════════════════════════════════════════════
+function getRateioCustoFixoPorProduto(){
+  // Break-Even do mês atual (custos fixos + RH) dividido pela quantidade média de itens vendidos por mês (últimos 3 meses com vendas)
+  var hoje2=new Date(),anoAtual=hoje2.getFullYear(),mesAtual=hoje2.getMonth();
+  var custosFixosMes=getCustosDoMes(anoAtual,mesAtual).reduce(function(a,c){return a+c.valor;},0);
+  var rhMes=getTotalRHMensal();
+  var totalFixo=custosFixosMes+rhMes;
+
+  // quantidade média de itens vendidos por mês, baseado no histórico aprovado
+  var hist=getHist().filter(function(h){return h.status==='Aprovado';});
+  var qtdPorMes={};
+  hist.forEach(function(h){
+    if(!h.data)return;
+    var mesChave=h.data.substring(0,7);
+    var qtdOrc=(h.items||[]).reduce(function(a,it){return a+(parseFloat(it.qty)||0);},0);
+    qtdPorMes[mesChave]=(qtdPorMes[mesChave]||0)+qtdOrc;
+  });
+  var meses=Object.keys(qtdPorMes);
+  var qtdMedia=meses.length?Object.values(qtdPorMes).reduce(function(a,v){return a+v;},0)/meses.length:0;
+
+  if(!qtdMedia||qtdMedia<1)return{totalFixo:totalFixo,qtdMedia:0,rateioPorUnidade:0,semDados:true};
+  return{totalFixo:totalFixo,qtdMedia:qtdMedia,rateioPorUnidade:totalFixo/qtdMedia,semDados:false};
+}
+
+function openPrecificadorModal(fromProdModal){
+  atualizarSelectCanais();
+  ge('precif-prod-id').value='';
+  if(fromProdModal){
+    // Puxa o custo já digitado no modal de produto, se houver
+    var custoAtual=val('prod-custo');
+    setVal('precif-custo',custoAtual||'');
+    ge('precif-prod-id').value='__from_prod_modal__';
+  }else{
+    setVal('precif-custo','');
+  }
+  setVal('precif-margem','40');
+  setVal('precif-canal','');
+  ge('precif-incluir-rateio').checked=false;
+  ge('precif-incluir-imposto').checked=true;
+  ge('precif-btn-aplicar').style.display=fromProdModal?'inline-flex':'none';
+  calcularPrecificador();
+  ge('modal-precificador').className='modal-overlay open';
+}
+function closePrecificadorModal(){ge('modal-precificador').className='modal-overlay';}
+
+function calcularPrecificador(){
+  var custo=parseFloat(val('precif-custo'))||0;
+  var margemPct=parseFloat(val('precif-margem'))||0;
+  var canalId=val('precif-canal');
+  var incluirRateio=ge('precif-incluir-rateio').checked;
+  var incluirImposto=ge('precif-incluir-imposto').checked;
+  var cfg=getCfg();
+  var aliquotaDas=incluirImposto?(parseFloat(cfg.aliquotaDas)||6):0;
+
+  var resultEl=ge('precif-resultado');
+  if(!custo){
+    resultEl.innerHTML='<div style="text-align:center;padding:20px;color:rgba(255,255,255,.35);font-size:13px">Informe o custo do produto para calcular.</div>';
+    return;
+  }
+
+  var canal=canalId?getCanaisVenda().find(function(c){return c.id===canalId;}):null;
+  var taxaPct=canal?canal.taxaPct:0;
+  var taxaFixa=canal?canal.taxaFixa:0;
+
+  var rateio=incluirRateio?getRateioCustoFixoPorProduto():{rateioPorUnidade:0,semDados:true};
+  var custoComRateio=custo+(incluirRateio?rateio.rateioPorUnidade:0);
+
+  // Fórmula: Preço = (Custo + Rateio) / (1 - margem% - taxaCanal% - aliquotaDas%) + taxaFixa
+  var percentuaisSomados=(margemPct+taxaPct+aliquotaDas)/100;
+  var precoSugerido;
+  if(percentuaisSomados>=1){
+    precoSugerido=null;// inviável matematicamente (percentuais somam 100% ou mais)
+  }else{
+    precoSugerido=(custoComRateio/(1-percentuaisSomados))+taxaFixa;
+  }
+
+  if(precoSugerido===null){
+    resultEl.innerHTML='<div class="alert-box">⚠️ A soma de margem + taxa do canal + imposto passa de 100%. Reduza algum desses valores para o cálculo ser possível.</div>';
+    ge('precif-btn-aplicar').style.display='none';
+    return;
+  }
+
+  // Conferência: simular a venda pelo preço sugerido e mostrar o que sobra líquido
+  var valorTaxaCanal=precoSugerido*(taxaPct/100)+taxaFixa;
+  var valorImposto=precoSugerido*(aliquotaDas/100);
+  var lucroLiquido=precoSugerido-custoComRateio-valorTaxaCanal-valorImposto;
+  var margemReal=precoSugerido>0?(lucroLiquido/precoSugerido)*100:0;
+
+  resultEl.innerHTML=
+    '<div style="background:rgba(255,107,0,.08);border:2px solid var(--brand);border-radius:12px;padding:16px 18px;text-align:center;margin-bottom:14px">'+
+      '<div style="font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Preço de venda sugerido</div>'+
+      '<div style="font-size:32px;font-weight:800;color:var(--brand)">'+fmt(precoSugerido)+'</div>'+
+    '</div>'+
+    '<div class="g3" style="margin-bottom:10px">'+
+      precifMini('Custo base',fmt(custo),'rgba(255,255,255,.7)')+
+      (incluirRateio?precifMini('Rateio custo fixo',fmt(rateio.rateioPorUnidade)+(rateio.semDados?' ⚠️':''),'var(--yellow)'):precifMini('Rateio custo fixo','Não incluído','rgba(255,255,255,.3)'))+
+      precifMini('Taxa do canal',taxaPct+'% + '+fmt(taxaFixa),'var(--blue)')+
+    '</div>'+
+    '<div class="g3" style="margin-bottom:10px">'+
+      precifMini('Imposto (DAS)',aliquotaDas+'%',aliquotaDas>0?'var(--red)':'rgba(255,255,255,.3)')+
+      precifMini('Lucro líquido real',fmt(lucroLiquido),'var(--green)')+
+      precifMini('Margem líquida real',margemReal.toFixed(1)+'%',margemReal>=margemPct-1?'var(--green)':'var(--yellow)')+
+    '</div>'+
+    (incluirRateio&&rateio.semDados?'<div class="warn-box" style="margin-bottom:0">⚠️ Ainda não há histórico de vendas suficiente para calcular o rateio de custos fixos com precisão. O valor mostrado é zero até você ter ao menos um mês de orçamentos aprovados.</div>':'');
+
+  ge('precif-btn-aplicar').style.display=ge('precif-prod-id').value==='__from_prod_modal__'?'inline-flex':'none';
+  window._precifUltimoPreco=precoSugerido;
+}
+function precifMini(l,v,cor){
+  return'<div style="background:rgba(255,255,255,.04);border-radius:8px;padding:9px 10px;text-align:center">'+
+    '<div style="font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px">'+l+'</div>'+
+    '<div style="font-size:14px;font-weight:700;color:'+cor+'">'+v+'</div>'+
+  '</div>';
+}
+function aplicarPrecoSugerido(){
+  if(window._precifUltimoPreco==null)return;
+  setVal('prod-varejo',window._precifUltimoPreco.toFixed(2));
+  if(!val('prod-custo'))setVal('prod-custo',val('precif-custo'));
+  closePrecificadorModal();
 }
 
 // ═══════════════════════════════════════════════════
@@ -4362,7 +4611,7 @@ function closeFollowupMassaModal(){ge('modal-followup-massa').className='modal-o
 // BACKUP / RESTAURAÇÃO
 // ═══════════════════════════════════════════════════
 function montarObjetoBackup(){
-  return{versao:'6.3',exportadoEm:new Date().toISOString(),empresa:getCfg(),produtos:getProdutos(),clientes:getClientes(),historico:getHist(),os:getOS(),templates:getTemplates(),funcionarios:getFuncs(),despesas:getDespesas(),fornecedores:getFornecedores(),notasCompra:getNotasCompra(),movEstoque:getMovEstoque(),custosFixos:getCustos(),rh:getPagamentosRH(),contasReceber:getContasReceber(),usuarios:getUsuarios(),contador:localStorage.getItem('orcpro_cnt')||'0',os_contador:localStorage.getItem('orcpro_os_cnt')||'0'};
+  return{versao:'6.4',exportadoEm:new Date().toISOString(),empresa:getCfg(),produtos:getProdutos(),clientes:getClientes(),historico:getHist(),os:getOS(),templates:getTemplates(),funcionarios:getFuncs(),despesas:getDespesas(),fornecedores:getFornecedores(),notasCompra:getNotasCompra(),movEstoque:getMovEstoque(),custosFixos:getCustos(),rh:getPagamentosRH(),contasReceber:getContasReceber(),usuarios:getUsuarios(),canaisVenda:getCanaisVenda(),contador:localStorage.getItem('orcpro_cnt')||'0',os_contador:localStorage.getItem('orcpro_os_cnt')||'0'};
 }
 function aplicarObjetoBackup(d){
   if(d.empresa)localStorage.setItem('orcpro_emp',JSON.stringify(d.empresa));
@@ -4380,6 +4629,7 @@ function aplicarObjetoBackup(d){
   if(d.rh)localStorage.setItem('orcpro_rh',JSON.stringify(d.rh));
   if(d.contasReceber)localStorage.setItem('orcpro_receber',JSON.stringify(d.contasReceber));
   if(d.usuarios)localStorage.setItem('orcpro_usuarios',JSON.stringify(d.usuarios));
+  if(d.canaisVenda)localStorage.setItem('orcpro_canais',JSON.stringify(d.canaisVenda));
   if(d.contador)localStorage.setItem('orcpro_cnt',d.contador);
   if(d.os_contador)localStorage.setItem('orcpro_os_cnt',d.os_contador);
 }
