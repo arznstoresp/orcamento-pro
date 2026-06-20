@@ -887,9 +887,10 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
         <p style="font-size:12px;color:rgba(255,255,255,.45);margin-bottom:11px;line-height:1.5">Água, luz, internet, softwares, aluguel. Edite o valor do <strong style="color:rgba(255,255,255,.6)">mês atual</strong> direto na tabela — os outros meses ficam guardados, complete quando quiser.</p>
         <div class="items-wrap">
           <table class="cat"><thead><tr>
-            <th style="width:26%">Descrição</th><th style="width:13%">Tipo</th>
-            <th style="width:20%" id="mei-custos-mes-header">Mês atual</th>
-            <th style="width:25%">Histórico do ano</th><th style="width:16%"></th>
+            <th style="width:22%">Descrição</th><th style="width:10%">Tipo</th>
+            <th style="width:16%" id="mei-custos-mes-header">Mês atual</th>
+            <th style="width:11%">Vencimento</th><th style="width:10%">Status</th>
+            <th style="width:18%">Histórico do ano</th><th style="width:13%"></th>
           </tr></thead><tbody id="mei-custos-body"></tbody></table>
         </div>
         <div id="mei-custos-empty" style="text-align:center;padding:20px;color:rgba(255,255,255,.4);font-size:13px;display:none">Nenhum custo fixo/variável cadastrado.</div>
@@ -1314,11 +1315,16 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
       <div style="grid-column:span 2"><label class="lbl">Descrição *</label><input id="custo-desc" placeholder="Ex: Internet, Água - Sabesp, Adobe..."></div>
       <div><label class="lbl">Ano</label><input type="number" id="custo-ano" style="max-width:110px"></div>
     </div>
-    <div class="mt"><label class="lbl">Tipo</label>
-      <select id="custo-tipo" style="max-width:200px" onchange="toggleTipoCusto()">
-        <option value="fixo">Fixo (mesmo valor sempre)</option>
-        <option value="variavel">Variável (muda todo mês)</option>
-      </select>
+    <div class="g2 mt">
+      <div><label class="lbl">Tipo</label>
+        <select id="custo-tipo" style="max-width:200px" onchange="toggleTipoCusto()">
+          <option value="fixo">Fixo (mesmo valor sempre)</option>
+          <option value="variavel">Variável (muda todo mês)</option>
+        </select>
+      </div>
+      <div><label class="lbl">Dia do vencimento <span class="lbl-hint">— todo mês</span></label>
+        <input type="number" id="custo-dia-vencimento" placeholder="Ex: 10" min="1" max="31" style="max-width:140px">
+      </div>
     </div>
 
     <div class="mt" id="custo-fixo-wrap">
@@ -2779,11 +2785,9 @@ function montarListaContasPagar(){
     lista.push({id:key,desc:p.nome,tipo:'rh',tipoLabel:'RH',valor:p.valor,vencimento:venc.toISOString().substring(0,10),pago:!!pagas[key]});
   });
 
-  // Custos fixos/variáveis do mês atual
+  // Custos fixos/variáveis do mês atual (usa vencimento e status reais cadastrados no custo)
   getCustosDoMes(anoAtual,mesAtual).forEach(function(c){
-    var venc=new Date(anoAtual,mesAtual,10);// dia de referência fixo (sem data própria cadastrada)
-    var key='custo_'+c.id+'_'+anoAtual+'_'+mesAtual;
-    lista.push({id:key,desc:c.desc,tipo:'custo',tipoLabel:'Custo',valor:c.valor,vencimento:venc.toISOString().substring(0,10),pago:!!pagas[key]});
+    lista.push({id:'custo_'+c.id+'_'+anoAtual+'_'+mesAtual,desc:c.desc,tipo:'custo',tipoLabel:'Custo',valor:c.valor,vencimento:c.vencimento,pago:c.pago,custoId:c.id,custoAno:anoAtual,custoMes:mesAtual});
   });
 
   // Notas de compra do mês atual (já lançadas como despesa, aqui é só visão de pagamento ao fornecedor)
@@ -2809,6 +2813,15 @@ function marcarContaPagarPago(id,pago){
     var despesaId=id.substring(5);
     marcarDespesaPaga(despesaId,pago);
     return;
+  }
+  // Se for um custo fixo/variável, atualiza o status diretamente no registro do custo (fonte única de verdade)
+  if(id.indexOf('custo_')===0){
+    var lista=montarListaContasPagar();
+    var item=lista.find(function(l){return l.id===id;});
+    if(item&&item.custoId!=null){
+      marcarCustoMesPago(item.custoId,item.custoAno,item.custoMes,pago);
+      return;
+    }
   }
   var pagas=getContasPagarPagas();
   if(pago)pagas[id]=true;else delete pagas[id];
@@ -3149,6 +3162,7 @@ function openCustoModal(id){
     var c=getCustos().find(function(x){return x.id===id;});
     if(c){
       setVal('custo-desc',c.desc);setVal('custo-tipo',c.tipo);
+      setVal('custo-dia-vencimento',c.diaVencimento||'');
       var valoresAno=(c.valoresPorMes&&c.valoresPorMes[String(anoAtual)])||{};
       // valor fixo: usa o valor do mês atual (ou primeiro valor encontrado) como referência
       var mesAtualIdx=new Date().getMonth();
@@ -3158,7 +3172,7 @@ function openCustoModal(id){
       toggleTipoCusto();
     }
   }else{
-    setVal('custo-desc','');setVal('custo-tipo','fixo');setVal('custo-valor-fixo','');
+    setVal('custo-desc','');setVal('custo-tipo','fixo');setVal('custo-valor-fixo','');setVal('custo-dia-vencimento','10');
     montarGridMesesValores({});
     toggleTipoCusto();
   }
@@ -3187,12 +3201,14 @@ function montarGridMesesValores(valoresAno){
 
 function saveCusto(){
   var desc=val('custo-desc'),tipo=val('custo-tipo'),ano=parseInt(val('custo-ano'))||new Date().getFullYear();
+  var diaVencimento=parseInt(val('custo-dia-vencimento'))||10;
   if(!desc){alert('Preencha a descrição.');return;}
   var custos=getCustos(),editId=val('custo-edit-id');
   var c=editId?custos.find(function(x){return x.id===editId;}):null;
-  if(!c)c={id:'cf'+Date.now(),desc:desc,tipo:tipo,valoresPorMes:{}};
-  c.desc=desc;c.tipo=tipo;
+  if(!c)c={id:'cf'+Date.now(),desc:desc,tipo:tipo,valoresPorMes:{},pagosPorMes:{},diaVencimento:diaVencimento};
+  c.desc=desc;c.tipo=tipo;c.diaVencimento=diaVencimento;
   if(!c.valoresPorMes)c.valoresPorMes={};
+  if(!c.pagosPorMes)c.pagosPorMes={};
   var anoStr=String(ano);
   if(!c.valoresPorMes[anoStr])c.valoresPorMes[anoStr]={};
 
@@ -3243,12 +3259,32 @@ function getCustosDoMes(ano,mesIdx){
   migrarCustosAntigos();
   return getCustos().filter(function(c){
     return c.valoresPorMes&&c.valoresPorMes[String(ano)]&&c.valoresPorMes[String(ano)][mesIdx]!=null;
-  }).map(function(c){return{id:c.id,desc:c.desc,tipo:c.tipo,valor:c.valoresPorMes[String(ano)][mesIdx]};});
+  }).map(function(c){
+    var dia=c.diaVencimento||10;
+    var venc=new Date(Number(ano),mesIdx,Math.min(dia,28)).toISOString().substring(0,10);
+    var pagoKey=ano+'_'+mesIdx;
+    var pago=!!(c.pagosPorMes&&c.pagosPorMes[pagoKey]);
+    return{id:c.id,desc:c.desc,tipo:c.tipo,valor:c.valoresPorMes[String(ano)][mesIdx],vencimento:venc,pago:pago,mesIdx:mesIdx,ano:ano};
+  });
 }
 function getTotalCustosAno(ano){
   var total=0;
   for(var m=0;m<12;m++){getCustosDoMes(ano,m).forEach(function(c){total+=c.valor;});}
   return total;
+}
+function getStatusCustoMes(c){
+  if(c.pago)return'pago';
+  return c.vencimento<hoje()?'vencido':'pendente';
+}
+function marcarCustoMesPago(id,ano,mesIdx,pago){
+  var custos=getCustos();
+  var c=custos.find(function(x){return x.id===id;});
+  if(!c)return;
+  if(!c.pagosPorMes)c.pagosPorMes={};
+  var key=ano+'_'+mesIdx;
+  if(pago)c.pagosPorMes[key]=true;else delete c.pagosPorMes[key];
+  saveCustos(custos);
+  renderMEI();
 }
 
 // ═══════════════════════════════════════════════════
@@ -3543,6 +3579,7 @@ function renderMEI(){
     custosTbody.innerHTML='';if(custosEmpty)custosEmpty.style.display='block';
   } else {
     if(custosEmpty)custosEmpty.style.display='none';
+    var statusBadgeCusto={pendente:'<span class="badge bp">⏳ Pendente</span>',vencido:'<span class="badge br">⚠️ Vencido</span>',pago:'<span class="badge bo">✅ Pago</span>'};
     custosTbody.innerHTML=todosCustos.map(function(c){
       var valoresAno=(c.valoresPorMes&&c.valoresPorMes[anoSel])||{};
       var valorMesAtual=valoresAno[mesParaEditar];
@@ -3551,16 +3588,36 @@ function renderMEI(){
       var mesesPreenchidos=Object.keys(valoresAno).length;
       var totalAno=Object.values(valoresAno).reduce(function(a,v){return a+v;},0);
       var historicoTxt=mesesPreenchidos?mesesPreenchidos+' mês'+(mesesPreenchidos===1?'':'es')+' preenchido'+(mesesPreenchidos===1?'':'s')+' · total '+fmt(totalAno):'<span style="color:rgba(255,255,255,.3)">Nenhum mês preenchido ainda</span>';
+
+      // vencimento e status do mês exibido (só faz sentido se o mês tiver valor preenchido)
+      var temValorNoMes=valorMesAtual!=null;
+      var dia=c.diaVencimento||10;
+      var vencDoMes=new Date(Number(anoSel),mesParaEditar,Math.min(dia,28)).toISOString().substring(0,10);
+      var pagoKey=anoSel+'_'+mesParaEditar;
+      var pagoDoMes=!!(c.pagosPorMes&&c.pagosPorMes[pagoKey]);
+      var statusDoMes=pagoDoMes?'pago':(vencDoMes<hoje()?'vencido':'pendente');
+
       return'<tr>'+
         '<td style="white-space:nowrap"><strong>'+c.desc+'</strong></td>'+
         '<td style="white-space:nowrap">'+(c.tipo==='fixo'?'<span class="badge bbl">Fixo</span>':'<span class="badge by">Variável</span>')+'</td>'+
         '<td>'+
           '<input type="number" value="'+valorMesAtualFmt+'" placeholder="0,00" min="0" step="0.01" '+
-          'style="max-width:120px;border-color:var(--brand);background:rgba(255,107,0,.06)" '+
+          'style="max-width:110px;border-color:var(--brand);background:rgba(255,107,0,.06)" '+
           'onchange="quickEditCustoMes(\''+c.id+'\','+anoSel+','+mesParaEditar+',this.value)">'+
         '</td>'+
+        '<td style="font-size:12px;white-space:nowrap;'+(temValorNoMes&&statusDoMes==='vencido'?'color:var(--red);font-weight:600':'')+'">'+(temValorNoMes?fmtDt(vencDoMes):'<span style="color:rgba(255,255,255,.25)">—</span>')+'</td>'+
+        '<td style="white-space:nowrap">'+(temValorNoMes?statusBadgeCusto[statusDoMes]:'<span style="color:rgba(255,255,255,.25)">—</span>')+'</td>'+
         '<td style="font-size:11px;color:rgba(255,255,255,.5);white-space:nowrap">'+historicoTxt+'</td>'+
-        '<td style="white-space:nowrap"><button class="btn btn-out btn-sm" onclick="openCustoModal(\''+c.id+'\')" title="Editar todos os meses">✏️</button> <button class="btn btn-danger btn-sm" onclick="deleteCusto(\''+c.id+'\')">🗑</button></td>'+
+        '<td style="white-space:nowrap">'+
+          (temValorNoMes?
+            (pagoDoMes?
+              '<button class="btn btn-out btn-sm" onclick="marcarCustoMesPago(\''+c.id+'\','+anoSel+','+mesParaEditar+',false)" title="Desfazer">↺</button>'
+            :
+              '<button class="btn btn-green btn-sm" onclick="marcarCustoMesPago(\''+c.id+'\','+anoSel+','+mesParaEditar+',true)" title="Marcar pago">✅</button>'
+            )
+          :'')+
+          ' <button class="btn btn-out btn-sm" onclick="openCustoModal(\''+c.id+'\')" title="Editar todos os meses">✏️</button> <button class="btn btn-danger btn-sm" onclick="deleteCusto(\''+c.id+'\')">🗑</button>'+
+        '</td>'+
       '</tr>';
     }).join('');
   }
