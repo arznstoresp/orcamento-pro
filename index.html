@@ -419,10 +419,58 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
         </div>
 
         <div class="mt">
-          <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer">
-            <input type="checkbox" id="vr-ja-pago" checked style="width:auto;padding:0"> Já recebi o pagamento (não gera Conta a Receber)
-          </label>
+          <label class="lbl">Forma de pagamento</label>
+          <select id="vr-forma-pgto" onchange="toggleFormaPgtoVendaRapida()">
+            <option value="avista">À vista — já recebido</option>
+            <option value="avista_pendente">À vista — ainda vou receber</option>
+            <option value="entrada_restante">Entrada + Restante na entrega</option>
+            <option value="parcelado">Parcelado (Carnê / Palavra)</option>
+          </select>
         </div>
+
+        <!-- À VISTA - selecionar meio quando já recebido -->
+        <div class="mt" id="vr-pgto-avista-wrap">
+          <label class="lbl">Meio de pagamento</label>
+          <select id="vr-meio-pgto">
+            <option>PIX</option><option>Dinheiro</option><option>Cartão de Crédito</option>
+            <option>Cartão de Débito</option><option>Boleto</option><option>Transferência</option>
+          </select>
+        </div>
+
+        <!-- À VISTA PENDENTE - so precisa do vencimento -->
+        <div class="mt" id="vr-pgto-avista-pendente-wrap" style="display:none">
+          <label class="lbl">Data de vencimento para cobrar</label>
+          <input type="date" id="vr-avista-vencimento">
+        </div>
+
+        <!-- ENTRADA + RESTANTE -->
+        <div class="mt" id="vr-pgto-entrada-wrap" style="display:none">
+          <div class="g3">
+            <div><label class="lbl">Entrada (%)</label><input type="number" id="vr-entrada-pct" value="50" min="1" max="99" step="1" oninput="calcularEntradaRestante()"></div>
+            <div><label class="lbl">Valor da entrada</label><input type="text" id="vr-entrada-valor" readonly style="background:rgba(255,255,255,.05)"></div>
+            <div><label class="lbl">Valor do restante</label><input type="text" id="vr-restante-valor" readonly style="background:rgba(255,255,255,.05)"></div>
+          </div>
+          <div class="g2 mt">
+            <div><label class="lbl">Entrada já foi paga?</label>
+              <select id="vr-entrada-ja-paga">
+                <option value="sim">Sim, já recebi a entrada</option>
+                <option value="nao">Não, ainda vou receber</option>
+              </select>
+            </div>
+            <div><label class="lbl">Data prevista de entrega <span class="lbl-hint">— vencimento do restante</span></label><input type="date" id="vr-entrega-data"></div>
+          </div>
+        </div>
+
+        <!-- PARCELADO -->
+        <div class="mt" id="vr-pgto-parcelado-wrap" style="display:none">
+          <div class="g3">
+            <div><label class="lbl">Nº de parcelas</label><input type="number" id="vr-parc-num" value="2" min="2" max="24" step="1" oninput="calcularParcelasVendaRapida()"></div>
+            <div><label class="lbl">Valor de cada parcela</label><input type="text" id="vr-parc-valor" readonly style="background:rgba(255,255,255,.05)"></div>
+            <div><label class="lbl">1º vencimento</label><input type="date" id="vr-parc-primeira-data" onchange="calcularParcelasVendaRapida()"></div>
+          </div>
+          <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px">As parcelas seguintes vencem mensalmente a partir da primeira data informada.</div>
+        </div>
+
         <div class="mt"><label class="lbl">Observações</label><textarea id="vr-obs" style="min-height:44px" placeholder="Opcional..."></textarea></div>
 
         <div class="mt" style="display:flex;gap:8px;flex-wrap:wrap">
@@ -1172,15 +1220,26 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
 
 <!-- MODAL CANAL DE VENDA -->
 <div class="modal-overlay" id="modal-canal">
-  <div class="modal" style="width:440px">
+  <div class="modal" style="width:460px">
     <div class="modal-title" id="modal-canal-title">Novo Canal de Venda</div>
     <input type="hidden" id="canal-edit-id">
     <div><label class="lbl">Nome do canal *</label><input id="canal-nome" placeholder="Ex: Shopee, Mercado Livre, WhatsApp Direto"></div>
-    <div class="g2 mt">
-      <div><label class="lbl">Taxa percentual (%)</label><input type="number" id="canal-taxa-pct" placeholder="Ex: 14" min="0" max="100" step="0.1"></div>
-      <div><label class="lbl">Taxa fixa por venda (R$)</label><input type="number" id="canal-taxa-fixa" placeholder="Ex: 5.00" min="0" step="0.01"></div>
+    <div class="mt"><label class="lbl">Tipo de cobrança</label>
+      <select id="canal-tipo-taxa" onchange="toggleTipoTaxaCanal()">
+        <option value="simples">Taxa fixa simples (% + valor fixo)</option>
+        <option value="tabela_ml">Tabela progressiva do Mercado Livre (tarifa varia por faixa de preço)</option>
+      </select>
     </div>
-    <div class="info-box mt" style="margin-bottom:0">💡 Shopee costuma cobrar ~14-20% + taxa fixa. Mercado Livre varia ~12-16%. WhatsApp/Instagram direto geralmente é 0%.</div>
+    <div class="g2 mt" id="canal-taxa-simples-wrap">
+      <div><label class="lbl">Taxa percentual (%)</label><input type="number" id="canal-taxa-pct" placeholder="Ex: 20" min="0" max="100" step="0.1"></div>
+      <div><label class="lbl">Taxa fixa por venda (R$)</label><input type="number" id="canal-taxa-fixa" placeholder="Ex: 4.00" min="0" step="0.01"></div>
+    </div>
+    <div class="mt" id="canal-taxa-ml-wrap" style="display:none">
+      <label class="lbl">Taxa percentual da categoria (%) <span class="lbl-hint">— varia por categoria no Mercado Livre, ajuste se souber a sua</span></label>
+      <input type="number" id="canal-taxa-pct-ml" placeholder="Ex: 19" min="0" max="100" step="0.1" style="max-width:140px">
+      <div class="info-box mt" style="margin-bottom:0;font-size:11px">📊 A tarifa fixa é calculada automaticamente por faixa de preço: até R$ 12,50 → 50% do preço · R$ 12,50–29 → R$ 6,25 · R$ 29–50 → R$ 6,50 · R$ 50–79 → R$ 6,75 · acima de R$ 79 → sem tarifa fixa.</div>
+    </div>
+    <div class="info-box mt" style="margin-bottom:0" id="canal-info-padrao">💡 Shopee costuma cobrar ~20% + taxa fixa. WhatsApp/Instagram direto geralmente é 0%.</div>
     <div class="modal-footer">
       <button class="btn btn-out" onclick="closeCanalModal()">Cancelar</button>
       <button class="btn btn-brand" onclick="saveCanal()">💾 Salvar</button>
@@ -2983,6 +3042,40 @@ function calcularVendaRapida(){
   var total=subtotal-dv+frete;
   ge('vr-subtotal').textContent=fmt(subtotal);
   ge('vr-total').textContent=fmt(total);
+  // Recalcula entrada/restante e parcelas automaticamente se essas opções estiverem visíveis
+  if(ge('vr-pgto-entrada-wrap').style.display!=='none')calcularEntradaRestante();
+  if(ge('vr-pgto-parcelado-wrap').style.display!=='none')calcularParcelasVendaRapida();
+}
+
+function getVendaRapidaTotal(){
+  var s=ge('vr-total').textContent.replace('R$','').replace(/\./g,'').replace(',','.').trim();
+  return parseFloat(s)||0;
+}
+
+function toggleFormaPgtoVendaRapida(){
+  var forma=val('vr-forma-pgto');
+  ge('vr-pgto-avista-wrap').style.display=forma==='avista'?'block':'none';
+  ge('vr-pgto-avista-pendente-wrap').style.display=forma==='avista_pendente'?'block':'none';
+  ge('vr-pgto-entrada-wrap').style.display=forma==='entrada_restante'?'block':'none';
+  ge('vr-pgto-parcelado-wrap').style.display=forma==='parcelado'?'block':'none';
+  if(forma==='entrada_restante')calcularEntradaRestante();
+  if(forma==='parcelado')calcularParcelasVendaRapida();
+}
+
+function calcularEntradaRestante(){
+  var total=getVendaRapidaTotal();
+  var pct=parseFloat(val('vr-entrada-pct'))||50;
+  var entrada=total*(pct/100);
+  var restante=total-entrada;
+  setVal('vr-entrada-valor',fmt(entrada));
+  setVal('vr-restante-valor',fmt(restante));
+}
+
+function calcularParcelasVendaRapida(){
+  var total=getVendaRapidaTotal();
+  var n=parseInt(val('vr-parc-num'))||2;
+  var valorParcela=n>0?total/n:0;
+  setVal('vr-parc-valor',fmt(valorParcela)+' x '+n);
 }
 
 function atualizarSelectCanalVendaRapida(){
@@ -3003,9 +3096,56 @@ function atualizarDatalistVendedoresVendaRapida(){
 function limparVendaRapida(){
   setVal('vr-data',hoje());setVal('vr-pedido','');setVal('vr-cliente','');setVal('vr-canal','');setVal('vr-vendedor','');
   setVal('vr-desconto','0');setVal('vr-frete','0');setVal('vr-obs','');
-  ge('vr-ja-pago').checked=true;
+  setVal('vr-forma-pgto','avista');setVal('vr-meio-pgto','PIX');
+  setVal('vr-avista-vencimento',hoje());
+  setVal('vr-entrada-pct','50');setVal('vr-entrada-ja-paga','sim');setVal('vr-entrega-data','');
+  setVal('vr-parc-num','2');setVal('vr-parc-primeira-data',hoje());
+  toggleFormaPgtoVendaRapida();
   ge('vr-itens-body').innerHTML='';vrIid=0;
   addVendaRapidaItem();
+}
+
+function gerarContasReceberVendaRapida(venda,totalVenda){
+  var forma=val('vr-forma-pgto');
+  var contas=getContasReceber();
+  var baseConta={orcId:venda.id,orcNum:venda.num,clienteNome:venda.cliente.nome,clienteWpp:venda.cliente.wpp||''};
+
+  if(forma==='avista'){
+    // já recebido — não gera nenhuma conta pendente, mas registra como paga para fins de histórico
+    contas.push(Object.assign({},baseConta,{id:'rec'+Date.now(),parcela:'1/1',valor:totalVenda,vencimento:venda.data,status:'pago',dataPgto:venda.data,formaPgto:val('vr-meio-pgto'),obs:''}));
+  }
+  else if(forma==='avista_pendente'){
+    contas.push(Object.assign({},baseConta,{id:'rec'+Date.now(),parcela:'1/1',valor:totalVenda,vencimento:val('vr-avista-vencimento')||venda.data,status:'pendente',dataPgto:'',formaPgto:'',obs:''}));
+  }
+  else if(forma==='entrada_restante'){
+    var pct=parseFloat(val('vr-entrada-pct'))||50;
+    var valorEntrada=totalVenda*(pct/100);
+    var valorRestante=totalVenda-valorEntrada;
+    var entradaJaPaga=val('vr-entrada-ja-paga')==='sim';
+    var dataEntrega=val('vr-entrega-data')||venda.data;
+    contas.push(Object.assign({},baseConta,{
+      id:'rec'+Date.now()+'_1',parcela:'Entrada',valor:valorEntrada,vencimento:venda.data,
+      status:entradaJaPaga?'pago':'pendente',dataPgto:entradaJaPaga?venda.data:'',formaPgto:entradaJaPaga?'Não informado':'',obs:'Entrada ('+pct+'%)'
+    }));
+    contas.push(Object.assign({},baseConta,{
+      id:'rec'+Date.now()+'_2',parcela:'Restante',valor:valorRestante,vencimento:dataEntrega,
+      status:'pendente',dataPgto:'',formaPgto:'',obs:'Restante na entrega'
+    }));
+  }
+  else if(forma==='parcelado'){
+    var n=parseInt(val('vr-parc-num'))||2;
+    var valorParcela=totalVenda/n;
+    var primeiraData=val('vr-parc-primeira-data')||venda.data;
+    var dataBase=new Date(primeiraData+'T12:00');
+    for(var i=0;i<n;i++){
+      var dVenc=new Date(dataBase);dVenc.setMonth(dVenc.getMonth()+i);
+      contas.push(Object.assign({},baseConta,{
+        id:'rec'+Date.now()+'_'+i,parcela:(i+1)+'/'+n,valor:valorParcela,vencimento:dVenc.toISOString().substring(0,10),
+        status:'pendente',dataPgto:'',formaPgto:'',obs:'Parcelado'
+      }));
+    }
+  }
+  saveContasReceber(contas);
 }
 
 function salvarVendaRapida(){
@@ -3015,8 +3155,16 @@ function salvarVendaRapida(){
   if(!itens.length){alert('Adicione ao menos um item com nome e quantidade.');return;}
 
   var custoTotal=itens.reduce(function(a,it){return a+it.custo;},0);
-  var jaPago=ge('vr-ja-pago').checked;
+  var forma=val('vr-forma-pgto');
   var canalNome=val('vr-canal');
+  var totalVenda=getVendaRapidaTotal();
+
+  var pgtoLabel={
+    avista:'À vista — '+val('vr-meio-pgto'),
+    avista_pendente:'À vista — a receber',
+    entrada_restante:'Entrada + Restante',
+    parcelado:'Parcelado '+(parseInt(val('vr-parc-num'))||2)+'x'
+  }[forma];
 
   var venda={
     id:'vr'+Date.now(),
@@ -3028,11 +3176,11 @@ function salvarVendaRapida(){
     canalVenda:canalNome,
     pedidoRef:val('vr-pedido'),
     desc:'Venda rápida'+(canalNome?' — '+canalNome:'')+(val('vr-pedido')?' #'+val('vr-pedido'):''),
-    pgto:jaPago?'Já recebido':'A receber',
-    prazo:'',entrega:'',obs:val('vr-obs'),termos:'',
+    pgto:pgtoLabel,
+    prazo:'',entrega:val('vr-entrega-data')||'',obs:val('vr-obs'),termos:'',
     vendedor:val('vr-vendedor'),modoOpcoes:'simples',
     descGeral:val('vr-desconto'),frete:val('vr-frete'),
-    parcelas:null,
+    parcelas:forma==='parcelado'?{n:parseInt(val('vr-parc-num'))||2,vp:totalVenda/(parseInt(val('vr-parc-num'))||2),total:totalVenda}:null,
     custoCalc:custoTotal,
     cliente:{nome:val('vr-cliente')||'Cliente não identificado',doc:'',wpp:'',email:'',cep:'',end:''},
     items:itens,savedAt:new Date().toLocaleString('pt-BR'),
@@ -3047,19 +3195,14 @@ function salvarVendaRapida(){
   baixarEstoquePorAprovacao(venda);
   venda._estoqueBaixado=true;
 
-  if(!jaPago){
-    gerarContasReceber(venda);
-    venda._contasGeradas=true;
-    // atualiza o registro já com as flags marcadas
-    var histAtualizado=getHist();
-    var idx=histAtualizado.findIndex(function(h){return h.id===venda.id;});
-    if(idx>=0){histAtualizado[idx]=venda;saveHist(histAtualizado);}
-  }
+  // Gera as Contas a Receber conforme a forma de pagamento escolhida
+  gerarContasReceberVendaRapida(venda,totalVenda);
+  venda._contasGeradas=true;
+  var histAtualizado=getHist();
+  var idx=histAtualizado.findIndex(function(h){return h.id===venda.id;});
+  if(idx>=0){histAtualizado[idx]=venda;saveHist(histAtualizado);}
 
   // registra/atualiza o cliente, se informado (mesma lógica do orçamento)
-  if(val('vr-cliente')){
-    setVal('cli-nome-temp',val('vr-cliente'));// não interfere no form de orçamento, só usamos a lógica abaixo
-  }
   var nomeCliente=val('vr-cliente');
   if(nomeCliente){
     var clientes=getClientes();
@@ -3110,6 +3253,7 @@ function editarVendaRapida(id){
   var h=getHist().find(function(x){return x.id===id;});if(!h)return;
   setVal('vr-data',h.data);setVal('vr-canal',h.canalVenda||'');setVal('vr-pedido',h.pedidoRef||'');
   setVal('vr-cliente',h.cliente.nome==='Cliente não identificado'?'':h.cliente.nome);
+  setVal('vr-vendedor',h.vendedor||'');
   setVal('vr-desconto',h.descGeral||'0');setVal('vr-frete',h.frete||'0');setVal('vr-obs',h.obs||'');
   ge('vr-itens-body').innerHTML='';vrIid=0;
   (h.items||[]).forEach(function(it){addVendaRapidaItem(it.desc,it.qty,it.price);});
@@ -3351,12 +3495,12 @@ function getCanaisVenda(){
     if(canais.length===0&&!localStorage.getItem('orcpro_canais_inicializado')){
       // Pré-popula com os canais mais comuns, em ordem alfabética, com taxas de referência
       canais=[
-        {id:'cv_balcao',nome:'Balcão',taxaPct:0,taxaFixa:0},
-        {id:'cv_facebook',nome:'Facebook',taxaPct:0,taxaFixa:0},
-        {id:'cv_instagram',nome:'Instagram',taxaPct:0,taxaFixa:0},
-        {id:'cv_mercadolivre',nome:'Mercado Livre',taxaPct:14,taxaFixa:5},
-        {id:'cv_shopee',nome:'Shopee',taxaPct:14,taxaFixa:2},
-        {id:'cv_whatsapp',nome:'WhatsApp',taxaPct:0,taxaFixa:0}
+        {id:'cv_balcao',nome:'Balcão',taxaPct:0,taxaFixa:0,tipoTaxa:'simples'},
+        {id:'cv_facebook',nome:'Facebook',taxaPct:0,taxaFixa:0,tipoTaxa:'simples'},
+        {id:'cv_instagram',nome:'Instagram',taxaPct:0,taxaFixa:0,tipoTaxa:'simples'},
+        {id:'cv_mercadolivre',nome:'Mercado Livre',taxaPct:19,taxaFixa:0,tipoTaxa:'tabela_ml'},
+        {id:'cv_shopee',nome:'Shopee',taxaPct:20,taxaFixa:4,tipoTaxa:'simples'},
+        {id:'cv_whatsapp',nome:'WhatsApp',taxaPct:0,taxaFixa:0,tipoTaxa:'simples'}
       ];
       saveCanaisVenda(canais);
       localStorage.setItem('orcpro_canais_inicializado','1');
@@ -3366,23 +3510,59 @@ function getCanaisVenda(){
 }
 function saveCanaisVenda(arr){localStorage.setItem('orcpro_canais',JSON.stringify(arr));}
 
+// Tabela de tarifa fixa por faixa de preço — regra do Mercado Livre (produtos abaixo de R$ 79,00)
+function calcularTaxaFixaMercadoLivre(precoVenda){
+  if(precoVenda>=79)return 0;
+  if(precoVenda<12.50)return precoVenda*0.5;// 50% do preço do produto
+  if(precoVenda<29)return 6.25;
+  if(precoVenda<50)return 6.50;
+  return 6.75;// de 50 a 79
+}
+
+// Calcula a taxa total (percentual + fixa) de um canal para um preço de venda específico,
+// já considerando regras especiais como a tabela progressiva do Mercado Livre.
+function calcularTaxaCanal(canal,precoVenda){
+  if(!canal)return{taxaPct:0,taxaFixa:0};
+  if(canal.tipoTaxa==='tabela_ml'){
+    return{taxaPct:canal.taxaPct,taxaFixa:calcularTaxaFixaMercadoLivre(precoVenda||0)};
+  }
+  return{taxaPct:canal.taxaPct,taxaFixa:canal.taxaFixa};
+}
+
+function toggleTipoTaxaCanal(){
+  var tipo=val('canal-tipo-taxa');
+  ge('canal-taxa-simples-wrap').style.display=tipo==='simples'?'flex':'none';
+  ge('canal-taxa-ml-wrap').style.display=tipo==='tabela_ml'?'block':'none';
+  ge('canal-info-padrao').style.display=tipo==='simples'?'block':'none';
+}
 function openCanalModal(id){
   ge('canal-edit-id').value=id||'';
   ge('modal-canal-title').textContent=id?'Editar Canal':'Novo Canal de Venda';
   if(id){
     var c=getCanaisVenda().find(function(x){return x.id===id;});
-    if(c){setVal('canal-nome',c.nome);setVal('canal-taxa-pct',c.taxaPct);setVal('canal-taxa-fixa',c.taxaFixa);}
+    if(c){
+      setVal('canal-nome',c.nome);
+      setVal('canal-tipo-taxa',c.tipoTaxa||'simples');
+      setVal('canal-taxa-pct',c.taxaPct);setVal('canal-taxa-fixa',c.taxaFixa);
+      setVal('canal-taxa-pct-ml',c.taxaPct);
+    }
   }else{
-    setVal('canal-nome','');setVal('canal-taxa-pct','');setVal('canal-taxa-fixa','');
+    setVal('canal-nome','');setVal('canal-tipo-taxa','simples');setVal('canal-taxa-pct','');setVal('canal-taxa-fixa','');setVal('canal-taxa-pct-ml','19');
   }
+  toggleTipoTaxaCanal();
   ge('modal-canal').className='modal-overlay open';
 }
 function closeCanalModal(){ge('modal-canal').className='modal-overlay';}
 function saveCanal(){
   var nome=val('canal-nome');
   if(!nome){alert('Informe o nome do canal.');return;}
+  var tipoTaxa=val('canal-tipo-taxa');
   var canais=getCanaisVenda(),editId=val('canal-edit-id');
-  var c={id:editId||'cv'+Date.now(),nome:nome,taxaPct:parseFloat(val('canal-taxa-pct'))||0,taxaFixa:parseFloat(val('canal-taxa-fixa'))||0};
+  var c={
+    id:editId||'cv'+Date.now(),nome:nome,tipoTaxa:tipoTaxa,
+    taxaPct:tipoTaxa==='tabela_ml'?(parseFloat(val('canal-taxa-pct-ml'))||0):(parseFloat(val('canal-taxa-pct'))||0),
+    taxaFixa:tipoTaxa==='tabela_ml'?0:(parseFloat(val('canal-taxa-fixa'))||0)
+  };
   if(editId){var idx=canais.findIndex(function(x){return x.id===editId;});if(idx>=0)canais[idx]=c;else canais.push(c);}
   else canais.push(c);
   saveCanaisVenda(canais);closeCanalModal();renderCanais();atualizarSelectCanais();
@@ -3396,10 +3576,11 @@ function renderCanais(){
   if(!canais.length){tbody.innerHTML='';if(empty)empty.style.display='block';return;}
   if(empty)empty.style.display='none';
   tbody.innerHTML=canais.map(function(c){
+    var taxaFixaTxt=c.tipoTaxa==='tabela_ml'?'<span style="color:rgba(255,255,255,.5);font-size:11px">Tabela por faixa</span>':fmt(c.taxaFixa);
     return'<tr>'+
-      '<td style="white-space:nowrap"><strong>'+c.nome+'</strong></td>'+
+      '<td style="white-space:nowrap"><strong>'+c.nome+'</strong>'+(c.tipoTaxa==='tabela_ml'?' <span class="badge bbl" style="font-size:9px">ML</span>':'')+'</td>'+
       '<td style="white-space:nowrap;color:var(--yellow);font-weight:600">'+c.taxaPct+'%</td>'+
-      '<td style="white-space:nowrap">'+fmt(c.taxaFixa)+'</td>'+
+      '<td style="white-space:nowrap">'+taxaFixaTxt+'</td>'+
       '<td style="white-space:nowrap"><button class="btn btn-out btn-sm" onclick="openCanalModal(\''+c.id+'\')">✏️</button> <button class="btn btn-danger btn-sm" onclick="deleteCanal(\''+c.id+'\')">🗑</button></td>'+
     '</tr>';
   }).join('');
@@ -3409,7 +3590,10 @@ function atualizarSelectCanais(){
   var sel=ge('precif-canal');if(!sel)return;
   var canais=getCanaisVenda().slice().sort(function(a,b){return a.nome.localeCompare(b.nome,'pt-BR');});
   var opts='<option value="">Nenhum (venda direta, sem taxa)</option>';
-  opts+=canais.map(function(c){return'<option value="'+c.id+'">'+c.nome+' ('+c.taxaPct+'% + '+fmt(c.taxaFixa)+')</option>';}).join('');
+  opts+=canais.map(function(c){
+    var detalhe=c.tipoTaxa==='tabela_ml'?c.taxaPct+'% + tarifa por faixa':c.taxaPct+'% + '+fmt(c.taxaFixa);
+    return'<option value="'+c.id+'">'+c.nome+' ('+detalhe+')</option>';
+  }).join('');
   sel.innerHTML=opts;
 }
 
@@ -3548,8 +3732,6 @@ function calcularPrecificador(){
   var incluirRateio=ge('precif-incluir-rateio').checked;
   var incluirImposto=ge('precif-incluir-imposto').checked;
   var canal=canalId?getCanaisVenda().find(function(c){return c.id===canalId;}):null;
-  var taxaPct=canal?canal.taxaPct:0;
-  var taxaFixa=canal?canal.taxaFixa:0;
   var qtdManual=parseFloat(val('precif-rateio-qtd-manual'))||0;
   var rateio=incluirRateio?getRateioCustoFixoPorProduto(qtdManual):{rateioPorUnidade:0,semDados:true};
   var rateioDas=incluirImposto?getRateioDasMensal(qtdManual):{rateioPorUnidade:0,semDados:true};
@@ -3561,7 +3743,8 @@ function calcularPrecificador(){
   // ── Valor de venda informado pelo usuário ──
   var vendaVarejo=parseFloat(val('precif-venda-varejo'))||0;
   if(vendaVarejo>0){
-    var taxaCanalValor=vendaVarejo*(taxaPct/100)+taxaFixa;
+    var taxaReal=calcularTaxaCanal(canal,vendaVarejo);
+    var taxaCanalValor=vendaVarejo*(taxaReal.taxaPct/100)+taxaReal.taxaFixa;
     var lucroBruto=vendaVarejo-custoTotal;
     var lucroLiquido=vendaVarejo-custoTotal-taxaCanalValor;
     var margemReal=vendaVarejo>0?(lucroBruto/vendaVarejo)*100:0;
@@ -3580,9 +3763,24 @@ function calcularPrecificador(){
 
   // ── Sugestão de preço pela margem desejada ──
   // Preço = (CustoTotal já com DAS embutido) / (1 - margem% - taxaCanal%) + taxaFixa
+  // Para canais com tabela progressiva (ML), a taxa fixa depende do preço final — resolvido por iteração.
   var margemDesejada=parseFloat(val('precif-margem-desejada'))||0;
-  var percentuaisSomados=(margemDesejada+taxaPct)/100;
-  var precoSugerido=percentuaisSomados<1?(custoTotal/(1-percentuaisSomados))+taxaFixa:null;
+  var precoSugerido=null;
+  if(canal&&canal.tipoTaxa==='tabela_ml'){
+    var precoEstimado=custoTotal*2;// chute inicial razoável
+    for(var iter=0;iter<8;iter++){
+      var taxaIter=calcularTaxaCanal(canal,precoEstimado);
+      var pctSomados=(margemDesejada+taxaIter.taxaPct)/100;
+      if(pctSomados>=1){precoEstimado=null;break;}
+      precoEstimado=(custoTotal/(1-pctSomados))+taxaIter.taxaFixa;
+    }
+    precoSugerido=precoEstimado;
+  }else{
+    var taxaPct=canal?canal.taxaPct:0;
+    var taxaFixa=canal?canal.taxaFixa:0;
+    var percentuaisSomados=(margemDesejada+taxaPct)/100;
+    precoSugerido=percentuaisSomados<1?(custoTotal/(1-percentuaisSomados))+taxaFixa:null;
+  }
   ge('precif-sugestao-preco').textContent=precoSugerido!=null?fmt(precoSugerido):'—';
   window._precifSugestaoAtual=precoSugerido;
   window._precifCustoTotalAtual=custoTotal;
@@ -3594,7 +3792,15 @@ function calcularPrecificador(){
   var infoEl=ge('precif-extras-info');
   var partes=[];
   if(incluirRateio)partes.push('Rateio de custo fixo: '+fmt(rateio.rateioPorUnidade)+' por unidade'+(rateio.semDados?' (sem histórico — informe a quantidade manualmente acima)':' (base: '+rateio.qtdMedia.toFixed(0)+' un./mês'+(rateio.manual?' — manual':' — média do histórico')+')'));
-  if(canal)partes.push('Taxa '+canal.nome+': '+taxaPct+'% + '+fmt(taxaFixa));
+  if(canal){
+    if(canal.tipoTaxa==='tabela_ml'){
+      var precoRef=vendaVarejo>0?vendaVarejo:(precoSugerido||0);
+      var taxaRefInfo=calcularTaxaCanal(canal,precoRef);
+      partes.push('Taxa '+canal.nome+': '+canal.taxaPct+'% + '+fmt(taxaRefInfo.taxaFixa)+' (tarifa da faixa de '+fmt(precoRef)+')');
+    }else{
+      partes.push('Taxa '+canal.nome+': '+canal.taxaPct+'% + '+fmt(canal.taxaFixa));
+    }
+  }
   if(incluirImposto)partes.push('DAS-MEI: '+fmt(rateioDas.dasMensal)+'/mês'+(rateioDas.semDados?' (rateio R$ 0,00 — informe a quantidade manualmente acima)':' → '+fmt(rateioDas.rateioPorUnidade)+'/unidade'));
   infoEl.textContent=partes.join(' · ');
 
