@@ -1386,14 +1386,15 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
   <div class="modal" style="width:540px">
     <div class="modal-title" id="modal-prod-title">Produto</div>
     <input type="hidden" id="prod-edit-id">
+    <input type="hidden" id="prod-composicao-temp">
     <div class="g2"><div><label class="lbl">Nome *</label><input id="prod-nome"></div><div><label class="lbl">Categoria</label><input id="prod-cat" placeholder="Ex: Camisetas" list="cats-datalist"><datalist id="cats-datalist"></datalist></div></div>
     <div class="g2 mt"><div><label class="lbl">Unidade</label><select id="prod-unit"><option>un</option><option>cx</option><option>kg</option><option>m</option><option>m²</option><option>L</option><option>par</option><option>pç</option></select></div><div><label class="lbl">SKU</label><input id="prod-sku" placeholder="CAM-001"></div></div>
     <div class="g3 mt">
-      <div><label class="lbl">Custo (R$)</label><input type="number" id="prod-custo" placeholder="0,00" min="0" step="0.01"></div>
+      <div><label class="lbl">Custo (R$) <span id="prod-composicao-indicador" style="display:none;color:var(--brand-l);font-size:10px;font-weight:600">🔗 vinculado</span></label><input type="number" id="prod-custo" placeholder="0,00" min="0" step="0.01"></div>
       <div><label class="lbl">Varejo (R$) *</label><input type="number" id="prod-varejo" placeholder="0,00" min="0" step="0.01"></div>
       <div><label class="lbl">Atacado (R$)</label><input type="number" id="prod-atacado" placeholder="0,00" min="0" step="0.01"></div>
     </div>
-    <div class="mt"><button type="button" class="btn btn-out btn-sm" onclick="openPrecificadorModal(true)">🧮 Calcular preço sugerido a partir do custo</button></div>
+    <div class="mt"><button type="button" class="btn btn-out btn-sm" onclick="openPrecificadorModal(true)">🧮 Calcular preço sugerido a partir do custo</button> <span style="font-size:11px;color:rgba(255,255,255,.4)" id="prod-composicao-hint"></span></div>
     <div class="mt"><label class="lbl">Qtd mínima atacado</label><input type="number" id="prod-min" value="10" min="1"></div>
 
     <div class="mt" style="background:rgba(255,255,255,.04);border:1px solid var(--dark-border2);border-radius:10px;padding:12px 14px">
@@ -2087,6 +2088,7 @@ function renderCat(){
 
 function openProdModal(id){
   ge('prod-edit-id').value=id||'';ge('modal-prod-title').textContent=id?'Editar Produto':'Novo Produto';
+  ge('prod-composicao-temp').value='';
   // Atualizar datalist de categorias
   var catsDl=ge('cats-datalist');
   if(catsDl)catsDl.innerHTML=getCategorias().map(function(c){return'<option value="'+c+'">';}).join('');
@@ -2098,6 +2100,15 @@ function openProdModal(id){
       ge('prod-controla-estoque').checked=!!p.controlaEstoque;
       setVal('prod-estoque-qtd',p.estoqueQtd||0);setVal('prod-estoque-min',p.estoqueMin||5);
       toggleEstoqueFields();
+      // Indicador visual de composição vinculada
+      var indicador=ge('prod-composicao-indicador'),hint=ge('prod-composicao-hint');
+      if(p.composicaoCusto&&((p.composicaoCusto.producao||[]).length||(p.composicaoCusto.embalagem||[]).length)){
+        if(indicador)indicador.style.display='inline';
+        if(hint)hint.textContent='Este produto já tem uma composição de custo detalhada salva.';
+      }else{
+        if(indicador)indicador.style.display='none';
+        if(hint)hint.textContent='';
+      }
     }
   }
   else{
@@ -2106,6 +2117,9 @@ function openProdModal(id){
     var prev=ge('prod-foto-preview');if(prev)prev.innerHTML='<div style="font-size:20px">📷</div><div class="logo-upload-hint">Clique para selecionar (até 1MB)</div>';ge('prod-foto-file').value='';
     ge('prod-controla-estoque').checked=false;setVal('prod-estoque-qtd','0');setVal('prod-estoque-min','5');
     toggleEstoqueFields();
+    var indicador2=ge('prod-composicao-indicador'),hint2=ge('prod-composicao-hint');
+    if(indicador2)indicador2.style.display='none';
+    if(hint2)hint2.textContent='';
   }
   ge('modal-prod').className='modal-overlay open';
 }
@@ -2117,8 +2131,19 @@ function saveProd(){
   var varejo=parseFloat(val('prod-varejo'))||0,atacado=parseFloat(val('prod-atacado'))||0,custo=parseFloat(val('prod-custo'))||0;
   if(!varejo&&!atacado){alert('Informe ao menos um preço.');return;}
   var prods=getProdutos(),editId=val('prod-edit-id');
+
+  // Composição de custo vinculada — se o precificador foi usado nesta sessão, persiste; senão mantém a que já existia
+  var composicaoCusto=null;
+  var composicaoTemp=val('prod-composicao-temp');
+  if(composicaoTemp){
+    try{composicaoCusto=JSON.parse(composicaoTemp);}catch(e){composicaoCusto=null;}
+  }else if(editId){
+    var prodExistente=prods.find(function(x){return x.id===editId;});
+    if(prodExistente&&prodExistente.composicaoCusto)composicaoCusto=prodExistente.composicaoCusto;
+  }
+
   var controlaEstoque=ge('prod-controla-estoque').checked;
-  var prod={id:editId||'p'+Date.now(),nome:nome,cat:val('prod-cat'),unit:val('prod-unit'),sku:val('prod-sku'),custo:custo,varejo:varejo,atacado:atacado||varejo,minAtacado:parseInt(val('prod-min'))||10,desc:val('prod-desc'),foto:val('prod-foto-data'),controlaEstoque:controlaEstoque,estoqueQtd:controlaEstoque?(parseFloat(val('prod-estoque-qtd'))||0):0,estoqueMin:controlaEstoque?(parseFloat(val('prod-estoque-min'))||0):0};
+  var prod={id:editId||'p'+Date.now(),nome:nome,cat:val('prod-cat'),unit:val('prod-unit'),sku:val('prod-sku'),custo:custo,varejo:varejo,atacado:atacado||varejo,minAtacado:parseInt(val('prod-min'))||10,desc:val('prod-desc'),foto:val('prod-foto-data'),controlaEstoque:controlaEstoque,estoqueQtd:controlaEstoque?(parseFloat(val('prod-estoque-qtd'))||0):0,estoqueMin:controlaEstoque?(parseFloat(val('prod-estoque-min'))||0):0,composicaoCusto:composicaoCusto};
   if(editId){var idx=prods.findIndex(function(x){return x.id===editId;});if(idx>=0)prods[idx]=prod;else prods.push(prod);}
   else prods.push(prod);
   saveProdutos(prods);closeProdModal();renderCat();
@@ -3766,13 +3791,32 @@ function openPrecificadorModal(fromProdModal){
   toggleRateioQtdManual();
 
   if(fromProdModal){
-    var custoAtual=parseFloat(val('prod-custo'))||0;
-    if(custoAtual>0)addPrecifItem('producao','Custo cadastrado no produto',custoAtual);
-    else addPrecifItem('producao');
-    addPrecifItem('embalagem');
+    var prodId=val('prod-edit-id');// produto real sendo editado (vazio se for um produto novo ainda não salvo)
+    ge('precif-prod-id').value=prodId||'__novo_produto__';
+    var produtoExistente=prodId?getProdutos().find(function(p){return p.id===prodId;}):null;
+
+    if(produtoExistente&&produtoExistente.composicaoCusto){
+      // Produto já tem composição salva — carrega ela (fonte única de verdade)
+      var comp=produtoExistente.composicaoCusto;
+      (comp.producao||[]).forEach(function(it){addPrecifItem('producao',it.nome,it.valor);});
+      (comp.embalagem||[]).forEach(function(it){addPrecifItem('embalagem',it.nome,it.valor);});
+      if(!(comp.producao||[]).length)addPrecifItem('producao');
+      if(!(comp.embalagem||[]).length)addPrecifItem('embalagem');
+      setVal('precif-margem-desejada',comp.margemDesejada||'45');
+      setVal('precif-canal',comp.canalId||'');
+      setVal('precif-rateio-qtd-manual',comp.rateioQtdManual||'');
+      ge('precif-incluir-rateio').checked=!!comp.incluirRateio;
+      ge('precif-incluir-imposto').checked=comp.incluirImposto!==false;
+      precifAtacadoState=comp.atacadoState?JSON.parse(JSON.stringify(comp.atacadoState)):JSON.parse(JSON.stringify(PRECIF_ATACADO_PADRAO));
+    }else{
+      // Produto novo ou ainda sem composição — começa do que já estiver no campo Custo
+      var custoAtual=parseFloat(val('prod-custo'))||0;
+      if(custoAtual>0)addPrecifItem('producao','Custo cadastrado no produto',custoAtual);
+      else addPrecifItem('producao');
+      addPrecifItem('embalagem');
+    }
     var varejoAtual=val('prod-varejo');
     if(varejoAtual)setVal('precif-venda-varejo',varejoAtual);
-    ge('precif-prod-id').value='__from_prod_modal__';
   }else{
     addPrecifItem('producao');
     addPrecifItem('embalagem');
@@ -3964,6 +4008,17 @@ function aplicarPrecoSugerido(){
     setVal('prod-atacado',window._precifAtacadoPrecos[0].toFixed(2));
     setVal('prod-min',precifAtacadoState[0].qtd);
   }
+  // Guarda a composição completa num campo temporário do modal de produto —
+  // será persistida no produto (composicaoCusto) quando o usuário clicar em Salvar.
+  var composicao={
+    producao:getPrecifItens('producao'),embalagem:getPrecifItens('embalagem'),
+    margemDesejada:val('precif-margem-desejada'),canalId:val('precif-canal'),
+    incluirRateio:ge('precif-incluir-rateio').checked,incluirImposto:ge('precif-incluir-imposto').checked,
+    rateioQtdManual:val('precif-rateio-qtd-manual'),atacadoState:JSON.parse(JSON.stringify(precifAtacadoState))
+  };
+  ge('prod-composicao-temp').value=JSON.stringify(composicao);
+  var indicador=ge('prod-composicao-indicador');
+  if(indicador)indicador.style.display='inline';
   closePrecificadorModal();
 }
 
