@@ -1411,15 +1411,33 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
     </div>
 
     <div class="mt">
-      <label class="lbl">Foto <span class="lbl-hint">— aparece no PDF</span></label>
-      <div class="logo-upload-area" onclick="document.getElementById('prod-foto-file').click()" style="padding:10px">
-        <input type="file" id="prod-foto-file" accept="image/*" style="display:none" onchange="handleProdFoto(event)">
-        <div id="prod-foto-preview"><div style="font-size:20px">📷</div><div class="logo-upload-hint">Clique para selecionar (até 1MB)</div></div>
+      <label class="lbl">Fotos <span class="lbl-hint">— até 3 fotos. A 1ª é a principal (aparece no PDF e no catálogo)</span></label>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div class="logo-upload-area" onclick="document.getElementById('prod-foto-file-0').click()" style="padding:8px;position:relative">
+          <input type="file" id="prod-foto-file-0" accept="image/*" style="display:none" onchange="handleProdFoto(event,0)">
+          <div id="prod-foto-preview-0"><div style="font-size:18px">📷</div><div class="logo-upload-hint" style="font-size:10px">Foto principal</div></div>
+          <div id="prod-foto-del-0" style="display:none;position:absolute;top:4px;right:4px"><button type="button" onclick="event.stopPropagation();removeProdFoto(0)" style="background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer">×</button></div>
+        </div>
+        <div class="logo-upload-area" onclick="document.getElementById('prod-foto-file-1').click()" style="padding:8px;position:relative">
+          <input type="file" id="prod-foto-file-1" accept="image/*" style="display:none" onchange="handleProdFoto(event,1)">
+          <div id="prod-foto-preview-1"><div style="font-size:18px">📷</div><div class="logo-upload-hint" style="font-size:10px">Foto 2</div></div>
+          <div id="prod-foto-del-1" style="display:none;position:absolute;top:4px;right:4px"><button type="button" onclick="event.stopPropagation();removeProdFoto(1)" style="background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer">×</button></div>
+        </div>
+        <div class="logo-upload-area" onclick="document.getElementById('prod-foto-file-2').click()" style="padding:8px;position:relative">
+          <input type="file" id="prod-foto-file-2" accept="image/*" style="display:none" onchange="handleProdFoto(event,2)">
+          <div id="prod-foto-preview-2"><div style="font-size:18px">📷</div><div class="logo-upload-hint" style="font-size:10px">Foto 3</div></div>
+          <div id="prod-foto-del-2" style="display:none;position:absolute;top:4px;right:4px"><button type="button" onclick="event.stopPropagation();removeProdFoto(2)" style="background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer">×</button></div>
+        </div>
       </div>
+      <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:5px">Máximo 1MB por foto.</div>
       <input type="hidden" id="prod-foto-data">
     </div>
     <div class="mt"><label class="lbl">Descrição</label><textarea id="prod-desc" style="min-height:44px"></textarea></div>
-    <div class="modal-footer"><button class="btn btn-out" onclick="closeProdModal()">Cancelar</button> <button class="btn btn-brand" onclick="saveProd()">💾 Salvar</button></div>
+    <div class="modal-footer">
+      <button class="btn btn-out" onclick="closeProdModal()">Cancelar</button>
+      <button class="btn btn-out" id="btn-duplicar-prod" style="display:none" onclick="duplicarProduto()">📋 Duplicar</button>
+      <button class="btn btn-brand" onclick="saveProd()">💾 Salvar</button>
+    </div>
   </div>
 </div>
 
@@ -1924,7 +1942,39 @@ function removeLogo(){if(!confirm('Remover?'))return;localStorage.removeItem('or
 // ═══════════════════════════════════════════════════
 // FOTO PRODUTO
 // ═══════════════════════════════════════════════════
-function handleProdFoto(e){var file=e.target.files[0];if(!file)return;if(file.size>1*1024*1024){alert('Máximo 1MB.');return;}var r=new FileReader();r.onload=function(ev){setVal('prod-foto-data',ev.target.result);var p=ge('prod-foto-preview');if(p)p.innerHTML='<img src="'+ev.target.result+'" style="max-height:72px;max-width:150px;border-radius:6px;object-fit:cover"><div class="logo-upload-hint">Clique para trocar</div>';};r.readAsDataURL(file);}
+var prodFotosTemp=['','',''];// array em memória com as 3 fotos do produto sendo editado/criado
+
+function handleProdFoto(e,idx){
+  var file=e.target.files[0];if(!file)return;
+  if(file.size>1*1024*1024){alert('Máximo 1MB por foto.');return;}
+  var r=new FileReader();
+  r.onload=function(ev){
+    prodFotosTemp[idx]=ev.target.result;
+    renderProdFotoPreview(idx);
+    if(idx===0)setVal('prod-foto-data',ev.target.result);// retrocompatibilidade: foto principal espelhada no campo antigo
+  };
+  r.readAsDataURL(file);
+}
+function removeProdFoto(idx){
+  prodFotosTemp[idx]='';
+  ge('prod-foto-file-'+idx).value='';
+  renderProdFotoPreview(idx);
+  if(idx===0)setVal('prod-foto-data','');
+}
+function renderProdFotoPreview(idx){
+  var p=ge('prod-foto-preview-'+idx);
+  var delBtn=ge('prod-foto-del-'+idx);
+  var label=idx===0?'Foto principal':'Foto '+(idx+1);
+  if(prodFotosTemp[idx]){
+    if(p)p.innerHTML='<img src="'+prodFotosTemp[idx]+'" style="max-height:70px;max-width:100%;border-radius:6px;object-fit:cover;width:100%">';
+    if(delBtn)delBtn.style.display='block';
+  }else{
+    if(p)p.innerHTML='<div style="font-size:18px">📷</div><div class="logo-upload-hint" style="font-size:10px">'+label+'</div>';
+    if(delBtn)delBtn.style.display='none';
+  }
+}
+function renderTodasProdFotos(){for(var i=0;i<3;i++)renderProdFotoPreview(i);}
+
 
 // ═══════════════════════════════════════════════════
 // NUMERAÇÃO
@@ -2089,14 +2139,19 @@ function renderCat(){
 function openProdModal(id){
   ge('prod-edit-id').value=id||'';ge('modal-prod-title').textContent=id?'Editar Produto':'Novo Produto';
   ge('prod-composicao-temp').value='';
+  prodFotosTemp=['','',''];
   // Atualizar datalist de categorias
   var catsDl=ge('cats-datalist');
   if(catsDl)catsDl.innerHTML=getCategorias().map(function(c){return'<option value="'+c+'">';}).join('');
   if(id){
     var p=getProdutos().find(function(x){return x.id===id;});
     if(p){
-      setVal('prod-nome',p.nome);setVal('prod-cat',p.cat);setVal('prod-unit',p.unit);setVal('prod-sku',p.sku);setVal('prod-custo',p.custo||'');setVal('prod-varejo',p.varejo);setVal('prod-atacado',p.atacado);setVal('prod-min',p.minAtacado);setVal('prod-desc',p.desc);setVal('prod-foto-data',p.foto||'');
-      var prev=ge('prod-foto-preview');if(p.foto&&prev)prev.innerHTML='<img src="'+p.foto+'" style="max-height:72px;max-width:150px;border-radius:6px;object-fit:cover"><div class="logo-upload-hint">Clique para trocar</div>';
+      setVal('prod-nome',p.nome);setVal('prod-cat',p.cat);setVal('prod-unit',p.unit);setVal('prod-sku',p.sku);setVal('prod-custo',p.custo||'');setVal('prod-varejo',p.varejo);setVal('prod-atacado',p.atacado);setVal('prod-min',p.minAtacado);setVal('prod-desc',p.desc);
+      // Carrega as fotos: usa o array novo 'fotos' se existir, senão retrocompatibilidade com o campo antigo 'foto'
+      var fotosExistentes=p.fotos&&p.fotos.length?p.fotos:(p.foto?[p.foto]:[]);
+      prodFotosTemp=[fotosExistentes[0]||'',fotosExistentes[1]||'',fotosExistentes[2]||''];
+      setVal('prod-foto-data',prodFotosTemp[0]);
+      renderTodasProdFotos();
       ge('prod-controla-estoque').checked=!!p.controlaEstoque;
       setVal('prod-estoque-qtd',p.estoqueQtd||0);setVal('prod-estoque-min',p.estoqueMin||5);
       toggleEstoqueFields();
@@ -2109,23 +2164,53 @@ function openProdModal(id){
         if(indicador)indicador.style.display='none';
         if(hint)hint.textContent='';
       }
+      ge('btn-duplicar-prod').style.display='inline-flex';
     }
   }
   else{
     ['prod-nome','prod-cat','prod-sku','prod-custo','prod-varejo','prod-atacado','prod-desc','prod-foto-data'].forEach(function(i){setVal(i,'');});
     setVal('prod-unit','un');setVal('prod-min','10');
-    var prev=ge('prod-foto-preview');if(prev)prev.innerHTML='<div style="font-size:20px">📷</div><div class="logo-upload-hint">Clique para selecionar (até 1MB)</div>';ge('prod-foto-file').value='';
+    for(var fi=0;fi<3;fi++){ge('prod-foto-file-'+fi).value='';}
+    renderTodasProdFotos();
     ge('prod-controla-estoque').checked=false;setVal('prod-estoque-qtd','0');setVal('prod-estoque-min','5');
     toggleEstoqueFields();
     var indicador2=ge('prod-composicao-indicador'),hint2=ge('prod-composicao-hint');
     if(indicador2)indicador2.style.display='none';
     if(hint2)hint2.textContent='';
+    ge('btn-duplicar-prod').style.display='none';
   }
   ge('modal-prod').className='modal-overlay open';
 }
 function closeProdModal(){ge('modal-prod').className='modal-overlay';}
 function editProd(id){openProdModal(id);}
 function deleteProd(id){if(!confirm('Excluir produto?'))return;saveProdutos(getProdutos().filter(function(p){return p.id!==id;}));renderCat();}
+
+function duplicarProduto(){
+  var editId=val('prod-edit-id');
+  if(!editId){alert('Salve o produto primeiro antes de duplicar.');return;}
+  var produtoOrigem=getProdutos().find(function(p){return p.id===editId;});
+  if(!produtoOrigem){alert('Produto não encontrado.');return;}
+
+  var novoNome=prompt('Nome do novo produto (ex: troque a cor/variação):',produtoOrigem.nome+' (cópia)');
+  if(!novoNome)return;
+
+  var novoProduto=JSON.parse(JSON.stringify(produtoOrigem));// cópia profunda — independente do original
+  novoProduto.id='p'+Date.now();
+  novoProduto.nome=novoNome;
+  novoProduto.sku='';// SKU deve ser único — usuário define um novo
+  // Estoque não é duplicado (cada variação tem seu próprio estoque, começa zerado)
+  novoProduto.estoqueQtd=0;
+
+  var prods=getProdutos();
+  prods.push(novoProduto);
+  saveProdutos(prods);
+
+  closeProdModal();
+  renderCat();
+  alert('✅ Produto duplicado como "'+novoNome+'"! Ajuste o que for diferente (foto, SKU, cor) e salve.');
+  openProdModal(novoProduto.id);
+}
+
 function saveProd(){
   var nome=val('prod-nome');if(!nome){alert('Informe o nome.');return;}
   var varejo=parseFloat(val('prod-varejo'))||0,atacado=parseFloat(val('prod-atacado'))||0,custo=parseFloat(val('prod-custo'))||0;
@@ -2142,8 +2227,9 @@ function saveProd(){
     if(prodExistente&&prodExistente.composicaoCusto)composicaoCusto=prodExistente.composicaoCusto;
   }
 
+  var fotosFinais=prodFotosTemp.filter(function(f){return f;});// remove vazios, mantém ordem
   var controlaEstoque=ge('prod-controla-estoque').checked;
-  var prod={id:editId||'p'+Date.now(),nome:nome,cat:val('prod-cat'),unit:val('prod-unit'),sku:val('prod-sku'),custo:custo,varejo:varejo,atacado:atacado||varejo,minAtacado:parseInt(val('prod-min'))||10,desc:val('prod-desc'),foto:val('prod-foto-data'),controlaEstoque:controlaEstoque,estoqueQtd:controlaEstoque?(parseFloat(val('prod-estoque-qtd'))||0):0,estoqueMin:controlaEstoque?(parseFloat(val('prod-estoque-min'))||0):0,composicaoCusto:composicaoCusto};
+  var prod={id:editId||'p'+Date.now(),nome:nome,cat:val('prod-cat'),unit:val('prod-unit'),sku:val('prod-sku'),custo:custo,varejo:varejo,atacado:atacado||varejo,minAtacado:parseInt(val('prod-min'))||10,desc:val('prod-desc'),foto:fotosFinais[0]||'',fotos:fotosFinais,controlaEstoque:controlaEstoque,estoqueQtd:controlaEstoque?(parseFloat(val('prod-estoque-qtd'))||0):0,estoqueMin:controlaEstoque?(parseFloat(val('prod-estoque-min'))||0):0,composicaoCusto:composicaoCusto};
   if(editId){var idx=prods.findIndex(function(x){return x.id===editId;});if(idx>=0)prods[idx]=prod;else prods.push(prod);}
   else prods.push(prod);
   saveProdutos(prods);closeProdModal();renderCat();
