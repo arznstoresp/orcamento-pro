@@ -1964,13 +1964,11 @@ function toggleModoOpcoes(){ge('opcoes-labels-wrap').style.display=val('modo-opc
 function getCategorias(){
   var cfg=getCfg();
   var cats={};
-  // Categorias cadastradas nas configurações
+  // Apenas as categorias cadastradas em Minha Empresa — não mistura com categorias de produtos
   if(cfg.categorias){
     cfg.categorias.split('\n').forEach(function(c){var t=c.trim();if(t)cats[t]=1;});
   }
-  // Categorias dos produtos cadastrados
-  getProdutos().forEach(function(p){if(p.cat)cats[p.cat]=1;});
-  return Object.keys(cats).sort();
+  return Object.keys(cats);// mantém a ordem digitada pelo usuário, sem ordenar alfabeticamente
 }
 function addItem(desc,qty,unit,price,di,prazoItem,cat,custo){
   var id=++iid;var tbody=ge('items-body');var tr=document.createElement('tr');tr.id='r'+id;
