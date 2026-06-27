@@ -315,6 +315,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
     <button class="nb" id="nb-templates" onclick="showView('templates')">⭐ Templates</button>
     <div class="sb-sec">Catálogo</div>
     <button class="nb" id="nb-cat"       onclick="showView('cat')">      📦 Produtos</button>
+    <button class="nb" id="nb-catalogo"  onclick="showView('catalogo')"> 📖 Catálogo Profissional</button>
     <div class="sb-sec">Estoque</div>
     <button class="nb" id="nb-notas"     onclick="showView('notas')">    🧾 Notas de Compra</button>
     <button class="nb" id="nb-fornec"    onclick="showView('fornec')">   🚚 Fornecedores</button>
@@ -725,6 +726,27 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
         </div>
         <div id="cat-empty" style="text-align:center;padding:26px;color:rgba(255,255,255,.5);font-size:13px;display:none">Nenhum produto cadastrado.</div>
       </div>
+    </div>
+
+    <!-- CATÁLOGO PROFISSIONAL -->
+    <div id="view-catalogo" style="display:none;min-height:100%">
+      <div class="card">
+        <div class="card-title">
+          Catálogo Profissional
+          <span style="margin-left:auto;display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+            <select id="catalogo-modo-preco" onchange="renderCatalogoProfissional()" style="max-width:170px">
+              <option value="varejo">💰 Preço Varejo</option>
+              <option value="atacado">📦 Preço Atacado</option>
+              <option value="ambos">💰📦 Varejo + Atacado</option>
+              <option value="sem_preco">🚫 Sem preço (visual)</option>
+            </select>
+            <button class="btn btn-brand btn-sm" onclick="exportarCatalogoPDF()">📄 Exportar PDF</button>
+          </span>
+        </div>
+        <p style="font-size:12px;color:rgba(255,255,255,.45);margin-bottom:0;line-height:1.5">Atualiza automaticamente conforme você cadastra produtos. Para ocultar um item daqui, desmarque "Exibir no Catálogo" ao editar o produto.</p>
+      </div>
+      <div id="catalogo-conteudo"></div>
+      <div id="catalogo-empty" style="text-align:center;padding:40px;color:rgba(255,255,255,.4);font-size:13px;display:none">Nenhum produto disponível para o catálogo ainda. Cadastre produtos em "Produtos" e marque "Exibir no Catálogo".</div>
     </div>
 
     <!-- NOTAS DE COMPRA -->
@@ -1396,6 +1418,13 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
     </div>
     <div class="mt"><button type="button" class="btn btn-out btn-sm" onclick="openPrecificadorModal(true)">🧮 Calcular preço sugerido a partir do custo</button> <span style="font-size:11px;color:rgba(255,255,255,.4)" id="prod-composicao-hint"></span></div>
     <div class="mt"><label class="lbl">Qtd mínima atacado</label><input type="number" id="prod-min" value="10" min="1"></div>
+
+    <div class="mt">
+      <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer">
+        <input type="checkbox" id="prod-exibir-catalogo" checked style="width:auto;padding:0"> 📖 Exibir no Catálogo Profissional
+      </label>
+      <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px;margin-left:21px">Desmarque para itens fora de linha ou que você não quer mostrar para os clientes.</div>
+    </div>
 
     <div class="mt" style="background:rgba(255,255,255,.04);border:1px solid var(--dark-border2);border-radius:10px;padding:12px 14px">
       <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer;font-weight:600;color:rgba(255,255,255,.8)">
@@ -2136,6 +2165,144 @@ function renderCat(){
   }).join('');
 }
 
+// ═══════════════════════════════════════════════════
+// CATÁLOGO PROFISSIONAL — tela viva + exportação PDF
+// ═══════════════════════════════════════════════════
+function getProdutosCatalogavel(){
+  // exibirCatalogo!==false garante retrocompatibilidade: produtos antigos sem esse campo aparecem por padrão
+  return getProdutos().filter(function(p){return p.exibirCatalogo!==false;});
+}
+
+function agruparProdutosPorCategoria(produtos){
+  var grupos={};var semCat=[];
+  produtos.forEach(function(p){
+    var cat=p.cat&&p.cat.trim()?p.cat.trim():null;
+    if(cat){grupos[cat]=grupos[cat]||[];grupos[cat].push(p);}
+    else semCat.push(p);
+  });
+  // Ordena os nomes das categorias seguindo a ordem cadastrada em Minha Empresa; categorias extras vão depois, alfabeticamente
+  var catsConfig=getCategorias();
+  var nomesGrupos=Object.keys(grupos);
+  nomesGrupos.sort(function(a,b){
+    var ia=catsConfig.indexOf(a),ib=catsConfig.indexOf(b);
+    if(ia===-1&&ib===-1)return a.localeCompare(b,'pt-BR');
+    if(ia===-1)return 1;
+    if(ib===-1)return -1;
+    return ia-ib;
+  });
+  var resultado=nomesGrupos.map(function(nome){return{categoria:nome,produtos:grupos[nome]};});
+  if(semCat.length)resultado.push({categoria:'Outros',produtos:semCat});
+  return resultado;
+}
+
+function montarCardProdutoCatalogo(p,modo){
+  var foto=p.foto?'<img src="'+p.foto+'" style="width:100%;height:150px;object-fit:cover;border-radius:8px 8px 0 0">':'<div style="width:100%;height:150px;background:rgba(255,255,255,.05);border-radius:8px 8px 0 0;display:flex;align-items:center;justify-content:center;font-size:36px">📦</div>';
+  var precoHtml='';
+  if(modo==='varejo')precoHtml='<div style="font-size:17px;font-weight:800;color:var(--brand)">'+fmt(p.varejo)+'</div>';
+  else if(modo==='atacado')precoHtml='<div style="font-size:17px;font-weight:800;color:var(--brand)">'+fmt(p.atacado)+'</div><div style="font-size:10px;color:rgba(255,255,255,.4)">a partir de '+p.minAtacado+' un.</div>';
+  else if(modo==='ambos')precoHtml='<div style="display:flex;justify-content:space-between;align-items:baseline"><div><div style="font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase">Varejo</div><div style="font-size:15px;font-weight:800;color:var(--brand)">'+fmt(p.varejo)+'</div></div><div style="text-align:right"><div style="font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase">Atacado ('+p.minAtacado+'+)</div><div style="font-size:15px;font-weight:800;color:var(--brand-l)">'+fmt(p.atacado)+'</div></div></div>';
+  return'<div style="background:var(--dark-card2);border:1px solid var(--dark-border2);border-radius:10px;overflow:hidden">'+
+    foto+
+    '<div style="padding:10px 12px">'+
+      '<div style="font-size:13px;font-weight:600;color:#F0F0F5;margin-bottom:4px;line-height:1.3">'+p.nome+'</div>'+
+      (p.desc?'<div style="font-size:11px;color:rgba(255,255,255,.45);margin-bottom:6px;line-height:1.4">'+p.desc+'</div>':'')+
+      precoHtml+
+    '</div>'+
+  '</div>';
+}
+
+function renderCatalogoProfissional(){
+  var produtos=getProdutosCatalogavel();
+  var modo=val('catalogo-modo-preco')||'varejo';
+  var conteudoEl=ge('catalogo-conteudo'),emptyEl=ge('catalogo-empty');
+
+  if(!produtos.length){
+    conteudoEl.innerHTML='';if(emptyEl)emptyEl.style.display='block';return;
+  }
+  if(emptyEl)emptyEl.style.display='none';
+
+  var grupos=agruparProdutosPorCategoria(produtos);
+  conteudoEl.innerHTML=grupos.map(function(g){
+    return'<div class="card">'+
+      '<div class="card-title">'+g.categoria+' <span style="margin-left:6px;font-size:11px;color:rgba(255,255,255,.4);font-weight:400;text-transform:none;letter-spacing:0">('+g.produtos.length+')</span></div>'+
+      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px">'+
+        g.produtos.map(function(p){return montarCardProdutoCatalogo(p,modo);}).join('')+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+
+function exportarCatalogoPDF(){
+  var produtos=getProdutosCatalogavel();
+  if(!produtos.length){alert('Nenhum produto disponível para exportar. Cadastre produtos e marque "Exibir no Catálogo".');return;}
+
+  var modo=val('catalogo-modo-preco')||'varejo';
+  var cfg=getCfg();
+  var logo=localStorage.getItem('orcpro_logo')||'';
+  var grupos=agruparProdutosPorCategoria(produtos);
+
+  var logoHtml=logo?'<img src="'+logo+'" style="width:52px;height:52px;object-fit:cover;border-radius:10px">':'<div style="width:52px;height:52px;background:rgba(255,107,0,.15);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px">📖</div>';
+
+  function precoHtmlPdf(p){
+    if(modo==='varejo')return'<div style="font-size:18px;font-weight:800;color:#FF6B00">'+fmt(p.varejo)+'</div>';
+    if(modo==='atacado')return'<div style="font-size:18px;font-weight:800;color:#FF6B00">'+fmt(p.atacado)+'</div><div style="font-size:10px;color:#999">a partir de '+p.minAtacado+' un.</div>';
+    if(modo==='ambos')return'<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:4px"><div><div style="font-size:9px;color:#999;text-transform:uppercase">Varejo</div><div style="font-size:16px;font-weight:800;color:#FF6B00">'+fmt(p.varejo)+'</div></div><div style="text-align:right"><div style="font-size:9px;color:#999;text-transform:uppercase">Atacado ('+p.minAtacado+'+)</div><div style="font-size:16px;font-weight:800;color:#CC5500">'+fmt(p.atacado)+'</div></div></div>';
+    return'';
+  }
+
+  function cardPdf(p){
+    var foto=p.foto?'<img src="'+p.foto+'" style="width:100%;height:160px;object-fit:cover;border-radius:8px 8px 0 0">':'<div style="width:100%;height:160px;background:#F0F0F0;border-radius:8px 8px 0 0;display:flex;align-items:center;justify-content:center;font-size:36px">📦</div>';
+    return'<div style="background:#fff;border:1px solid #E5E5EA;border-radius:10px;overflow:hidden;break-inside:avoid;margin-bottom:14px">'+
+      foto+
+      '<div style="padding:10px 12px">'+
+        '<div style="font-size:13px;font-weight:700;color:#111;margin-bottom:4px;line-height:1.3">'+p.nome+'</div>'+
+        (p.desc?'<div style="font-size:11px;color:#777;margin-bottom:6px;line-height:1.4">'+p.desc+'</div>':'')+
+        precoHtmlPdf(p)+
+      '</div>'+
+    '</div>';
+  }
+
+  var secoesHtml=grupos.map(function(g){
+    return'<div style="margin-bottom:24px">'+
+      '<div style="font-size:14px;font-weight:800;color:#FF6B00;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #FF6B00;padding-bottom:6px;margin-bottom:14px">'+g.categoria+'</div>'+
+      '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">'+
+        g.produtos.map(cardPdf).join('')+
+      '</div>'+
+    '</div>';
+  }).join('');
+
+  var html='<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Catálogo — '+(cfg.nome||'Empresa')+'</title>'+
+  '<style>'+
+    '*{box-sizing:border-box;margin:0;padding:0;font-family:Segoe UI,Arial,sans-serif}'+
+    'body{background:#F4F4F4;padding:24px}'+
+    '.wrap{max-width:980px;margin:0 auto}'+
+    '.header{background:#111;border-radius:14px;padding:26px 30px;display:flex;align-items:center;gap:16px;margin-bottom:24px;border-bottom:4px solid #FF6B00}'+
+    '.header-nome{font-size:22px;font-weight:800;color:#fff}'+
+    '.header-sub{font-size:12px;color:rgba(255,255,255,.5);margin-top:3px}'+
+    '.btns{max-width:980px;margin:0 auto 16px;display:flex;gap:8px;justify-content:flex-end}'+
+    '.btn{padding:9px 18px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer}'+
+    '.btn-print{background:#FF6B00;color:#fff}'+
+    '.btn-close{background:#e5e5e5;color:#333}'+
+    '.footer{text-align:center;font-size:11px;color:#999;margin-top:20px}'+
+    '@media print{.btns{display:none}body{background:#fff;padding:0}@page{size:A4;margin:1cm}}'+
+  '</style></head><body>'+
+    '<div class="btns"><button class="btn btn-print" onclick="window.print()">🖨️ Imprimir / Salvar PDF</button><button class="btn btn-close" onclick="window.close()">Fechar</button></div>'+
+    '<div class="wrap">'+
+      '<div class="header">'+logoHtml+
+        '<div><div class="header-nome">'+(cfg.nome||'Empresa')+'</div>'+
+        '<div class="header-sub">Catálogo de Produtos'+(modo==='sem_preco'?'':' — '+(modo==='atacado'?'Preços Atacado':modo==='ambos'?'Preços Varejo e Atacado':'Preços Varejo'))+'</div></div>'+
+      '</div>'+
+      secoesHtml+
+      '<div class="footer">'+(cfg.tel?cfg.tel+' · ':'')+(cfg.email?cfg.email+' · ':'')+(cfg.site||'')+'<br>Catálogo gerado em '+new Date().toLocaleDateString('pt-BR')+'</div>'+
+    '</div>'+
+  '</body></html>';
+
+  var w=window.open('','_blank');
+  if(!w){alert('Seu navegador bloqueou a abertura da janela. Permita pop-ups para gerar o catálogo.');return;}
+  w.document.write(html);
+  w.document.close();
+}
+
 function openProdModal(id){
   ge('prod-edit-id').value=id||'';ge('modal-prod-title').textContent=id?'Editar Produto':'Novo Produto';
   ge('prod-composicao-temp').value='';
@@ -2155,6 +2322,7 @@ function openProdModal(id){
       ge('prod-controla-estoque').checked=!!p.controlaEstoque;
       setVal('prod-estoque-qtd',p.estoqueQtd||0);setVal('prod-estoque-min',p.estoqueMin||5);
       toggleEstoqueFields();
+      ge('prod-exibir-catalogo').checked=p.exibirCatalogo!==false;// true por padrão (retrocompatibilidade com produtos antigos sem esse campo)
       // Indicador visual de composição vinculada
       var indicador=ge('prod-composicao-indicador'),hint=ge('prod-composicao-hint');
       if(p.composicaoCusto&&((p.composicaoCusto.producao||[]).length||(p.composicaoCusto.embalagem||[]).length)){
@@ -2173,6 +2341,7 @@ function openProdModal(id){
     for(var fi=0;fi<3;fi++){ge('prod-foto-file-'+fi).value='';}
     renderTodasProdFotos();
     ge('prod-controla-estoque').checked=false;setVal('prod-estoque-qtd','0');setVal('prod-estoque-min','5');
+    ge('prod-exibir-catalogo').checked=true;
     toggleEstoqueFields();
     var indicador2=ge('prod-composicao-indicador'),hint2=ge('prod-composicao-hint');
     if(indicador2)indicador2.style.display='none';
@@ -2229,7 +2398,7 @@ function saveProd(){
 
   var fotosFinais=prodFotosTemp.filter(function(f){return f;});// remove vazios, mantém ordem
   var controlaEstoque=ge('prod-controla-estoque').checked;
-  var prod={id:editId||'p'+Date.now(),nome:nome,cat:val('prod-cat'),unit:val('prod-unit'),sku:val('prod-sku'),custo:custo,varejo:varejo,atacado:atacado||varejo,minAtacado:parseInt(val('prod-min'))||10,desc:val('prod-desc'),foto:fotosFinais[0]||'',fotos:fotosFinais,controlaEstoque:controlaEstoque,estoqueQtd:controlaEstoque?(parseFloat(val('prod-estoque-qtd'))||0):0,estoqueMin:controlaEstoque?(parseFloat(val('prod-estoque-min'))||0):0,composicaoCusto:composicaoCusto};
+  var prod={id:editId||'p'+Date.now(),nome:nome,cat:val('prod-cat'),unit:val('prod-unit'),sku:val('prod-sku'),custo:custo,varejo:varejo,atacado:atacado||varejo,minAtacado:parseInt(val('prod-min'))||10,desc:val('prod-desc'),foto:fotosFinais[0]||'',fotos:fotosFinais,controlaEstoque:controlaEstoque,estoqueQtd:controlaEstoque?(parseFloat(val('prod-estoque-qtd'))||0):0,estoqueMin:controlaEstoque?(parseFloat(val('prod-estoque-min'))||0):0,composicaoCusto:composicaoCusto,exibirCatalogo:ge('prod-exibir-catalogo').checked};
   if(editId){var idx=prods.findIndex(function(x){return x.id===editId;});if(idx>=0)prods[idx]=prod;else prods.push(prod);}
   else prods.push(prod);
   saveProdutos(prods);closeProdModal();renderCat();
@@ -5858,7 +6027,7 @@ function verificarAutoSyncGoogleDrive(){
 // NAVEGAÇÃO
 // ═══════════════════════════════════════════════════
 function showView(name){
-  var views=['dash','form','preview','hist','os','templates','cat','clientes','config','mei','notas','fornec','receber','pagar','dre','usuarios','venda-rapida'];
+  var views=['dash','form','preview','hist','os','templates','cat','clientes','config','mei','notas','fornec','receber','pagar','dre','usuarios','venda-rapida','catalogo'];
   views.forEach(function(n){
     var v=ge('view-'+n);if(v)v.style.display=n===name?'block':'none';
     var nb=ge('nb-'+n);if(nb){var badge=nb.querySelector('.nb-badge');nb.className='nb'+(n===name?' active':'');if(badge)nb.appendChild(badge);}
@@ -5879,7 +6048,7 @@ function showView(name){
   if(tbSub)tbSub.style.color='var(--dark-text3)';
   if(tbAccent)tbAccent.style.background='linear-gradient(180deg,var(--brand),transparent)';
 
-  var titles={dash:['Dashboard','Visão geral do negócio'],form:['Novo Orçamento','Preencha os dados abaixo'],preview:['Pré-visualização','Revise e envie ao cliente'],hist:['Histórico','Edite e acompanhe orçamentos'],os:['Ordens de Serviço','Acompanhe a produção'],templates:['Templates','Orçamentos reutilizáveis'],cat:['Catálogo de Produtos','Preços, custos e margens'],clientes:['Clientes & Follow-up','Gerencie relacionamentos'],config:['Minha Empresa','Dados, logotipo e backup'],mei:['Dashboard MEI','Controle financeiro para declaração anual'],notas:['Notas de Compra','Entrada de estoque e despesas automáticas'],fornec:['Fornecedores','Gerencie seus fornecedores'],receber:['Contas a Receber','Controle de pagamentos dos clientes'],pagar:['Contas a Pagar','RH, custos fixos e fornecedores'],dre:['DRE Simplificado','Demonstrativo de resultado mês a mês'],usuarios:['Usuários','Perfis de acesso da equipe'],'venda-rapida':['Registrar Venda','Vendas rápidas de marketplace e balcão']};
+  var titles={dash:['Dashboard','Visão geral do negócio'],form:['Novo Orçamento','Preencha os dados abaixo'],preview:['Pré-visualização','Revise e envie ao cliente'],hist:['Histórico','Edite e acompanhe orçamentos'],os:['Ordens de Serviço','Acompanhe a produção'],templates:['Templates','Orçamentos reutilizáveis'],cat:['Catálogo de Produtos','Preços, custos e margens'],clientes:['Clientes & Follow-up','Gerencie relacionamentos'],config:['Minha Empresa','Dados, logotipo e backup'],mei:['Dashboard MEI','Controle financeiro para declaração anual'],notas:['Notas de Compra','Entrada de estoque e despesas automáticas'],fornec:['Fornecedores','Gerencie seus fornecedores'],receber:['Contas a Receber','Controle de pagamentos dos clientes'],pagar:['Contas a Pagar','RH, custos fixos e fornecedores'],dre:['DRE Simplificado','Demonstrativo de resultado mês a mês'],usuarios:['Usuários','Perfis de acesso da equipe'],'venda-rapida':['Registrar Venda','Vendas rápidas de marketplace e balcão'],catalogo:['Catálogo Profissional','Vitrine dos seus produtos, sempre atualizada']};
   ge('tb-title').textContent=titles[name][0];ge('tb-sub').textContent=titles[name][1];
   var acts={
     dash:'<button class="btn btn-brand" onclick="showView(\'form\')">✏️ Novo orçamento</button> <button class="btn btn-out" onclick="abrirRelatorioSemanal()">📊 Relatório semanal</button>',
@@ -5895,7 +6064,8 @@ function showView(name){
     fornec:'<button class="btn btn-brand" onclick="openFornecedorModal()">＋ Novo fornecedor</button>',
     receber:'',pagar:'',dre:'<button class="btn btn-out" onclick="exportarDREExcel()">📊 Exportar Excel</button>',
     usuarios:'<button class="btn btn-brand" onclick="openUsuarioModal()">＋ Novo usuário</button>',
-    'venda-rapida':''
+    'venda-rapida':'',
+    catalogo:'<button class="btn btn-brand" onclick="exportarCatalogoPDF()">📄 Exportar PDF</button>'
   };
   ge('tb-actions').innerHTML=acts[name]||'';
   if(name==='preview')buildPreview();
@@ -5920,6 +6090,7 @@ function showView(name){
     if(!ge('vr-data').value)limparVendaRapida();
     renderVendasRapidas();
   }
+  if(name==='catalogo')renderCatalogoProfissional();
 }
 
 // ═══════════════════════════════════════════════════
@@ -6281,7 +6452,7 @@ function startApp(){
     showView('config');
     setTimeout(function(){alert('👋 Bem-vindo ao Orçamento Pro v6!\n\nConfigure sua empresa para começar.');},300);
   } else {
-    var validViews=['dash','form','hist','os','templates','cat','clientes','config','mei','notas','fornec','receber','pagar','dre','usuarios','venda-rapida'];
+    var validViews=['dash','form','hist','os','templates','cat','clientes','config','mei','notas','fornec','receber','pagar','dre','usuarios','venda-rapida','catalogo'];
     var lastView=localStorage.getItem('orcpro_last_view');
     var viewToShow=(lastView&&validViews.indexOf(lastView)>=0)?lastView:'dash';
     showView(viewToShow);
