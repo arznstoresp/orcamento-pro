@@ -1405,12 +1405,22 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
 </div>
 
 <div class="modal-overlay" id="modal-prod">
-  <div class="modal" style="width:540px">
+  <div class="modal" style="width:680px">
     <div class="modal-title" id="modal-prod-title">Produto</div>
     <input type="hidden" id="prod-edit-id">
     <input type="hidden" id="prod-composicao-temp">
-    <div class="g2"><div><label class="lbl">Nome *</label><input id="prod-nome"></div><div><label class="lbl">Categoria</label><input id="prod-cat" placeholder="Ex: Camisetas" list="cats-datalist"><datalist id="cats-datalist"></datalist></div></div>
-    <div class="g2 mt"><div><label class="lbl">Unidade</label><select id="prod-unit"><option>un</option><option>cx</option><option>kg</option><option>m</option><option>m²</option><option>L</option><option>par</option><option>pç</option></select></div><div><label class="lbl">SKU</label><input id="prod-sku" placeholder="CAM-001"></div></div>
+    <div><label class="lbl">Nome *</label><input id="prod-nome" style="font-size:15px;padding:10px 12px"></div>
+    <div class="g2 mt"><div><label class="lbl">Categoria</label><input id="prod-cat" placeholder="Ex: Camisetas" list="cats-datalist"><datalist id="cats-datalist"></datalist></div><div><label class="lbl">SKU</label><input id="prod-sku" placeholder="CAM-001"></div></div>
+    <div class="g2 mt"><div><label class="lbl">Unidade</label><select id="prod-unit"><option>un</option><option>cx</option><option>kg</option><option>m</option><option>m²</option><option>L</option><option>par</option><option>pç</option></select></div><div></div></div>
+
+    <div class="mt" style="background:rgba(255,255,255,.03);border:1px solid var(--dark-border2);border-radius:10px;padding:12px 14px">
+      <label class="lbl" style="margin-bottom:8px;display:block">🎨 Variações <span class="lbl-hint">— opcional, ajuda a diferenciar produtos parecidos</span></label>
+      <div class="g3">
+        <div><label class="lbl" style="font-size:11px">Cor</label><input id="prod-var-cor" placeholder="Ex: Branco" list="prod-cores-list"><datalist id="prod-cores-list"></datalist></div>
+        <div><label class="lbl" style="font-size:11px">Tamanho</label><input id="prod-var-tamanho" placeholder="Ex: M, 325ml" list="prod-tamanhos-list"><datalist id="prod-tamanhos-list"></datalist></div>
+        <div><label class="lbl" style="font-size:11px">Modelo</label><input id="prod-var-modelo" placeholder="Ex: Slim, V2" list="prod-modelos-list"><datalist id="prod-modelos-list"></datalist></div>
+      </div>
+    </div>
     <div class="g3 mt">
       <div><label class="lbl">Custo (R$) <span id="prod-composicao-indicador" style="display:none;color:var(--brand-l);font-size:10px;font-weight:600">🔗 vinculado</span></label><input type="number" id="prod-custo" placeholder="0,00" min="0" step="0.01"></div>
       <div><label class="lbl">Varejo (R$) *</label><input type="number" id="prod-varejo" placeholder="0,00" min="0" step="0.01"></div>
@@ -2120,11 +2130,20 @@ function saveProdutos(arr){localStorage.setItem('orcpro_produtos',JSON.stringify
 
 function calcMargem(custo,venda){if(!custo||!venda||venda===0)return null;return((venda-custo)/venda)*100;}
 
+function formatarVariacaoProduto(p){
+  if(!p.variacao)return'';
+  var partes=[];
+  if(p.variacao.cor)partes.push(p.variacao.cor);
+  if(p.variacao.tamanho)partes.push(p.variacao.tamanho);
+  if(p.variacao.modelo)partes.push(p.variacao.modelo);
+  return partes.join(' · ');
+}
+
 function renderCat(){
   var prods=getProdutos(),q=(val('cat-search')||'').toLowerCase();
   var soBaixo=ge('cat-filtro-estoque-baixo')&&ge('cat-filtro-estoque-baixo').checked;
   var f=prods.filter(function(p){
-    var matchQ=!q||p.nome.toLowerCase().includes(q)||(p.cat||'').toLowerCase().includes(q);
+    var matchQ=!q||p.nome.toLowerCase().includes(q)||(p.cat||'').toLowerCase().includes(q)||formatarVariacaoProduto(p).toLowerCase().includes(q);
     var matchBaixo=!soBaixo||(p.controlaEstoque&&(parseFloat(p.estoqueQtd)||0)<=(parseFloat(p.estoqueMin)||0));
     return matchQ&&matchBaixo;
   });
@@ -2150,9 +2169,10 @@ function renderCat(){
       var baixo=qtd<=min;
       estoqueHtml='<span style="font-weight:700;color:'+(baixo?'var(--red)':'var(--green)')+'">'+qtd+' '+p.unit+'</span>'+(baixo?' <span title="Estoque baixo">⚠️</span>':'');
     }
+    var variacaoTxt=formatarVariacaoProduto(p);
     return'<tr>'+
       '<td>'+foto+'</td>'+
-      '<td><strong>'+p.nome+'</strong>'+(p.sku?'<br><span style="font-size:10px;color:rgba(255,255,255,.5)">'+p.sku+'</span>':'')+'</td>'+
+      '<td><strong>'+p.nome+'</strong>'+(variacaoTxt?'<br><span style="font-size:10px;color:var(--brand-l)">🎨 '+variacaoTxt+'</span>':'')+(p.sku?'<br><span style="font-size:10px;color:rgba(255,255,255,.5)">'+p.sku+'</span>':'')+'</td>'+
       '<td style="font-size:12px;color:rgba(255,255,255,.5)">'+(p.cat||'—')+'</td>'+
       '<td>'+p.unit+'</td>'+
       '<td style="font-size:12px;color:rgba(255,255,255,.5)">'+(p.custo?fmt(p.custo):'—')+'</td>'+
@@ -2201,10 +2221,12 @@ function montarCardProdutoCatalogo(p,modo){
   if(modo==='varejo')precoHtml='<div style="font-size:17px;font-weight:800;color:var(--brand)">'+fmt(p.varejo)+'</div>';
   else if(modo==='atacado')precoHtml='<div style="font-size:17px;font-weight:800;color:var(--brand)">'+fmt(p.atacado)+'</div><div style="font-size:10px;color:rgba(255,255,255,.4)">a partir de '+p.minAtacado+' un.</div>';
   else if(modo==='ambos')precoHtml='<div style="display:flex;justify-content:space-between;align-items:baseline"><div><div style="font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase">Varejo</div><div style="font-size:15px;font-weight:800;color:var(--brand)">'+fmt(p.varejo)+'</div></div><div style="text-align:right"><div style="font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase">Atacado ('+p.minAtacado+'+)</div><div style="font-size:15px;font-weight:800;color:var(--brand-l)">'+fmt(p.atacado)+'</div></div></div>';
+  var variacaoTxt=formatarVariacaoProduto(p);
   return'<div style="background:var(--dark-card2);border:1px solid var(--dark-border2);border-radius:10px;overflow:hidden">'+
     foto+
     '<div style="padding:10px 12px">'+
       '<div style="font-size:13px;font-weight:600;color:#F0F0F5;margin-bottom:4px;line-height:1.3">'+p.nome+'</div>'+
+      (variacaoTxt?'<div style="font-size:10px;color:var(--brand-l);margin-bottom:4px">🎨 '+variacaoTxt+'</div>':'')+
       (p.desc?'<div style="font-size:11px;color:rgba(255,255,255,.45);margin-bottom:6px;line-height:1.4">'+p.desc+'</div>':'')+
       precoHtml+
     '</div>'+
@@ -2252,10 +2274,12 @@ function exportarCatalogoPDF(){
 
   function cardPdf(p){
     var foto=p.foto?'<img src="'+p.foto+'" style="width:100%;height:160px;object-fit:cover;border-radius:8px 8px 0 0">':'<div style="width:100%;height:160px;background:#F0F0F0;border-radius:8px 8px 0 0;display:flex;align-items:center;justify-content:center;font-size:36px">📦</div>';
+    var variacaoTxt=formatarVariacaoProduto(p);
     return'<div style="background:#fff;border:1px solid #E5E5EA;border-radius:10px;overflow:hidden;break-inside:avoid;margin-bottom:14px">'+
       foto+
       '<div style="padding:10px 12px">'+
         '<div style="font-size:13px;font-weight:700;color:#111;margin-bottom:4px;line-height:1.3">'+p.nome+'</div>'+
+        (variacaoTxt?'<div style="font-size:10px;color:#FF6B00;margin-bottom:4px">'+variacaoTxt+'</div>':'')+
         (p.desc?'<div style="font-size:11px;color:#777;margin-bottom:6px;line-height:1.4">'+p.desc+'</div>':'')+
         precoHtmlPdf(p)+
       '</div>'+
@@ -2310,10 +2334,13 @@ function openProdModal(id){
   // Atualizar datalist de categorias
   var catsDl=ge('cats-datalist');
   if(catsDl)catsDl.innerHTML=getCategorias().map(function(c){return'<option value="'+c+'">';}).join('');
+  // Atualizar datalists de variações (sugestões a partir do que já foi digitado em outros produtos)
+  atualizarDatalistsVariacao();
   if(id){
     var p=getProdutos().find(function(x){return x.id===id;});
     if(p){
       setVal('prod-nome',p.nome);setVal('prod-cat',p.cat);setVal('prod-unit',p.unit);setVal('prod-sku',p.sku);setVal('prod-custo',p.custo||'');setVal('prod-varejo',p.varejo);setVal('prod-atacado',p.atacado);setVal('prod-min',p.minAtacado);setVal('prod-desc',p.desc);
+      setVal('prod-var-cor',p.variacao&&p.variacao.cor||'');setVal('prod-var-tamanho',p.variacao&&p.variacao.tamanho||'');setVal('prod-var-modelo',p.variacao&&p.variacao.modelo||'');
       // Carrega as fotos: usa o array novo 'fotos' se existir, senão retrocompatibilidade com o campo antigo 'foto'
       var fotosExistentes=p.fotos&&p.fotos.length?p.fotos:(p.foto?[p.foto]:[]);
       prodFotosTemp=[fotosExistentes[0]||'',fotosExistentes[1]||'',fotosExistentes[2]||''];
@@ -2336,7 +2363,7 @@ function openProdModal(id){
     }
   }
   else{
-    ['prod-nome','prod-cat','prod-sku','prod-custo','prod-varejo','prod-atacado','prod-desc','prod-foto-data'].forEach(function(i){setVal(i,'');});
+    ['prod-nome','prod-cat','prod-sku','prod-custo','prod-varejo','prod-atacado','prod-desc','prod-foto-data','prod-var-cor','prod-var-tamanho','prod-var-modelo'].forEach(function(i){setVal(i,'');});
     setVal('prod-unit','un');setVal('prod-min','10');
     for(var fi=0;fi<3;fi++){ge('prod-foto-file-'+fi).value='';}
     renderTodasProdFotos();
@@ -2349,6 +2376,20 @@ function openProdModal(id){
     ge('btn-duplicar-prod').style.display='none';
   }
   ge('modal-prod').className='modal-overlay open';
+}
+function atualizarDatalistsVariacao(){
+  var prods=getProdutos();
+  var cores={},tamanhos={},modelos={};
+  prods.forEach(function(p){
+    if(p.variacao){
+      if(p.variacao.cor)cores[p.variacao.cor]=1;
+      if(p.variacao.tamanho)tamanhos[p.variacao.tamanho]=1;
+      if(p.variacao.modelo)modelos[p.variacao.modelo]=1;
+    }
+  });
+  var corDl=ge('prod-cores-list');if(corDl)corDl.innerHTML=Object.keys(cores).map(function(c){return'<option value="'+c+'">';}).join('');
+  var tamDl=ge('prod-tamanhos-list');if(tamDl)tamDl.innerHTML=Object.keys(tamanhos).map(function(t){return'<option value="'+t+'">';}).join('');
+  var modDl=ge('prod-modelos-list');if(modDl)modDl.innerHTML=Object.keys(modelos).map(function(m){return'<option value="'+m+'">';}).join('');
 }
 function closeProdModal(){ge('modal-prod').className='modal-overlay';}
 function editProd(id){openProdModal(id);}
@@ -2398,7 +2439,8 @@ function saveProd(){
 
   var fotosFinais=prodFotosTemp.filter(function(f){return f;});// remove vazios, mantém ordem
   var controlaEstoque=ge('prod-controla-estoque').checked;
-  var prod={id:editId||'p'+Date.now(),nome:nome,cat:val('prod-cat'),unit:val('prod-unit'),sku:val('prod-sku'),custo:custo,varejo:varejo,atacado:atacado||varejo,minAtacado:parseInt(val('prod-min'))||10,desc:val('prod-desc'),foto:fotosFinais[0]||'',fotos:fotosFinais,controlaEstoque:controlaEstoque,estoqueQtd:controlaEstoque?(parseFloat(val('prod-estoque-qtd'))||0):0,estoqueMin:controlaEstoque?(parseFloat(val('prod-estoque-min'))||0):0,composicaoCusto:composicaoCusto,exibirCatalogo:ge('prod-exibir-catalogo').checked};
+  var variacao={cor:val('prod-var-cor'),tamanho:val('prod-var-tamanho'),modelo:val('prod-var-modelo')};
+  var prod={id:editId||'p'+Date.now(),nome:nome,cat:val('prod-cat'),unit:val('prod-unit'),sku:val('prod-sku'),custo:custo,varejo:varejo,atacado:atacado||varejo,minAtacado:parseInt(val('prod-min'))||10,desc:val('prod-desc'),foto:fotosFinais[0]||'',fotos:fotosFinais,controlaEstoque:controlaEstoque,estoqueQtd:controlaEstoque?(parseFloat(val('prod-estoque-qtd'))||0):0,estoqueMin:controlaEstoque?(parseFloat(val('prod-estoque-min'))||0):0,composicaoCusto:composicaoCusto,exibirCatalogo:ge('prod-exibir-catalogo').checked,variacao:variacao};
   if(editId){var idx=prods.findIndex(function(x){return x.id===editId;});if(idx>=0)prods[idx]=prod;else prods.push(prod);}
   else prods.push(prod);
   saveProdutos(prods);closeProdModal();renderCat();
