@@ -1518,6 +1518,34 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-estoque-baixo">
+  <div class="modal" style="width:640px">
+    <div class="modal-title">
+      📦 Produtos com Estoque Baixo
+      <span style="margin-left:auto;display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-brand btn-sm" onclick="abrirRelatorioCompraPorCategoria()">📋 Relatório por Categoria</button>
+      </span>
+    </div>
+    <input id="estoque-baixo-search" placeholder="🔍 Buscar produto..." style="margin-bottom:10px" oninput="renderEstoqueBaixoLista()">
+    <div id="estoque-baixo-lista" style="max-height:420px;overflow-y:auto;display:flex;flex-direction:column;gap:6px"></div>
+    <div class="modal-footer"><button class="btn btn-out" onclick="closeEstoqueBaixoModal()">Fechar</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-relatorio-compra">
+  <div class="modal" style="width:680px">
+    <div class="modal-title">
+      📋 Relatório de Reposição por Categoria
+      <span style="margin-left:auto;display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-out btn-sm" onclick="exportarRelatorioCompraExcel()">📊 Exportar Excel</button>
+      </span>
+    </div>
+    <p style="font-size:12px;color:rgba(255,255,255,.45);margin-bottom:12px">Agrupado por categoria para facilitar a compra com cada fornecedor.</p>
+    <div id="relatorio-compra-conteudo" style="max-height:480px;overflow-y:auto"></div>
+    <div class="modal-footer"><button class="btn btn-out" onclick="closeRelatorioCompraModal()">Fechar</button></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-cliente">
   <div class="modal" style="width:560px">
     <div class="modal-title" id="modal-cli-title">Cliente</div>
@@ -2183,11 +2211,14 @@ function renderCat(){
   var tbody=ge('cat-body'),empty=ge('cat-empty'),count=ge('cat-count');
   if(count)count.textContent='('+prods.length+')';
 
-  // Alerta de estoque baixo
+  // Alerta de estoque baixo — compacto, com botão para ver detalhes
   var baixos=getProdutosEstoqueBaixo();
   var alertEl=ge('cat-alertas');
   if(alertEl){
-    alertEl.innerHTML=baixos.length?'<div class="warn-box">📦 <strong>'+baixos.length+' produto(s) com estoque baixo:</strong> '+baixos.map(function(p){return p.nome+' ('+(parseFloat(p.estoqueQtd)||0)+' '+p.unit+')';}).join(', ')+'</div>':'';
+    alertEl.innerHTML=baixos.length?'<div class="warn-box" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">'+
+      '<span>📦 <strong>'+baixos.length+' produto(s) com estoque baixo</strong></span>'+
+      '<span style="display:flex;gap:6px"><button class="btn btn-out btn-sm" onclick="abrirEstoqueBaixoModal()">👁 Ver</button> <button class="btn btn-brand btn-sm" onclick="abrirRelatorioCompraPorCategoria()">📋 Relatório por Categoria</button></span>'+
+    '</div>':'';
   }
 
   if(!f.length){tbody.innerHTML='';if(empty)empty.style.display='block';return;}
@@ -3241,14 +3272,112 @@ function getProdutosEstoqueBaixo(){
     if(p.variacoes&&p.variacoes.length){
       p.variacoes.forEach(function(v){
         var min=parseFloat(p.estoqueMin)||0;
-        if((parseFloat(v.estoqueQtd)||0)<=min)resultado.push({nome:p.nome+' ('+formatarVariacao(v)+')',estoqueQtd:v.estoqueQtd,unit:p.unit});
+        var qtdAtual=parseFloat(v.estoqueQtd)||0;
+        if(qtdAtual<=min){
+          resultado.push({
+            nome:p.nome+' ('+formatarVariacao(v)+')',nomeBase:p.nome,variacaoTxt:formatarVariacao(v),
+            estoqueQtd:qtdAtual,estoqueMin:min,unit:p.unit,cat:p.cat||'Sem categoria',
+            produtoId:p.id,variacaoId:v.id,
+            sugestaoComprar:Math.max(min*2-qtdAtual,min||5)// repõe até o dobro do mínimo, ou pelo menos o mínimo
+          });
+        }
       });
     }else if(p.controlaEstoque){
       var qtd=parseFloat(p.estoqueQtd)||0,min2=parseFloat(p.estoqueMin)||0;
-      if(qtd<=min2)resultado.push({nome:p.nome,estoqueQtd:qtd,unit:p.unit});
+      if(qtd<=min2){
+        resultado.push({
+          nome:p.nome,nomeBase:p.nome,variacaoTxt:'',
+          estoqueQtd:qtd,estoqueMin:min2,unit:p.unit,cat:p.cat||'Sem categoria',
+          produtoId:p.id,variacaoId:null,
+          sugestaoComprar:Math.max(min2*2-qtd,min2||5)
+        });
+      }
     }
   });
   return resultado;
+}
+
+// ── Modal: lista detalhada de estoque baixo ──
+function abrirEstoqueBaixoModal(){
+  setVal('estoque-baixo-search','');
+  renderEstoqueBaixoLista();
+  ge('modal-estoque-baixo').className='modal-overlay open';
+}
+function closeEstoqueBaixoModal(){ge('modal-estoque-baixo').className='modal-overlay';}
+function renderEstoqueBaixoLista(){
+  var baixos=getProdutosEstoqueBaixo();
+  var q=(val('estoque-baixo-search')||'').toLowerCase();
+  var f=q?baixos.filter(function(b){return b.nome.toLowerCase().includes(q)||b.cat.toLowerCase().includes(q);}):baixos;
+  var lista=ge('estoque-baixo-lista');
+  if(!f.length){lista.innerHTML='<div style="text-align:center;padding:20px;color:rgba(255,255,255,.4);font-size:13px">Nenhum item encontrado.</div>';return;}
+  lista.innerHTML=f.map(function(b){
+    var zerado=b.estoqueQtd<=0;
+    return'<div style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.04);border:1px solid '+(zerado?'var(--red-border)':'var(--dark-border2)')+';border-radius:8px;padding:9px 12px">'+
+      '<div><strong style="font-size:13px;color:#F0F0F5">'+b.nome+'</strong><br><span style="font-size:10px;color:rgba(255,255,255,.4)">'+b.cat+'</span></div>'+
+      '<div style="text-align:right">'+
+        '<div style="font-size:14px;font-weight:800;color:'+(zerado?'var(--red)':'var(--yellow)')+'">'+b.estoqueQtd+' '+b.unit+(zerado?' ⚠️':'')+'</div>'+
+        '<div style="font-size:10px;color:rgba(255,255,255,.4)">mínimo: '+b.estoqueMin+'</div>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+
+// ── Modal: relatório de compra agrupado por categoria ──
+function abrirRelatorioCompraPorCategoria(){
+  renderRelatorioCompra();
+  ge('modal-relatorio-compra').className='modal-overlay open';
+}
+function closeRelatorioCompraModal(){ge('modal-relatorio-compra').className='modal-overlay';}
+function renderRelatorioCompra(){
+  var baixos=getProdutosEstoqueBaixo();
+  var conteudoEl=ge('relatorio-compra-conteudo');
+  if(!baixos.length){
+    conteudoEl.innerHTML='<div style="text-align:center;padding:30px;color:rgba(255,255,255,.4);font-size:13px">✅ Nenhum produto com estoque baixo no momento.</div>';
+    return;
+  }
+  var grupos={};
+  baixos.forEach(function(b){
+    if(!grupos[b.cat])grupos[b.cat]=[];
+    grupos[b.cat].push(b);
+  });
+  var categorias=Object.keys(grupos).sort(function(a,b){return a.localeCompare(b,'pt-BR');});
+
+  conteudoEl.innerHTML=categorias.map(function(cat){
+    var itens=grupos[cat];
+    return'<div class="card" style="margin-bottom:10px">'+
+      '<div class="card-title">'+cat+' <span style="margin-left:6px;font-size:11px;color:var(--brand);font-weight:700;text-transform:none;letter-spacing:0">('+itens.length+' item'+(itens.length===1?'':'s')+')</span></div>'+
+      '<table class="cat"><thead><tr><th style="width:45%">Produto</th><th style="width:18%">Estoque atual</th><th style="width:18%">Mínimo</th><th style="width:19%">Sugestão de compra</th></tr></thead><tbody>'+
+        itens.map(function(b){
+          return'<tr>'+
+            '<td><strong>'+b.nome+'</strong></td>'+
+            '<td style="color:'+(b.estoqueQtd<=0?'var(--red)':'var(--yellow)')+';font-weight:700">'+b.estoqueQtd+' '+b.unit+'</td>'+
+            '<td style="color:rgba(255,255,255,.5)">'+b.estoqueMin+' '+b.unit+'</td>'+
+            '<td style="color:var(--green);font-weight:700">'+Math.ceil(b.sugestaoComprar)+' '+b.unit+'</td>'+
+          '</tr>';
+        }).join('')+
+      '</tbody></table>'+
+    '</div>';
+  }).join('');
+}
+
+function exportarRelatorioCompraExcel(){
+  var baixos=getProdutosEstoqueBaixo();
+  if(!baixos.length){alert('Nenhum produto com estoque baixo para exportar.');return;}
+  var grupos={};
+  baixos.forEach(function(b){if(!grupos[b.cat])grupos[b.cat]=[];grupos[b.cat].push(b);});
+  var categorias=Object.keys(grupos).sort(function(a,b){return a.localeCompare(b,'pt-BR');});
+
+  var rows=[['Categoria','Produto','Estoque Atual','Estoque Mínimo','Sugestão de Compra','Unidade']];
+  categorias.forEach(function(cat){
+    grupos[cat].forEach(function(b){
+      rows.push([cat,b.nome,b.estoqueQtd,b.estoqueMin,Math.ceil(b.sugestaoComprar),b.unit]);
+    });
+  });
+
+  var wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:20},{wch:38},{wch:14},{wch:14},{wch:18},{wch:10}];
+  XLSX.utils.book_append_sheet(wb,ws,'Reposição de Estoque');
+  XLSX.writeFile(wb,'reposicao_estoque_'+hoje()+'.xlsx');
 }
 
 function baixarEstoquePorAprovacao(h){
