@@ -1409,12 +1409,13 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
     <div class="modal-title" id="modal-prod-title">Produto</div>
     <input type="hidden" id="prod-edit-id">
     <input type="hidden" id="prod-composicao-temp">
-    <div><label class="lbl">Nome *</label><input id="prod-nome" style="font-size:15px;padding:10px 12px"></div>
+    <div><label class="lbl">Nome * <span class="lbl-hint">— nome genérico do produto; NÃO inclua cor/tamanho aqui se for usar variações abaixo</span></label><input id="prod-nome" style="font-size:15px;padding:10px 12px" oninput="checarNomeDuplicaVariacao()"></div>
+    <div id="prod-nome-duplicidade-aviso" style="display:none;margin-top:6px"></div>
     <div class="g2 mt"><div><label class="lbl">Categoria</label><input id="prod-cat" placeholder="Ex: Camisetas" list="cats-datalist"><datalist id="cats-datalist"></datalist></div><div><label class="lbl">SKU</label><input id="prod-sku" placeholder="CAM-001"></div></div>
     <div class="g2 mt"><div><label class="lbl">Unidade</label><select id="prod-unit"><option>un</option><option>cx</option><option>kg</option><option>m</option><option>m²</option><option>L</option><option>par</option><option>pç</option></select></div><div></div></div>
 
     <div class="mt" style="background:rgba(255,255,255,.03);border:1px solid var(--dark-border2);border-radius:10px;padding:12px 14px">
-      <label class="lbl" style="margin-bottom:8px;display:block">🎨 Variações <span class="lbl-hint">— cores, tamanhos ou modelos diferentes, cada um com seu preço e estoque</span></label>
+      <label class="lbl" style="margin-bottom:8px;display:block">🎨 Variações <span class="lbl-hint">— use o Nome de cima genérico (ex: "Camiseta Premium") e cadastre cada cor/tamanho aqui, não repita no nome</span></label>
       <div id="prod-variacoes-lista" style="display:flex;flex-direction:column;gap:8px"></div>
       <button type="button" class="add-row" style="margin-top:8px" onclick="addProdVariacao()">＋ Adicionar variação</button>
       <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:6px">Deixe o preço de uma variação em branco para usar o preço base do produto (Varejo/Atacado abaixo).</div>
@@ -1437,7 +1438,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
       <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px;margin-left:21px">Desmarque para itens fora de linha ou que você não quer mostrar para os clientes.</div>
     </div>
 
-    <div class="mt" style="background:rgba(255,255,255,.04);border:1px solid var(--dark-border2);border-radius:10px;padding:12px 14px">
+    <div class="mt" id="prod-estoque-geral-wrap" style="background:rgba(255,255,255,.04);border:1px solid var(--dark-border2);border-radius:10px;padding:12px 14px">
       <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer;font-weight:600;color:rgba(255,255,255,.8)">
         <input type="checkbox" id="prod-controla-estoque" onchange="toggleEstoqueFields()" style="width:auto;padding:0"> 📦 Controlar estoque deste produto
       </label>
@@ -1449,6 +1450,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
         <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:6px">⚠️ Quando o estoque ficar igual ou abaixo do mínimo, você recebe um alerta no Dashboard e no Catálogo. A quantidade some automaticamente quando um orçamento com este item for aprovado, e aumenta ao cadastrar uma nota de compra.</div>
       </div>
     </div>
+    <div class="mt info-box" id="prod-estoque-substituido-aviso" style="display:none;margin-bottom:0">📦 Este produto tem variações cadastradas — o estoque é controlado individualmente em cada variação acima (campo "Estoque" de cada linha), não aqui no nível do produto.</div>
 
     <div class="mt">
       <label class="lbl">Fotos <span class="lbl-hint">— até 3 fotos. A 1ª é a principal (aparece no PDF e no catálogo)</span></label>
@@ -2441,9 +2443,9 @@ function addProdVariacao(v){
   row.style.background='rgba(255,255,255,.03)';row.style.border='1px solid var(--dark-border2)';row.style.borderRadius='8px';row.style.padding='9px 10px';
   row.innerHTML=
     '<div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:6px;margin-bottom:6px">'+
-      '<input placeholder="Cor (ex: Branco)" value="'+(v&&v.cor||'')+'" list="prod-cores-list" style="font-size:12px;padding:6px 8px" data-f="cor">'+
-      '<input placeholder="Tamanho (ex: M)" value="'+(v&&v.tamanho||'')+'" list="prod-tamanhos-list" style="font-size:12px;padding:6px 8px" data-f="tamanho">'+
-      '<input placeholder="Modelo (ex: Slim)" value="'+(v&&v.modelo||'')+'" list="prod-modelos-list" style="font-size:12px;padding:6px 8px" data-f="modelo">'+
+      '<input placeholder="Cor (ex: Branco)" value="'+(v&&v.cor||'')+'" list="prod-cores-list" style="font-size:12px;padding:6px 8px" data-f="cor" oninput="checarNomeDuplicaVariacao()">'+
+      '<input placeholder="Tamanho (ex: M)" value="'+(v&&v.tamanho||'')+'" list="prod-tamanhos-list" style="font-size:12px;padding:6px 8px" data-f="tamanho" oninput="checarNomeDuplicaVariacao()">'+
+      '<input placeholder="Modelo (ex: Slim)" value="'+(v&&v.modelo||'')+'" list="prod-modelos-list" style="font-size:12px;padding:6px 8px" data-f="modelo" oninput="checarNomeDuplicaVariacao()">'+
       '<button type="button" class="del-btn" style="width:26px;height:26px" onclick="removeProdVariacao('+id+')">×</button>'+
     '</div>'+
     '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">'+
@@ -2452,9 +2454,11 @@ function addProdVariacao(v){
       '<input type="number" placeholder="Estoque" value="'+(v&&v.estoqueQtd!=null?v.estoqueQtd:'0')+'" min="0" step="1" style="font-size:12px;padding:6px 8px" data-f="estoqueQtd">'+
     '</div>';
   container.appendChild(row);
+  toggleEstoqueGeralVisibilidade();
+  checarNomeDuplicaVariacao();
 }
-function removeProdVariacao(id){var r=ge('pv'+id);if(r)r.remove();}
-function limparProdVariacoes(){ge('prod-variacoes-lista').innerHTML='';prodVarIid=0;}
+function removeProdVariacao(id){var r=ge('pv'+id);if(r)r.remove();toggleEstoqueGeralVisibilidade();checarNomeDuplicaVariacao();}
+function limparProdVariacoes(){ge('prod-variacoes-lista').innerHTML='';prodVarIid=0;toggleEstoqueGeralVisibilidade();}
 function getProdVariacoes(){
   return Array.from(document.querySelectorAll('#prod-variacoes-lista > div')).map(function(row){
     function g(f){var e=row.querySelector('[data-f="'+f+'"]');return e?e.value:'';}
@@ -3142,6 +3146,37 @@ function filtrarHistVencendo(){
 function toggleEstoqueFields(){
   var checked=ge('prod-controla-estoque').checked;
   ge('prod-estoque-fields').style.display=checked?'block':'none';
+}
+
+function toggleEstoqueGeralVisibilidade(){
+  var temVariacoes=ge('prod-variacoes-lista').children.length>0;
+  ge('prod-estoque-geral-wrap').style.display=temVariacoes?'none':'block';
+  ge('prod-estoque-substituido-aviso').style.display=temVariacoes?'block':'none';
+}
+
+function checarNomeDuplicaVariacao(){
+  var nome=(val('prod-nome')||'').toLowerCase();
+  var avisoEl=ge('prod-nome-duplicidade-aviso');
+  if(!nome){avisoEl.style.display='none';return;}
+  var variacoes=getProdVariacoes();
+  if(!variacoes.length){avisoEl.style.display='none';return;}
+
+  var termosEncontrados=[];
+  variacoes.forEach(function(v){
+    [v.cor,v.tamanho,v.modelo].forEach(function(termo){
+      if(termo&&termo.trim().length>=2){
+        var termoLower=termo.trim().toLowerCase();
+        if(nome.indexOf(termoLower)>=0&&termosEncontrados.indexOf(termo)<0)termosEncontrados.push(termo);
+      }
+    });
+  });
+
+  if(termosEncontrados.length){
+    avisoEl.style.display='block';
+    avisoEl.innerHTML='<div class="warn-box" style="margin-bottom:0">⚠️ O nome do produto contém "<strong>'+termosEncontrados.join('", "')+'</strong>", que já está cadastrado como variação. Como você está usando variações, remova isso do nome (deixe só o nome genérico, ex: "Camiseta 100% Algodão Penteada Premium") — a cor/tamanho já aparece automaticamente na hora de vender.</div>';
+  }else{
+    avisoEl.style.display='none';
+  }
 }
 
 function getMovEstoque(){try{return JSON.parse(localStorage.getItem('orcpro_mov_estoque')||'[]');}catch(e){return[];}}
