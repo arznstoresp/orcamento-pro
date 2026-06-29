@@ -5631,7 +5631,7 @@ function exportarMEIExcel(){
 // ═══════════════════════════════════════════════════
 function renderDash(){
   var hist=getHist(),clientes=getClientes(),hoje2=hoje(),mes=hoje2.substring(0,7);
-  var totalMes=0,totalPend=0,totalAprov=0,countMes=0,countAprov=0,countPerd=0,countExp=0;
+  var totalMes=0,totalMesAprovado=0,totalPend=0,totalAprov=0,countMes=0,countAprov=0,countPerd=0,countExp=0;
   var meses={},prods={};
   // mês anterior para comparação
   var d=new Date();d.setMonth(d.getMonth()-1);
@@ -5641,14 +5641,15 @@ function renderDash(){
   hist.forEach(function(h){
     var total=calcHistTotal(h);
     var hm=(h.data||'').substring(0,7);
-    if(hm===mes){totalMes+=total;countMes++;}
+    if(hm===mes){totalMes+=total;countMes++;if(h.status==='Aprovado')totalMesAprovado+=total;}
     if(hm===mesAnterior)totalMesAnt+=total;
     if(h.status==='Aguardando aprovação'||h.status==='Em revisão')totalPend+=total;
     if(h.status==='Aprovado'){totalAprov+=total;countAprov++;}
     if(h.status==='Recusado')countPerd++;
     if(h.status==='Expirado')countExp++;
     if(hm)meses[hm]=(meses[hm]||0)+total;
-    (h.items||[]).forEach(function(it){if(it.desc)prods[it.desc]=(prods[it.desc]||0)+it.qty;});
+    // Top Produtos considera apenas orçamentos efetivamente aprovados (vendas reais), não qualquer status
+    if(h.status==='Aprovado')(h.items||[]).forEach(function(it){if(it.desc)prods[it.desc]=(prods[it.desc]||0)+it.qty;});
   });
   var fuV=clientes.filter(function(c){return c.followup&&c.followup<hoje2;}).length;
   var fuH=clientes.filter(function(c){return c.followup===hoje2;}).length;
@@ -5680,20 +5681,20 @@ function renderDash(){
     '</div>';
   }
 
-  // ── META ──
+  // ── META ── (considera apenas orçamentos Aprovados — vendas reais, não tudo que está no funil)
   var meta=parseFloat(cfg.meta)||0;
   var metaWrap=ge('dash-meta-wrap');
   if(meta>0){
-    var pct=Math.min(100,(totalMes/meta)*100);
+    var pct=Math.min(100,(totalMesAprovado/meta)*100);
     var cor=pct>=100?'var(--green)':pct>=70?'var(--brand)':'var(--yellow)';
     metaWrap.innerHTML='<div class="dash-panel" style="margin-bottom:0">'+
-      '<div class="dash-panel-title"><span class="dash-panel-title-icon">🎯</span>Meta mensal</div>'+
+      '<div class="dash-panel-title"><span class="dash-panel-title-icon">🎯</span>Meta mensal <span style="font-size:10px;color:rgba(255,255,255,.35);font-weight:400;text-transform:none;letter-spacing:0">(vendas aprovadas)</span></div>'+
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'+
-        '<span style="font-size:13px;font-weight:600;color:#F0F0F5">'+fmt(totalMes)+' <span style="font-size:11px;color:rgba(255,255,255,.45);font-weight:400">de '+fmt(meta)+'</span></span>'+
+        '<span style="font-size:13px;font-weight:600;color:#F0F0F5">'+fmt(totalMesAprovado)+' <span style="font-size:11px;color:rgba(255,255,255,.45);font-weight:400">de '+fmt(meta)+'</span></span>'+
         '<span style="font-size:18px;font-weight:800;color:'+cor+'">'+fmtPct(pct)+'</span>'+
       '</div>'+
       '<div class="meta-bar"><div class="meta-bar-fill'+(pct>=100?' done':'')+'" style="width:'+pct+'%;background:'+cor+'"></div></div>'+
-      '<div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:6px">'+(pct>=100?'🎉 Meta atingida este mês!':'Faltam <strong style="color:#F0F0F5">'+fmt(meta-totalMes)+'</strong> para bater a meta')+'</div>'+
+      '<div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:6px">'+(pct>=100?'🎉 Meta atingida este mês!':'Faltam <strong style="color:#F0F0F5">'+fmt(meta-totalMesAprovado)+'</strong> para bater a meta')+'</div>'+
     '</div>';
   } else metaWrap.innerHTML='';
 
