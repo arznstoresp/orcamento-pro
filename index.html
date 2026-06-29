@@ -3273,23 +3273,23 @@ function getProdutosEstoqueBaixo(){
       p.variacoes.forEach(function(v){
         var min=parseFloat(p.estoqueMin)||0;
         var qtdAtual=parseFloat(v.estoqueQtd)||0;
-        if(qtdAtual<=min){
+        if(qtdAtual<min){
           resultado.push({
             nome:p.nome+' ('+formatarVariacao(v)+')',nomeBase:p.nome,variacaoTxt:formatarVariacao(v),
             estoqueQtd:qtdAtual,estoqueMin:min,unit:p.unit,cat:p.cat||'Sem categoria',
             produtoId:p.id,variacaoId:v.id,
-            sugestaoComprar:Math.max(min*2-qtdAtual,min||5)// repõe até o dobro do mínimo, ou pelo menos o mínimo
+            sugestaoComprar:min-qtdAtual// exatamente o que falta para chegar no mínimo
           });
         }
       });
     }else if(p.controlaEstoque){
       var qtd=parseFloat(p.estoqueQtd)||0,min2=parseFloat(p.estoqueMin)||0;
-      if(qtd<=min2){
+      if(qtd<min2){
         resultado.push({
           nome:p.nome,nomeBase:p.nome,variacaoTxt:'',
           estoqueQtd:qtd,estoqueMin:min2,unit:p.unit,cat:p.cat||'Sem categoria',
           produtoId:p.id,variacaoId:null,
-          sugestaoComprar:Math.max(min2*2-qtd,min2||5)
+          sugestaoComprar:min2-qtd// exatamente o que falta para chegar no mínimo
         });
       }
     }
@@ -3346,7 +3346,7 @@ function renderRelatorioCompra(){
     var itens=grupos[cat];
     return'<div class="card" style="margin-bottom:10px">'+
       '<div class="card-title">'+cat+' <span style="margin-left:6px;font-size:11px;color:var(--brand);font-weight:700;text-transform:none;letter-spacing:0">('+itens.length+' item'+(itens.length===1?'':'s')+')</span></div>'+
-      '<table class="cat"><thead><tr><th style="width:45%">Produto</th><th style="width:18%">Estoque atual</th><th style="width:18%">Mínimo</th><th style="width:19%">Sugestão de compra</th></tr></thead><tbody>'+
+      '<table class="cat"><thead><tr><th style="width:45%">Produto</th><th style="width:18%">Estoque atual</th><th style="width:18%">Mínimo</th><th style="width:19%">Quantidade a repor</th></tr></thead><tbody>'+
         itens.map(function(b){
           return'<tr>'+
             '<td><strong>'+b.nome+'</strong></td>'+
@@ -3367,7 +3367,7 @@ function exportarRelatorioCompraExcel(){
   baixos.forEach(function(b){if(!grupos[b.cat])grupos[b.cat]=[];grupos[b.cat].push(b);});
   var categorias=Object.keys(grupos).sort(function(a,b){return a.localeCompare(b,'pt-BR');});
 
-  var rows=[['Categoria','Produto','Estoque Atual','Estoque Mínimo','Sugestão de Compra','Unidade']];
+  var rows=[['Categoria','Produto','Estoque Atual','Estoque Mínimo','Quantidade a Repor','Unidade']];
   categorias.forEach(function(cat){
     grupos[cat].forEach(function(b){
       rows.push([cat,b.nome,b.estoqueQtd,b.estoqueMin,Math.ceil(b.sugestaoComprar),b.unit]);
