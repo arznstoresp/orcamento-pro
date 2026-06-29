@@ -3615,13 +3615,31 @@ function saveNota(){
   saveDespesas(despesas);
   nota.despesaId=despesaId;
 
-  // Dar entrada no estoque de cada produto (se ele controla estoque e existir no catálogo)
+  // Dar entrada no estoque de cada produto — se não existir no catálogo, cadastra automaticamente
   var prods=getProdutos();
+  var produtosNovos=[];
+  var produtosParaAjustar=[];// {id, qty} — ajustados depois de salvar, para garantir que ajustarEstoque encontre o produto
   itens.forEach(function(it){
     var prod=prods.find(function(p){return p.nome.toLowerCase()===it.nome.toLowerCase();});
-    if(prod&&prod.controlaEstoque){
-      ajustarEstoque(prod.id,Math.abs(it.qty),'Compra — Nota'+(nota.numero?' #'+nota.numero:'')+' ('+nota.fornecedorNome+')',nota.id);
+    if(!prod){
+      // Produto novo: cadastra com dados básicos a partir da própria nota
+      var custoUnitario=it.qty>0?(it.sub/it.qty):0;
+      prod={
+        id:'p'+Date.now()+Math.random().toString(36).substr(2,5),
+        nome:it.nome,cat:'',unit:'un',sku:'',
+        custo:Number(custoUnitario.toFixed(2)),varejo:0,atacado:0,minAtacado:10,
+        desc:'',foto:'',fotos:[],
+        controlaEstoque:true,estoqueQtd:0,estoqueMin:5,
+        composicaoCusto:null,exibirCatalogo:true,variacoes:[]
+      };
+      prods.push(prod);
+      produtosNovos.push(prod.nome);
     }
+    if(prod.controlaEstoque)produtosParaAjustar.push({id:prod.id,qty:it.qty});
+  });
+  if(produtosNovos.length)saveProdutos(prods);// persiste os produtos novos ANTES do ajuste de estoque, que lê do localStorage
+  produtosParaAjustar.forEach(function(pa){
+    ajustarEstoque(pa.id,Math.abs(pa.qty),'Compra — Nota'+(nota.numero?' #'+nota.numero:'')+' ('+nota.fornecedorNome+')',nota.id);
   });
 
   if(editId){var idx=notas.findIndex(function(n){return n.id===editId;});if(idx>=0)notas[idx]=nota;else notas.unshift(nota);}
@@ -3629,7 +3647,11 @@ function saveNota(){
   saveNotasCompra(notas);
 
   closeNotaModal();renderNotas();
-  alert('✅ Nota salva! Estoque atualizado e despesa lançada no Dashboard MEI.');
+  var msgFinal='✅ Nota salva! Estoque atualizado e despesa lançada no Dashboard MEI.';
+  if(produtosNovos.length){
+    msgFinal+='\n\n📦 '+produtosNovos.length+' produto(s) novo(s) cadastrado(s) automaticamente no Catálogo: '+produtosNovos.join(', ')+'.\n\nComplete o cadastro deles (preço de venda, categoria, foto) em "Produtos" quando puder — por enquanto estão com preço de venda zerado.';
+  }
+  alert(msgFinal);
 }
 
 function reverterEfeitosNota(nota){
