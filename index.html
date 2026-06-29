@@ -1518,6 +1518,20 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-ajuste-estoque-var">
+  <div class="modal" style="width:520px">
+    <div class="modal-title">📦 Ajustar Estoque por Variação</div>
+    <input type="hidden" id="ajuste-estoque-prod-id">
+    <p style="font-size:13px;color:rgba(255,255,255,.6);margin-bottom:10px" id="ajuste-estoque-nome-produto"></p>
+    <div id="ajuste-estoque-lista" style="display:flex;flex-direction:column;gap:8px;max-height:380px;overflow-y:auto"></div>
+    <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:8px">A baixa automática nas vendas continua funcionando normalmente. Use isto só para corrigir o número manualmente quando precisar (ex: contagem física, ajuste de inventário).</div>
+    <div class="modal-footer">
+      <button class="btn btn-out" onclick="closeAjusteEstoqueVariacoesModal()">Cancelar</button>
+      <button class="btn btn-brand" onclick="salvarAjusteEstoqueVariacoes()">💾 Salvar Ajustes</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-estoque-baixo">
   <div class="modal" style="width:640px">
     <div class="modal-title">
@@ -2200,6 +2214,51 @@ function getVariacaoPorId(produto,variacaoId){
   return produto.variacoes.find(function(v){return v.id===variacaoId;})||null;
 }
 
+// ── Ajuste manual rápido do estoque de cada variação, sem precisar abrir o produto inteiro ──
+function abrirAjusteEstoqueVariacoes(produtoId){
+  var produto=getProdutos().find(function(p){return p.id===produtoId;});
+  if(!produto||!produto.variacoes||!produto.variacoes.length)return;
+  ge('ajuste-estoque-prod-id').value=produtoId;
+  ge('ajuste-estoque-nome-produto').textContent='Produto: '+produto.nome;
+  var lista=ge('ajuste-estoque-lista');
+  lista.innerHTML=produto.variacoes.map(function(v){
+    var min=parseFloat(produto.estoqueMin)||0;
+    var qtd=parseFloat(v.estoqueQtd)||0;
+    var baixo=qtd<min;
+    return'<div style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.04);border:1px solid '+(baixo?'var(--red-border)':'var(--dark-border2)')+';border-radius:8px;padding:9px 12px">'+
+      '<strong style="font-size:13px;color:#F0F0F5">'+formatarVariacao(v)+'</strong>'+
+      '<div style="display:flex;align-items:center;gap:8px">'+
+        (baixo?'<span style="font-size:10px;color:var(--red)">⚠️ abaixo do mín. ('+min+')</span>':'')+
+        '<input type="number" min="0" step="1" value="'+qtd+'" data-var-id="'+v.id+'" style="width:80px;text-align:center;padding:6px 8px">'+
+      '</div>'+
+    '</div>';
+  }).join('');
+  ge('modal-ajuste-estoque-var').className='modal-overlay open';
+}
+function closeAjusteEstoqueVariacoesModal(){ge('modal-ajuste-estoque-var').className='modal-overlay';}
+function salvarAjusteEstoqueVariacoes(){
+  var produtoId=val('ajuste-estoque-prod-id');
+  var prods=getProdutos();
+  var idx=prods.findIndex(function(p){return p.id===produtoId;});
+  if(idx<0)return;
+  var inputs=document.querySelectorAll('#ajuste-estoque-lista input[data-var-id]');
+  inputs.forEach(function(inp){
+    var varId=inp.getAttribute('data-var-id');
+    var novoValor=parseFloat(inp.value)||0;
+    var vIdx=prods[idx].variacoes.findIndex(function(v){return v.id===varId;});
+    if(vIdx>=0){
+      var anterior=parseFloat(prods[idx].variacoes[vIdx].estoqueQtd)||0;
+      if(novoValor!==anterior){
+        prods[idx].variacoes[vIdx].estoqueQtd=novoValor;
+        registrarMovEstoque(produtoId,prods[idx].nome+' ('+formatarVariacao(prods[idx].variacoes[vIdx])+')',novoValor>anterior?'entrada':'saida',Math.abs(novoValor-anterior),'Ajuste manual',null);
+      }
+    }
+  });
+  saveProdutos(prods);
+  closeAjusteEstoqueVariacoesModal();
+  renderCat();
+}
+
 function renderCat(){
   var prods=getProdutos(),q=(val('cat-search')||'').toLowerCase();
   var soBaixo=ge('cat-filtro-estoque-baixo')&&ge('cat-filtro-estoque-baixo').checked;
@@ -2231,7 +2290,7 @@ function renderCat(){
     var estoqueHtml='<span style="color:rgba(255,255,255,.3)">—</span>';
     if(temVariacoes){
       var totalVar=getEstoqueTotalProduto(p);
-      estoqueHtml='<span style="font-weight:700;color:#F0F0F5">'+totalVar+' '+p.unit+'</span><br><span style="font-size:9px;color:rgba(255,255,255,.4)">'+p.variacoes.length+' variação'+(p.variacoes.length===1?'':'ões')+'</span>';
+      estoqueHtml='<button type="button" onclick="abrirAjusteEstoqueVariacoes(\''+p.id+'\')" style="background:none;border:none;cursor:pointer;text-align:left;padding:0;color:inherit" title="Clique para ajustar o estoque de cada variação"><span style="font-weight:700;color:#F0F0F5">'+totalVar+' '+p.unit+'</span> ✏️<br><span style="font-size:9px;color:rgba(255,255,255,.4)">'+p.variacoes.length+' variação'+(p.variacoes.length===1?'':'ões')+'</span></button>';
     }else if(p.controlaEstoque){
       var qtd=parseFloat(p.estoqueQtd)||0,min=parseFloat(p.estoqueMin)||0;
       var baixo=qtd<=min;
