@@ -1673,7 +1673,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
 
 <!-- MODAL NOTA DE COMPRA -->
 <div class="modal-overlay" id="modal-nota">
-  <div class="modal" style="width:640px">
+  <div class="modal" style="width:760px">
     <div class="modal-title" id="modal-nota-title">Nova Nota de Compra</div>
     <input type="hidden" id="nota-edit-id">
     <div class="g3">
@@ -1683,15 +1683,18 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
     </div>
 
     <div class="mt">
-      <label class="lbl">Itens comprados</label>
+      <label class="lbl">Itens comprados <span class="lbl-hint">— se o produto tem variações, preencha Cor/Tamanho/Modelo para dar entrada na variação certa</span></label>
       <div class="items-wrap">
         <table class="itens" style="min-width:0">
           <thead><tr>
-            <th style="width:35%">Produto</th>
-            <th style="width:15%">Qtd.</th>
-            <th style="width:20%">Valor unit.</th>
-            <th style="width:20%;text-align:right">Subtotal</th>
-            <th style="width:10%"></th>
+            <th style="width:22%">Produto</th>
+            <th style="width:12%">Cor</th>
+            <th style="width:12%">Tamanho</th>
+            <th style="width:12%">Modelo</th>
+            <th style="width:9%">Qtd.</th>
+            <th style="width:13%">Valor unit.</th>
+            <th style="width:13%;text-align:right">Subtotal</th>
+            <th style="width:7%"></th>
           </tr></thead>
           <tbody id="nota-itens-body"></tbody>
         </table>
@@ -1705,7 +1708,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
 
     <div class="mt"><label class="lbl">Observações</label><textarea id="nota-obs" style="min-height:44px" placeholder="Opcional..."></textarea></div>
 
-    <div class="info-box mt" style="margin-bottom:0">✅ Ao salvar: a quantidade entra automaticamente no estoque de cada produto (se ele controla estoque) e o valor total é lançado como despesa em "Matéria-prima / Insumos" no Dashboard MEI.</div>
+    <div class="info-box mt" style="margin-bottom:0">✅ Ao salvar: a quantidade entra automaticamente no estoque de cada produto (ou da variação específica) e o valor total é lançado como despesa em "Matéria-prima / Insumos" no Dashboard MEI.</div>
 
     <div class="modal-footer">
       <button class="btn btn-out" onclick="closeNotaModal()">Cancelar</button>
@@ -3520,7 +3523,7 @@ var notaIid=0;
 function getNotasCompra(){try{return JSON.parse(localStorage.getItem('orcpro_notas')||'[]');}catch(e){return[];}}
 function saveNotasCompra(arr){localStorage.setItem('orcpro_notas',JSON.stringify(arr));}
 
-function addNotaItem(nome,qty,valorUnit){
+function addNotaItem(nome,qty,valorUnit,cor,tamanho,modelo){
   var id=++notaIid;
   var tbody=ge('nota-itens-body');
   var tr=document.createElement('tr');tr.id='ni'+id;
@@ -3531,8 +3534,16 @@ function addNotaItem(nome,qty,valorUnit){
     dl.innerHTML=prods.map(function(p){return'<option value="'+p.nome+'">';}).join('');
     document.body.appendChild(dl);
   }
+  // Reaproveita os datalists de variação já existentes (alimentados em atualizarDatalistsVariacao)
+  if(!ge('prod-cores-list')){var dlc=document.createElement('datalist');dlc.id='prod-cores-list';document.body.appendChild(dlc);}
+  if(!ge('prod-tamanhos-list')){var dlt=document.createElement('datalist');dlt.id='prod-tamanhos-list';document.body.appendChild(dlt);}
+  if(!ge('prod-modelos-list')){var dlm=document.createElement('datalist');dlm.id='prod-modelos-list';document.body.appendChild(dlm);}
+  atualizarDatalistsVariacao();
   tr.innerHTML=
     '<td><input placeholder="Nome do produto" value="'+(nome||'')+'" list="'+datalistId+'" oninput="recalcNota()" data-f="nome"></td>'+
+    '<td><input placeholder="—" value="'+(cor||'')+'" list="prod-cores-list" style="font-size:12px" data-f="cor"></td>'+
+    '<td><input placeholder="—" value="'+(tamanho||'')+'" list="prod-tamanhos-list" style="font-size:12px" data-f="tamanho"></td>'+
+    '<td><input placeholder="—" value="'+(modelo||'')+'" list="prod-modelos-list" style="font-size:12px" data-f="modelo"></td>'+
     '<td><input type="number" value="'+(qty||1)+'" min="0" step="1" oninput="recalcNota()" data-f="qty"></td>'+
     '<td><input type="number" value="'+(valorUnit?Number(valorUnit).toFixed(2):'')+'" min="0" step="0.01" placeholder="0,00" oninput="recalcNota()" data-f="valor"></td>'+
     '<td class="sub-cell" id="nsc'+id+'">R$\u00a00,00</td>'+
@@ -3545,7 +3556,7 @@ function getNotaItens(){
   return Array.from(document.querySelectorAll('#nota-itens-body tr')).map(function(tr){
     function g(f){var e=tr.querySelector('[data-f="'+f+'"]');return e?e.value:'';}
     var qty=parseFloat(g('qty'))||0,valor=parseFloat(g('valor'))||0;
-    return{nome:g('nome'),qty:qty,valorUnit:valor,sub:qty*valor};
+    return{nome:g('nome'),cor:g('cor'),tamanho:g('tamanho'),modelo:g('modelo'),qty:qty,valorUnit:valor,sub:qty*valor};
   });
 }
 function recalcNota(){
@@ -3567,7 +3578,7 @@ function openNotaModal(id){
     if(n){
       setVal('nota-data',n.data);setVal('nota-numero',n.numero);setVal('nota-obs',n.obs);
       setTimeout(function(){setVal('nota-fornecedor',n.fornecedorId);},10);
-      (n.itens||[]).forEach(function(it){addNotaItem(it.nome,it.qty,it.valorUnit);});
+      (n.itens||[]).forEach(function(it){addNotaItem(it.nome,it.qty,it.valorUnit,it.cor,it.tamanho,it.modelo);});
     }
   }else{
     setVal('nota-data',hoje());setVal('nota-numero','');setVal('nota-obs','');
@@ -3615,31 +3626,47 @@ function saveNota(){
   saveDespesas(despesas);
   nota.despesaId=despesaId;
 
-  // Dar entrada no estoque de cada produto — se não existir no catálogo, cadastra automaticamente
+  // Dar entrada no estoque de cada produto/variação — cadastra automaticamente o que não existir
   var prods=getProdutos();
   var produtosNovos=[];
-  var produtosParaAjustar=[];// {id, qty} — ajustados depois de salvar, para garantir que ajustarEstoque encontre o produto
+  var variacoesNovas=[];// "Produto (Cor · Tam · Modelo)"
+  var produtosParaAjustar=[];// {id, qty, variacaoId}
   itens.forEach(function(it){
+    var temVariacaoInformada=it.cor||it.tamanho||it.modelo;
     var prod=prods.find(function(p){return p.nome.toLowerCase()===it.nome.toLowerCase();});
+    var custoUnitario=it.qty>0?(it.sub/it.qty):0;
+
     if(!prod){
       // Produto novo: cadastra com dados básicos a partir da própria nota
-      var custoUnitario=it.qty>0?(it.sub/it.qty):0;
       prod={
         id:'p'+Date.now()+Math.random().toString(36).substr(2,5),
         nome:it.nome,cat:'',unit:'un',sku:'',
-        custo:Number(custoUnitario.toFixed(2)),varejo:0,atacado:0,minAtacado:10,
+        custo:temVariacaoInformada?0:Number(custoUnitario.toFixed(2)),varejo:0,atacado:0,minAtacado:10,
         desc:'',foto:'',fotos:[],
-        controlaEstoque:true,estoqueQtd:0,estoqueMin:5,
+        controlaEstoque:!temVariacaoInformada,estoqueQtd:0,estoqueMin:5,
         composicaoCusto:null,exibirCatalogo:true,variacoes:[]
       };
       prods.push(prod);
       produtosNovos.push(prod.nome);
     }
-    if(prod.controlaEstoque)produtosParaAjustar.push({id:prod.id,qty:it.qty});
+
+    if(temVariacaoInformada){
+      if(!prod.variacoes)prod.variacoes=[];
+      var variacao=prod.variacoes.find(function(v){return(v.cor||'')===(it.cor||'')&&(v.tamanho||'')===(it.tamanho||'')&&(v.modelo||'')===(it.modelo||'');});
+      if(!variacao){
+        // Variação nova dentro de um produto (novo ou já existente): cadastra com estoque zerado, entrada vem a seguir
+        variacao={id:'var'+Date.now()+Math.random().toString(36).substr(2,5),cor:it.cor||'',tamanho:it.tamanho||'',modelo:it.modelo||'',varejo:null,atacado:null,estoqueQtd:0};
+        prod.variacoes.push(variacao);
+        variacoesNovas.push(prod.nome+' ('+formatarVariacao(variacao)+')');
+      }
+      produtosParaAjustar.push({id:prod.id,qty:it.qty,variacaoId:variacao.id});
+    }else if(prod.controlaEstoque){
+      produtosParaAjustar.push({id:prod.id,qty:it.qty,variacaoId:null});
+    }
   });
-  if(produtosNovos.length)saveProdutos(prods);// persiste os produtos novos ANTES do ajuste de estoque, que lê do localStorage
+  if(produtosNovos.length||variacoesNovas.length)saveProdutos(prods);// persiste produtos/variações novos ANTES do ajuste de estoque, que lê do localStorage
   produtosParaAjustar.forEach(function(pa){
-    ajustarEstoque(pa.id,Math.abs(pa.qty),'Compra — Nota'+(nota.numero?' #'+nota.numero:'')+' ('+nota.fornecedorNome+')',nota.id);
+    ajustarEstoque(pa.id,Math.abs(pa.qty),'Compra — Nota'+(nota.numero?' #'+nota.numero:'')+' ('+nota.fornecedorNome+')',nota.id,pa.variacaoId);
   });
 
   if(editId){var idx=notas.findIndex(function(n){return n.id===editId;});if(idx>=0)notas[idx]=nota;else notas.unshift(nota);}
@@ -3651,6 +3678,9 @@ function saveNota(){
   if(produtosNovos.length){
     msgFinal+='\n\n📦 '+produtosNovos.length+' produto(s) novo(s) cadastrado(s) automaticamente no Catálogo: '+produtosNovos.join(', ')+'.\n\nComplete o cadastro deles (preço de venda, categoria, foto) em "Produtos" quando puder — por enquanto estão com preço de venda zerado.';
   }
+  if(variacoesNovas.length){
+    msgFinal+='\n\n🎨 '+variacoesNovas.length+' variação(ões) nova(s) cadastrada(s): '+variacoesNovas.join(', ')+'.';
+  }
   alert(msgFinal);
 }
 
@@ -3659,11 +3689,16 @@ function reverterEfeitosNota(nota){
   if(nota.despesaId){
     saveDespesas(getDespesas().filter(function(d){return d.id!==nota.despesaId;}));
   }
-  // Reverte a entrada de estoque
+  // Reverte a entrada de estoque (na variação certa, se o item tinha cor/tamanho/modelo informado)
   var prods=getProdutos();
   (nota.itens||[]).forEach(function(it){
     var prod=prods.find(function(p){return p.nome.toLowerCase()===it.nome.toLowerCase();});
-    if(prod&&prod.controlaEstoque){
+    if(!prod)return;
+    var temVariacaoInformada=it.cor||it.tamanho||it.modelo;
+    if(temVariacaoInformada&&prod.variacoes){
+      var variacao=prod.variacoes.find(function(v){return(v.cor||'')===(it.cor||'')&&(v.tamanho||'')===(it.tamanho||'')&&(v.modelo||'')===(it.modelo||'');});
+      if(variacao)ajustarEstoque(prod.id,-Math.abs(it.qty),'Reversão — edição/exclusão de nota',nota.id,variacao.id);
+    }else if(prod.controlaEstoque){
       ajustarEstoque(prod.id,-Math.abs(it.qty),'Reversão — edição/exclusão de nota',nota.id);
     }
   });
