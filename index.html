@@ -2,8 +2,26 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
 <title>Orçamento Pro</title>
+
+<!-- PWA: torna o app instalável no celular e no desktop -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#FF6B00">
+<meta name="background-color" content="#0C0C10">
+
+<!-- Suporte específico para iOS/Safari (Apple não segue o padrão completo de PWA) -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Orçamento Pro">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="apple-touch-icon" sizes="152x152" href="icon-152.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
+
+<!-- Ícone para abas do navegador e atalhos -->
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -263,8 +281,93 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
 /* Tabelas já cobertas por table.cat (dark) acima */
 .dash-card{animation:fadeUp .3s ease both}
 .dash-card:nth-child(1){animation-delay:.04s}.dash-card:nth-child(2){animation-delay:.08s}.dash-card:nth-child(3){animation-delay:.12s}.dash-card:nth-child(4){animation-delay:.16s}
+
+/* ═══════════════════════════════════════════════════
+   BOTÃO HAMBÚRGUER — só aparece no mobile
+   ═══════════════════════════════════════════════════ */
+.hamburger-btn{display:none;background:none;border:none;color:var(--dark-text);font-size:22px;cursor:pointer;padding:4px 8px;margin-right:4px;border-radius:6px;flex-shrink:0}
+.hamburger-btn:active{background:rgba(255,255,255,.1)}
+
+/* ═══════════════════════════════════════════════════
+   OVERLAY de fundo ao abrir sidebar no mobile
+   ═══════════════════════════════════════════════════ */
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:998}
+.sidebar-overlay.show{display:block}
+
+/* ═══════════════════════════════════════════════════
+   RESPONSIVO — TABLET E CELULAR (até 880px)
+   ═══════════════════════════════════════════════════ */
+@media (max-width:880px){
+  .hamburger-btn{display:block}
+
+  .layout{display:block}
+
+  /* Sidebar vira um painel deslizante (drawer) escondido por padrão */
+  .sidebar{
+    position:fixed;top:0;left:0;height:100vh;width:78vw;max-width:300px;
+    z-index:999;transform:translateX(-100%);transition:transform .25s ease;
+    box-shadow:4px 0 24px rgba(0,0,0,.4);
+  }
+  .sidebar.mobile-open{transform:translateX(0)}
+
+  .main{display:block;min-height:100vh}
+
+  .topbar{padding:10px 14px;position:sticky;top:0;z-index:50}
+  .tb-title{font-size:15px}
+  .tb-sub{font-size:10px}
+  .tb-actions{width:100%;margin-top:8px;justify-content:flex-start}
+  .tb-actions .btn{flex:1 1 auto;justify-content:center;font-size:12px;padding:9px 10px}
+
+  .content{padding:12px 12px 32px}
+
+  /* Cards e painéis ocupam a largura toda, sem cortar texto */
+  .card{padding:14px 14px}
+  .dash-panel{padding:14px 14px}
+
+  /* Grids de formulário colapsam para 1 coluna — campos empilhados, fáceis de tocar */
+  .g2,.g3,.g4{grid-template-columns:1fr;gap:10px}
+
+  /* Dashboard: KPIs em 2 colunas (cabe melhor que 4 espremidos, e não fica gigante em 1 só) */
+  .dash-grid{grid-template-columns:1fr 1fr;gap:10px}
+  .dash-card{padding:14px 14px}
+  .dash-val{font-size:19px}
+  .dash-card-icon{font-size:20px}
+
+  /* Painéis lado a lado (gráfico + ranking) empilham */
+  .dash-2col{grid-template-columns:1fr;gap:12px}
+
+  /* Inputs e botões maiores — touch target mínimo de 40px de altura */
+  input,select,textarea{font-size:16px;padding:11px 12px}/* 16px evita zoom automático do iOS ao focar */
+  .btn{padding:11px 16px;font-size:14px}
+  .btn-sm{padding:8px 12px;font-size:12px}
+
+  /* Tabelas: permite rolagem horizontal suave em vez de quebrar o layout */
+  .items-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table.itens{min-width:600px}
+  table.cat{min-width:520px}
+
+  /* Modais ocupam quase a tela inteira, com scroll vertical */
+  .modal{width:94vw!important;max-width:94vw!important;padding:16px;max-height:90vh}
+  .modal-title{font-size:14px}
+
+  /* Sidebar interna: nav com mais respiro pro dedo */
+  .nb{padding:11px 10px;font-size:14px}
+
+  /* Pré-visualização do orçamento (documento) cabe na tela sem cortar */
+  .pv-doc{padding:14px!important}
+
+  /* Esconde textos auxiliares menos críticos para economizar espaço vertical */
+  .lbl-hint{display:block;margin-left:0;margin-top:2px}
+}
+
+/* Celulares bem pequenos (até 380px) — ajustes finos extras */
+@media (max-width:380px){
+  .dash-grid{grid-template-columns:1fr}
+  .tb-actions .btn{font-size:11px;padding:8px 8px}
+}
+
 @media print{
-  .sidebar,.topbar,.stat-cards,.pv-actions,.tb-actions{display:none!important}
+  .sidebar,.topbar,.stat-cards,.pv-actions,.tb-actions,.sidebar-overlay,.hamburger-btn{display:none!important}
   .content{padding:0!important;background:#fff!important}
   .pv-doc{border:none!important;box-shadow:none!important;border-radius:0!important}
   .pv-header-bar,.pv-table thead tr,.pv-tr-big,.pv-cat-row td{-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -297,7 +400,8 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
 <div class="layout" id="app" style="display:none">
 
 <!-- SIDEBAR -->
-<aside class="sidebar">
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleMobileSidebar()"></div>
+<aside class="sidebar" id="sidebar">
   <div class="sb-logo">
     <div class="sb-logo-icon">📋</div>
     <div><div class="sb-logo-name">Orçamento Pro</div><div class="sb-logo-sub">v6.4</div></div>
@@ -337,6 +441,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
 <div class="main">
   <div class="topbar">
     <div class="tb-left">
+      <button class="hamburger-btn" id="hamburger-btn" onclick="toggleMobileSidebar()" aria-label="Abrir menu">☰</button>
       <div class="tb-accent"></div>
       <div><div class="tb-title" id="tb-title">Dashboard</div><div class="tb-sub" id="tb-sub">Visão geral</div></div>
     </div>
@@ -6534,12 +6639,28 @@ function verificarAutoSyncGoogleDrive(){
 // ═══════════════════════════════════════════════════
 // NAVEGAÇÃO
 // ═══════════════════════════════════════════════════
+function toggleMobileSidebar(){
+  var sb=document.getElementById('sidebar');
+  var overlay=document.getElementById('sidebar-overlay');
+  var isOpen=sb.classList.contains('mobile-open');
+  if(isOpen){sb.classList.remove('mobile-open');overlay.classList.remove('show');}
+  else{sb.classList.add('mobile-open');overlay.classList.add('show');}
+}
+function closeMobileSidebarIfOpen(){
+  var sb=document.getElementById('sidebar');
+  if(sb&&sb.classList.contains('mobile-open')){
+    sb.classList.remove('mobile-open');
+    document.getElementById('sidebar-overlay').classList.remove('show');
+  }
+}
+
 function showView(name){
   var views=['dash','form','preview','hist','os','templates','cat','clientes','config','mei','notas','fornec','receber','pagar','dre','usuarios','venda-rapida','catalogo'];
   views.forEach(function(n){
     var v=ge('view-'+n);if(v)v.style.display=n===name?'block':'none';
     var nb=ge('nb-'+n);if(nb){var badge=nb.querySelector('.nb-badge');nb.className='nb'+(n===name?' active':'');if(badge)nb.appendChild(badge);}
   });
+  closeMobileSidebarIfOpen();// fecha o menu automaticamente após escolher uma tela, no celular
 
   // Lembrar a última tela visitada para restaurar após F5 (exceto preview, que depende do form preenchido)
   if(name!=='preview')localStorage.setItem('orcpro_last_view',name);
@@ -6994,7 +7115,19 @@ document.addEventListener('change',function(e){
 window.onload=function(){
   if(checkLinkPublico())return;
   initPIN();
+  registrarServiceWorker();
 };
+
+function registrarServiceWorker(){
+  // Registra o service worker para permitir instalação como app (PWA) e uso offline.
+  // Funciona apenas servido via HTTPS (GitHub Pages já é) — não funciona abrindo o
+  // arquivo direto do computador (file://), o que é uma limitação normal do navegador.
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('service-worker.js')
+      .then(function(){console.log('Orçamento Pro: pronto para instalação e uso offline.');})
+      .catch(function(err){console.log('Service worker não registrado (normal se estiver abrindo o arquivo localmente):',err.message);});
+  }
+}
 </script>
 </body>
 </html>
