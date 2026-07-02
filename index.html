@@ -7242,7 +7242,11 @@ function sincronizarGoogleDriveAgora(){
     var nomeArquivo='orcamentopro_backup.json';
     var status=getGoogleDriveStatus();
 
-    var metadata={name:nomeArquivo,parents:['appDataFolder']};
+    // parents só pode ser enviado na CRIAÇÃO (POST), não na atualização (PATCH)
+    // Incluir parents num PATCH gera erro 403 "fieldNotWritable" na API do Drive v3
+    var metadata=status.fileId?
+      {name:nomeArquivo}:
+      {name:nomeArquivo,parents:['appDataFolder']};
     var boundary='orcpro_boundary_'+Date.now();
     var body=
       '--'+boundary+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify(metadata)+'\r\n'+
