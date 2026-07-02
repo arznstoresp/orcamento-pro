@@ -460,7 +460,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
       <div style="margin-bottom:14px" id="dash-meta-wrap"></div>
       <div class="dash-2col">
         <div class="dash-panel">
-          <div class="dash-panel-title"><span class="dash-panel-title-icon">📈</span>Faturamento últimos 6 meses</div>
+          <div class="dash-panel-title"><span class="dash-panel-title-icon">📈</span>Faturamento últimos 6 meses <span style="font-size:10px;color:rgba(255,255,255,.35);font-weight:400;text-transform:none;letter-spacing:0">(aprovados)</span></div>
           <div class="chart-wrap" id="dash-chart"></div>
         </div>
         <div class="dash-panel">
@@ -6456,7 +6456,7 @@ function exportarMEIExcel(){
 function renderDash(){
   var hist=getHist(),clientes=getClientes(),hoje2=hoje(),mes=hoje2.substring(0,7);
   var totalMes=0,totalMesAprovado=0,totalPend=0,totalAprov=0,countMes=0,countAprov=0,countPerd=0,countExp=0;
-  var meses={},prods={};
+  var meses={},mesesAprov={},prods={};
   // mês anterior para comparação
   var d=new Date();d.setMonth(d.getMonth()-1);
   var mesAnterior=d.toISOString().substring(0,7);
@@ -6471,7 +6471,8 @@ function renderDash(){
     if(h.status==='Aprovado'){totalAprov+=total;countAprov++;}
     if(h.status==='Recusado')countPerd++;
     if(h.status==='Expirado')countExp++;
-    if(hm)meses[hm]=(meses[hm]||0)+total;
+    if(hm)meses[hm]=(meses[hm]||0)+total;// total do funil (usado nos KPI cards)
+    if(hm&&h.status==='Aprovado')mesesAprov[hm]=(mesesAprov[hm]||0)+total;// só aprovados (usado no gráfico)
     // Top Produtos considera apenas orçamentos efetivamente aprovados (vendas reais), não qualquer status
     if(h.status==='Aprovado')(h.items||[]).forEach(function(it){if(it.desc)prods[it.desc]=(prods[it.desc]||0)+it.qty;});
   });
@@ -6540,26 +6541,25 @@ function renderDash(){
   if(vencendo.length)alertHtml+='<div class="warn-box">🕐 <strong>'+vencendo.length+' orçamento(s) vencem em até 48h!</strong> <button class="btn btn-yellow btn-sm" onclick="filtrarHistVencendo()" style="margin-left:8px">Ver</button></div>';
   alertas.innerHTML=alertHtml;
 
-  // ── GRÁFICO BARRAS — mais elegante com gradiente e linha de base ──
+  // ── GRÁFICO BARRAS — Faturamento real: apenas orçamentos Aprovados ──
   var mesesOrd=[];for(var i=5;i>=0;i--){var dd=new Date();dd.setMonth(dd.getMonth()-i);mesesOrd.push(dd.toISOString().substring(0,7));}
-  var maxV=mesesOrd.reduce(function(mx,m){return Math.max(mx,meses[m]||0);},1);
+  var maxV=mesesOrd.reduce(function(mx,m){return Math.max(mx,mesesAprov[m]||0);},1);
   var bW=50,bGap=16,padL=68,padR=14,padTop=28,svgH=190,barArea=108,svgW=(bW+bGap)*6+padL+padR;
   var baseY=svgH-30;
   var bars='';
-  // linha de grade (cor visível no dark, com texto do eixo Y legível e sem corte)
+  // linha de grade
   [0,.5,1].forEach(function(frac){
     var y=baseY-Math.round(frac*barArea);
     bars+='<line x1="'+padL+'" y1="'+y+'" x2="'+(svgW-padR)+'" y2="'+y+'" stroke="rgba(255,255,255,.08)" stroke-width="1"/>';
     var lbl=frac===0?'R$ 0':fmt(maxV*frac).replace('R$\u00a0','R$ ');
     bars+='<text x="'+(padL-10)+'" y="'+(y+4)+'" text-anchor="end" font-size="10" fill="rgba(255,255,255,.42)">'+lbl+'</text>';
   });
-  // defs gradiente — paleta diferenciada: laranja marca (mês atual), azul-acinzentado (meses passados)
   bars='<defs>'+
     '<linearGradient id="gbar" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#FF8533" stop-opacity="1"/><stop offset="100%" stop-color="var(--brand-d)" stop-opacity="1"/></linearGradient>'+
     '<linearGradient id="gbarpast" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#6D7A99" stop-opacity=".95"/><stop offset="100%" stop-color="#3F4A63" stop-opacity=".85"/></linearGradient>'+
   '</defs>'+bars;
   mesesOrd.forEach(function(m,i){
-    var v=meses[m]||0;var bh=v?Math.max(4,Math.round((v/maxV)*barArea)):0;
+    var v=mesesAprov[m]||0;var bh=v?Math.max(4,Math.round((v/maxV)*barArea)):0;
     var x=padL+i*(bW+bGap);var y=baseY-bh;
     var isCur=m===mes;
     var label=m.substring(5)+'/'+m.substring(2,4);
@@ -6567,10 +6567,8 @@ function renderDash(){
     if(v>0){
       bars+='<rect class="chart-bar" x="'+x+'" y="'+y+'" width="'+bW+'" height="'+bh+'" fill="'+fill+'" rx="6" onclick="alert(\''+label+': '+fmt(v)+'\')"/>';
     } else {
-      // mês sem dados — barra fantasma pontilhada para indicar ausência, não some do eixo
       bars+='<rect x="'+x+'" y="'+(baseY-4)+'" width="'+bW+'" height="4" fill="rgba(255,255,255,.06)" rx="2"/>';
     }
-    // rótulo valor — sempre acima da barra, com respiro mínimo garantido e nunca encostando na grade superior
     if(v>0){
       var labelY=Math.max(y-8,padTop-6);
       bars+='<text x="'+(x+bW/2)+'" y="'+labelY+'" text-anchor="middle" font-size="11" font-weight="'+(isCur?'700':'600')+'" fill="'+(isCur?'#FF8533':'rgba(255,255,255,.55)')+'">'+fmt(v).replace('R$\u00a0','')+'</text>';
