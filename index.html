@@ -422,7 +422,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
     <button class="nb" id="nb-cat"       onclick="showView('cat')">      📦 Produtos</button>
     <button class="nb" id="nb-catalogo"  onclick="showView('catalogo')"> 📖 Catálogo Profissional</button>
     <div class="sb-sec">Calculadoras</div>
-    <button class="nb" id="nb-calctecidos" onclick="showView('calctecidos')"> 🧵 Tecidos (DTF)</button>
+    <button class="nb" id="nb-calctecidos" onclick="showView('calctecidos')"> 🧮 Precificação</button>
     <div class="sb-sec">Estoque</div>
     <button class="nb" id="nb-notas"     onclick="showView('notas')">    🧾 Notas de Compra</button>
     <button class="nb" id="nb-fornec"    onclick="showView('fornec')">   🚚 Fornecedores</button>
@@ -859,7 +859,20 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
 
     <!-- CALCULADORA DE TECIDOS (DTF) -->
     <div id="view-calctecidos" style="display:none;min-height:100%">
-      <div class="info-box">🧵 Calculadora profissional de precificação para estampa DTF em tecidos — ferramenta de tomada de decisão, não apenas uma calculadora.</div>
+      <div class="info-box">🧮 Calculadora profissional de precificação — escolha o tipo de produto e todos os campos se ajustam automaticamente. Ferramenta de tomada de decisão, não apenas uma calculadora.</div>
+
+      <!-- SELETOR DE TIPO -->
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-title">Tipo de Produto</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" id="ct-tipo-btn-tecidos"    class="btn btn-brand btn-sm" onclick="setTipoProduto('tecidos')">🧵 Tecidos (DTF)</button>
+          <button type="button" id="ct-tipo-btn-canecas"    class="btn btn-out btn-sm"   onclick="setTipoProduto('canecas')">☕ Canecas</button>
+          <button type="button" id="ct-tipo-btn-adesivos"   class="btn btn-out btn-sm"   onclick="setTipoProduto('adesivos')">🏷️ Adesivos / Vinil</button>
+          <button type="button" id="ct-tipo-btn-impressao3d" class="btn btn-out btn-sm"  onclick="setTipoProduto('impressao3d')">🖨️ Impressão 3D</button>
+          <button type="button" id="ct-tipo-btn-generico"   class="btn btn-out btn-sm"   onclick="setTipoProduto('generico')">📦 Brindes / Papelaria / Acrílico</button>
+        </div>
+        <input type="hidden" id="ct-tipo-produto" value="tecidos">
+      </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start" class="dash-2col">
         <!-- COLUNA ESQUERDA: Etapas de entrada -->
@@ -871,11 +884,11 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
             <div class="card-title">1. Pedido</div>
             <div class="g2">
               <div><label class="lbl">Produto</label><input id="ct-produto" placeholder="Ex: Camiseta Dry Fit" oninput="calcularTecidos()"></div>
-              <div><label class="lbl">Tipo de tecido</label><input id="ct-tipo-tecido" placeholder="Ex: Algodão, Dry Fit"></div>
+              <div><label class="lbl" id="ct-lbl-tipo-tecido">Variação / Especificação</label><input id="ct-tipo-tecido" placeholder="Ex: Algodão, 325ml, A4..."></div>
             </div>
             <div class="g2 mt">
               <div><label class="lbl">Quantidade *</label><input type="number" id="ct-qtd" value="1" min="1" step="1" oninput="calcularTecidos()"></div>
-              <div><label class="lbl">Valor unitário da peça (R$)</label><input type="number" id="ct-valor-peca" value="0" min="0" step="0.01" oninput="calcularTecidos()"></div>
+              <div><label class="lbl">Valor unitário do insumo principal (R$)</label><input type="number" id="ct-valor-peca" value="0" min="0" step="0.01" oninput="calcularTecidos()"></div>
             </div>
             <div class="g2 mt">
               <div><label class="lbl">Cliente <span class="lbl-hint">— opcional</span></label><input id="ct-cliente" placeholder="Nome do cliente" list="ct-clientes-list"><datalist id="ct-clientes-list"></datalist></div>
@@ -884,21 +897,8 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
             <div class="mt"><label class="lbl">Observações</label><textarea id="ct-obs" style="min-height:40px" placeholder="Opcional..."></textarea></div>
           </div>
 
-          <!-- ETAPA 2: IMPRESSÃO DTF -->
-          <div class="card">
-            <div class="card-title">2. Impressão DTF</div>
-            <div class="g2">
-              <div><label class="lbl">Valor do metro DTF (R$)</label><input type="number" id="ct-valor-metro" value="0" min="0" step="0.01" oninput="calcularTecidos()"></div>
-              <div><label class="lbl">Valor do frete (R$)</label><input type="number" id="ct-frete" value="0" min="0" step="0.01" oninput="calcularTecidos()"></div>
-            </div>
-            <div class="g2 mt">
-              <div><label class="lbl">Largura do rolo (cm)</label><input type="number" id="ct-largura-rolo" value="57" min="1" step="1" oninput="calcularTecidos()"></div>
-              <div><label class="lbl">Altura do metro (cm)</label><input type="number" id="ct-altura-metro" value="100" min="1" step="1" oninput="calcularTecidos()"></div>
-            </div>
-            <div class="mt"><label class="lbl">Perda técnica (%) <span class="lbl-hint">— padrão 15%</span></label><input type="number" id="ct-perda" value="15" min="0" max="100" step="1" oninput="calcularTecidos()"></div>
-            <!-- Breakdown automático do DTF -->
-            <div id="ct-dtf-breakdown" style="display:none;margin-top:10px;background:rgba(255,255,255,.03);border-radius:8px;padding:9px 12px;font-size:11px;color:rgba(255,255,255,.55)"></div>
-          </div>
+          <!-- MÓDULO DE INSUMOS — muda conforme o tipo de produto -->
+          <div id="ct-modulo-insumos"></div>
 
           <!-- ETAPA 4: CUSTOS DIRETOS -->
           <div class="card">
@@ -913,9 +913,9 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
             <div class="mt" style="background:rgba(255,255,255,.03);border-radius:8px;padding:10px 12px">
               <label class="lbl" style="margin-bottom:8px;display:block">Tempos de produção <span class="lbl-hint">— por pedido completo, em minutos</span></label>
               <div class="g2" style="gap:8px">
-                <div><label class="lbl" style="font-size:10px">Arte (criação)</label><input type="number" id="ct-tempo-arte" value="0" min="0" step="1" oninput="calcularTecidos()"></div>
-                <div><label class="lbl" style="font-size:10px">Impressão</label><input type="number" id="ct-tempo-impressao" value="0" min="0" step="1" oninput="calcularTecidos()"></div>
-                <div><label class="lbl" style="font-size:10px">Prensagem</label><input type="number" id="ct-tempo-prensagem" value="0" min="0" step="1" oninput="calcularTecidos()"></div>
+                <div><label class="lbl" style="font-size:10px">Arte / Criação</label><input type="number" id="ct-tempo-arte" value="0" min="0" step="1" oninput="calcularTecidos()"></div>
+                <div><label class="lbl" style="font-size:10px">Produção / Impressão</label><input type="number" id="ct-tempo-impressao" value="0" min="0" step="1" oninput="calcularTecidos()"></div>
+                <div><label class="lbl" style="font-size:10px">Prensagem / Processo</label><input type="number" id="ct-tempo-prensagem" value="0" min="0" step="1" oninput="calcularTecidos()"></div>
                 <div><label class="lbl" style="font-size:10px">Acabamento</label><input type="number" id="ct-tempo-acabamento" value="0" min="0" step="1" oninput="calcularTecidos()"></div>
                 <div><label class="lbl" style="font-size:10px">Embalagem</label><input type="number" id="ct-tempo-embalagem" value="0" min="0" step="1" oninput="calcularTecidos()"></div>
               </div>
@@ -929,7 +929,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
             <div id="ct-custos-indiretos-mei" style="font-size:12px;color:rgba(255,255,255,.5);margin-bottom:10px"></div>
             <div class="g2">
               <div>
-                <label class="lbl">Custo indireto por peça (R$) <span class="lbl-hint">— soma do MEI + extra</span></label>
+                <label class="lbl">Custo indireto por peça (R$)</label>
                 <input type="number" id="ct-custo-indireto-extra" value="0" min="0" step="0.01" placeholder="Valor adicional" oninput="calcularTecidos()">
               </div>
               <div style="display:flex;flex-direction:column;justify-content:flex-end">
@@ -955,10 +955,10 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
           </div>
         </div>
 
-        <!-- COLUNA DIREITA: Artes + Resumo -->
+        <!-- COLUNA DIREITA: Artes (só aparece quando relevante) + Resumo -->
         <div>
-          <!-- ETAPA 3: ARTES -->
-          <div class="card">
+          <!-- ETAPA 3: ARTES (Tecidos e Adesivos) -->
+          <div id="ct-card-artes" class="card">
             <div class="card-title">
               3. Artes
               <span style="margin-left:auto"><button class="btn btn-brand btn-sm" onclick="addArteTecido()">＋ Adicionar arte</button></span>
@@ -967,32 +967,24 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
             <div id="ct-artes-breakdown" style="display:none;margin-top:10px;background:rgba(255,255,255,.03);border-radius:8px;padding:9px 12px;font-size:11px;color:rgba(255,255,255,.55)"></div>
           </div>
 
-          <!-- ALERTAS INTELIGENTES -->
+          <!-- ALERTAS -->
           <div id="ct-alertas-wrap" style="display:none;margin-bottom:14px"></div>
 
-          <!-- RESUMO FINANCEIRO — 3 blocos: Custos / Venda / Lucro -->
+          <!-- RESUMO FINANCEIRO -->
           <div class="card" style="background:rgba(255,107,0,.04);border-color:var(--brand-glow)">
             <div class="card-title">📊 Resumo Financeiro</div>
-
-            <!-- Bloco: CUSTOS -->
             <div style="margin-bottom:12px">
               <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--dark-border2)">💸 Custos</div>
               <div id="ct-resumo-custos"></div>
             </div>
-
-            <!-- Bloco: VENDA -->
             <div style="margin-bottom:12px">
               <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--dark-border2)">💰 Venda</div>
               <div id="ct-resumo-venda"></div>
             </div>
-
-            <!-- Bloco: LUCRO -->
             <div style="margin-bottom:12px">
               <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--dark-border2)">📈 Lucro</div>
               <div id="ct-resumo-lucro"></div>
             </div>
-
-            <!-- Simulador de Negociação -->
             <div style="background:rgba(255,255,255,.04);border:1px solid var(--dark-border2);border-radius:10px;padding:12px 14px">
               <div style="font-size:9px;font-weight:700;color:var(--brand);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">🤝 Simulador de Negociação</div>
               <div style="font-size:12px;color:rgba(255,255,255,.5);margin-bottom:8px">Cliente pediu desconto? Digite o preço negociado:</div>
@@ -1020,21 +1012,20 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
       <!-- HISTÓRICO -->
       <div class="card">
         <div class="card-title">
-          📋 Histórico — Tecidos (DTF)
+          📋 Histórico de Orçamentos
           <span style="margin-left:auto;display:flex;gap:7px;align-items:center;flex-wrap:wrap">
-            <input id="ct-hist-search" placeholder="🔍 Cliente..." style="max-width:200px" oninput="renderHistTecidos()">
+            <input id="ct-hist-search" placeholder="🔍 Cliente ou produto..." style="max-width:200px" oninput="renderHistTecidos()">
           </span>
         </div>
         <div class="items-wrap">
           <table class="cat"><thead><tr>
-            <th style="width:18%">Cliente</th><th style="width:12%">Data</th><th style="width:10%">Qtd.</th>
-            <th style="width:16%">Valor Total</th><th style="width:16%">Lucro</th><th style="width:10%">Margem</th><th style="width:18%"></th>
+            <th style="width:18%">Produto</th><th style="width:10%">Tipo</th><th style="width:10%">Data</th><th style="width:8%">Qtd.</th>
+            <th style="width:14%">Valor Total</th><th style="width:12%">Lucro</th><th style="width:8%">Margem</th><th style="width:20%"></th>
           </tr></thead><tbody id="ct-hist-body"></tbody></table>
         </div>
-        <div id="ct-hist-empty" style="text-align:center;padding:24px;color:rgba(255,255,255,.4);font-size:13px;display:none">Nenhum orçamento de tecidos salvo ainda.</div>
+        <div id="ct-hist-empty" style="text-align:center;padding:24px;color:rgba(255,255,255,.4);font-size:13px;display:none">Nenhum orçamento salvo ainda.</div>
       </div>
     </div>
-
     <!-- NOTAS DE COMPRA -->
     <div id="view-notas" style="display:none;min-height:100%">
       <div class="info-box">🧾 Cadastre suas notas de compra para dar entrada automática no estoque e registrar a despesa no Dashboard MEI — tudo em um único lançamento.</div>
@@ -3834,6 +3825,110 @@ function atualizarExibicaoCustosIndiretosMEI(){
 
 function setMargemTecidos(pct){setVal('ct-margem',pct);calcularTecidos();}
 
+// ── Seletor e módulos de insumos por tipo de produto ──
+var CT_TIPOS={
+  tecidos:{label:'🧵 Tecidos (DTF)',usaArtes:true},
+  canecas:{label:'☕ Canecas',usaArtes:false},
+  adesivos:{label:'🏷️ Adesivos / Vinil',usaArtes:true},
+  impressao3d:{label:'🖨️ Impressão 3D',usaArtes:false},
+  generico:{label:'📦 Brindes / Papelaria / Acrílico',usaArtes:false}
+};
+
+function setTipoProduto(tipo){
+  setVal('ct-tipo-produto',tipo);
+  Object.keys(CT_TIPOS).forEach(function(t){
+    var btn=ge('ct-tipo-btn-'+t);
+    if(btn)btn.className='btn btn-sm '+(t===tipo?'btn-brand':'btn-out');
+  });
+  var cardArtes=ge('ct-card-artes');
+  if(cardArtes)cardArtes.style.display=(CT_TIPOS[tipo]&&CT_TIPOS[tipo].usaArtes)?'block':'none';
+  renderModuloInsumos(tipo);
+  calcularTecidos();
+}
+
+function renderModuloInsumos(tipo){
+  var el=ge('ct-modulo-insumos');if(!el)return;
+  function gv(id){return val(id)||'';}
+  if(tipo==='tecidos'){
+    el.innerHTML='<div class="card"><div class="card-title">2. Impressão DTF</div>'+
+      '<div class="g2"><div><label class="lbl">Valor do metro DTF (R$)</label><input type="number" id="ct-valor-metro" value="'+(gv('ct-valor-metro')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div>'+
+      '<div><label class="lbl">Valor do frete (R$)</label><input type="number" id="ct-frete" value="'+(gv('ct-frete')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div></div>'+
+      '<div class="g2 mt"><div><label class="lbl">Largura do rolo (cm)</label><input type="number" id="ct-largura-rolo" value="'+(gv('ct-largura-rolo')||'57')+'" min="1" step="1" oninput="calcularTecidos()"></div>'+
+      '<div><label class="lbl">Altura do metro (cm)</label><input type="number" id="ct-altura-metro" value="'+(gv('ct-altura-metro')||'100')+'" min="1" step="1" oninput="calcularTecidos()"></div></div>'+
+      '<div class="mt"><label class="lbl">Perda técnica (%) <span class="lbl-hint">— padrão 15%</span></label><input type="number" id="ct-perda" value="'+(gv('ct-perda')||'15')+'" min="0" max="100" step="1" oninput="calcularTecidos()"></div>'+
+      '<div id="ct-dtf-breakdown" style="display:none;margin-top:10px;background:rgba(255,255,255,.03);border-radius:8px;padding:9px 12px;font-size:11px;color:rgba(255,255,255,.55)"></div></div>';
+  }else if(tipo==='canecas'){
+    el.innerHTML='<div class="card"><div class="card-title">2. Sublimação</div>'+
+      '<div><label class="lbl">Custo de sublimação por peça (R$) <span class="lbl-hint">— papel + tinta + energia</span></label>'+
+      '<input type="number" id="ct-custo-sublimacao" value="'+(gv('ct-custo-sublimacao')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div>'+
+      '<div class="mt"><label class="lbl">Frete do lote (R$) <span class="lbl-hint">— dividido entre as peças</span></label>'+
+      '<input type="number" id="ct-frete" value="'+(gv('ct-frete')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div></div>';
+  }else if(tipo==='adesivos'){
+    el.innerHTML='<div class="card"><div class="card-title">2. Vinil / Adesivo</div>'+
+      '<div class="g2"><div><label class="lbl">Custo do vinil (R$/m²)</label><input type="number" id="ct-custo-vinil-m2" value="'+(gv('ct-custo-vinil-m2')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div>'+
+      '<div><label class="lbl">Perda técnica (%) <span class="lbl-hint">— padrão 10%</span></label><input type="number" id="ct-perda" value="'+(gv('ct-perda')||'10')+'" min="0" max="100" step="1" oninput="calcularTecidos()"></div></div>'+
+      '<div class="g2 mt"><div><label class="lbl">Custo de plotagem/corte por peça (R$)</label><input type="number" id="ct-custo-plotagem" value="'+(gv('ct-custo-plotagem')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div>'+
+      '<div><label class="lbl">Laminação por peça (R$) <span class="lbl-hint">— opcional</span></label><input type="number" id="ct-custo-laminacao" value="'+(gv('ct-custo-laminacao')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div></div>'+
+      '<div id="ct-dtf-breakdown" style="display:none;margin-top:10px;background:rgba(255,255,255,.03);border-radius:8px;padding:9px 12px;font-size:11px;color:rgba(255,255,255,.55)"></div></div>';
+  }else if(tipo==='impressao3d'){
+    el.innerHTML='<div class="card"><div class="card-title">2. Impressão 3D</div>'+
+      '<div class="g2"><div><label class="lbl">Custo do filamento (R$/g)</label><input type="number" id="ct-custo-filamento-g" value="'+(gv('ct-custo-filamento-g')||'0')+'" min="0" step="0.001" oninput="calcularTecidos()"></div>'+
+      '<div><label class="lbl">Peso da peça (g)</label><input type="number" id="ct-peso-peca-g" value="'+(gv('ct-peso-peca-g')||'0')+'" min="0" step="1" oninput="calcularTecidos()"></div></div>'+
+      '<div class="g2 mt"><div><label class="lbl">Tempo de impressão por peça (min)</label><input type="number" id="ct-tempo-impressao-3d" value="'+(gv('ct-tempo-impressao-3d')||'0')+'" min="0" step="1" oninput="calcularTecidos()"></div>'+
+      '<div><label class="lbl">Custo hora/máquina (R$/h) <span class="lbl-hint">— energia + desgaste</span></label><input type="number" id="ct-custo-hora-maquina" value="'+(gv('ct-custo-hora-maquina')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div></div>'+
+      '<div id="ct-dtf-breakdown" style="display:none;margin-top:10px;background:rgba(255,255,255,.03);border-radius:8px;padding:9px 12px;font-size:11px;color:rgba(255,255,255,.55)"></div></div>';
+  }else{
+    el.innerHTML='<div class="card"><div class="card-title">2. Processo de Produção</div>'+
+      '<div><label class="lbl">Custo do processo por peça (R$) <span class="lbl-hint">— gravação, corte, impressão, acabamento...</span></label>'+
+      '<input type="number" id="ct-custo-processo" value="'+(gv('ct-custo-processo')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div>'+
+      '<div class="mt"><label class="lbl">Frete / outros custos rateados (R$)</label>'+
+      '<input type="number" id="ct-frete" value="'+(gv('ct-frete')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div></div>';
+  }
+}
+
+function getCustoInsumoEspecifico(){
+  var tipo=val('ct-tipo-produto')||'tecidos';
+  var qtd=parseFloat(val('ct-qtd'))||1;
+  var result={custoProcesso:0,breakdown:''};
+  if(tipo==='tecidos'){
+    result.custoProcesso=0;// calculado externamente pelo módulo DTF
+  }else if(tipo==='canecas'){
+    var sublimacao=parseFloat(val('ct-custo-sublimacao'))||0;
+    var frete=parseFloat(val('ct-frete'))||0;
+    result.custoProcesso=sublimacao+(qtd>0?frete/qtd:0);
+    result.breakdown='Sublimação: '+fmt(sublimacao)+'/un';
+  }else if(tipo==='adesivos'){
+    var artes=getArtesTecido();
+    var areaTotalCm2=artes.reduce(function(a,arte){return a+arte.area;},0);
+    var areaM2=areaTotalCm2/10000;
+    var perdaAdh=parseFloat(val('ct-perda'))||0;
+    var areaComPerda=areaM2*(1+perdaAdh/100);
+    var custoVinilM2=parseFloat(val('ct-custo-vinil-m2'))||0;
+    var plotagem=parseFloat(val('ct-custo-plotagem'))||0;
+    var laminacao=parseFloat(val('ct-custo-laminacao'))||0;
+    var custoVinil=areaComPerda*custoVinilM2;
+    result.custoProcesso=custoVinil+plotagem+laminacao;
+    result.breakdown='Área: '+areaTotalCm2.toFixed(0)+' cm² → '+areaComPerda.toFixed(4)+' m² &nbsp;|&nbsp; Vinil: '+fmt(custoVinil)+' &nbsp;|&nbsp; Plotagem: '+fmt(plotagem);
+    var dbk=ge('ct-dtf-breakdown');if(dbk){dbk.style.display='block';dbk.innerHTML=result.breakdown;}
+  }else if(tipo==='impressao3d'){
+    var filamentoG=parseFloat(val('ct-custo-filamento-g'))||0;
+    var pesoG=parseFloat(val('ct-peso-peca-g'))||0;
+    var tMin=parseFloat(val('ct-tempo-impressao-3d'))||0;
+    var hMaq=parseFloat(val('ct-custo-hora-maquina'))||0;
+    var cFil=filamentoG*pesoG;
+    var cMaq=hMaq*(tMin/60);
+    result.custoProcesso=cFil+cMaq;
+    result.breakdown='Filamento: '+pesoG+'g × '+fmt(filamentoG)+'/g = '+fmt(cFil)+' &nbsp;|&nbsp; Máquina: '+tMin+'min = '+fmt(cMaq);
+    var dbk2=ge('ct-dtf-breakdown');if(dbk2){dbk2.style.display='block';dbk2.innerHTML=result.breakdown;}
+  }else{
+    var proc=parseFloat(val('ct-custo-processo'))||0;
+    var frG=parseFloat(val('ct-frete'))||0;
+    result.custoProcesso=proc+(qtd>0?frG/qtd:0);
+    result.breakdown=proc>0?'Processo: '+fmt(proc)+'/un':'';
+  }
+  return result;
+}
+
 function atualizarDatalistClientesTecidos(){
   var dl=ge('ct-clientes-list');if(!dl)return;
   dl.innerHTML=getClientes().map(function(c){return'<option value="'+c.nome+'">';}).join('');
@@ -3841,13 +3936,9 @@ function atualizarDatalistClientesTecidos(){
 
 // ── Cálculo central ──
 function calcularTecidos(){
+  var tipo=val('ct-tipo-produto')||'tecidos';
   var qtd=parseFloat(val('ct-qtd'))||0;
   var valorPeca=parseFloat(val('ct-valor-peca'))||0;
-  var valorMetro=parseFloat(val('ct-valor-metro'))||0;
-  var frete=parseFloat(val('ct-frete'))||0;
-  var larguraRolo=parseFloat(val('ct-largura-rolo'))||57;
-  var alturaMetro=parseFloat(val('ct-altura-metro'))||100;
-  var perdaPct=parseFloat(val('ct-perda'))||0;
   var margemPct=parseFloat(val('ct-margem'))||0;
 
   // Mão de obra
@@ -3858,8 +3949,7 @@ function calcularTecidos(){
   var tempoAcabamento=parseFloat(val('ct-tempo-acabamento'))||0;
   var tempoEmbalagem=parseFloat(val('ct-tempo-embalagem'))||0;
   var tempoTotalMin=tempoArte+tempoImpressao+tempoPrensagem+tempoAcabamento+tempoEmbalagem;
-  var tempoTotalH=tempoTotalMin/60;
-  var custoMaoObraTotal=valorHora*tempoTotalH;
+  var custoMaoObraTotal=valorHora*(tempoTotalMin/60);
   var custoMaoObraUnitario=qtd>0?custoMaoObraTotal/qtd:0;
 
   // Custos Indiretos
@@ -3868,20 +3958,33 @@ function calcularTecidos(){
   var indiretEl=ge('ct-indireto-total-display');
   if(indiretEl)indiretEl.textContent=fmt(custoIndiretoUnitario);
 
-  // Artes
+  // Custo do insumo específico (varia por tipo de produto)
+  var insumo=getCustoInsumoEspecifico();
+  var custoInsumoEspecifico=insumo.custoProcesso;
+
+  // Para tecidos: ainda calcula DTF baseado em artes (lógica existente)
   var artes=getArtesTecido();
   var areaTotalPorPeca=artes.reduce(function(a,arte){return a+arte.area;},0);
-  var areaUtilMetro=larguraRolo*alturaMetro;
-  var metrosNecessarios=areaUtilMetro>0?(areaTotalPorPeca*qtd)/areaUtilMetro:0;
-  var metrosComPerda=metrosNecessarios*(1+perdaPct/100);
-  var custoDtfTotal=(metrosComPerda*valorMetro)+frete;
-  var dtfPorUnidade=qtd>0?custoDtfTotal/qtd:0;
+  var areaUtilMetro=0,metrosNecessarios=0,metrosComPerda=0,custoDtfTotal=0,dtfPorUnidade=0;
+  if(tipo==='tecidos'){
+    var valorMetro=parseFloat(val('ct-valor-metro'))||0;
+    var frete=parseFloat(val('ct-frete'))||0;
+    var larguraRolo=parseFloat(val('ct-largura-rolo'))||57;
+    var alturaMetro=parseFloat(val('ct-altura-metro'))||100;
+    var perdaPct=parseFloat(val('ct-perda'))||0;
+    areaUtilMetro=larguraRolo*alturaMetro;
+    metrosNecessarios=areaUtilMetro>0?(areaTotalPorPeca*qtd)/areaUtilMetro:0;
+    metrosComPerda=metrosNecessarios*(1+perdaPct/100);
+    custoDtfTotal=(metrosComPerda*valorMetro)+frete;
+    dtfPorUnidade=qtd>0?custoDtfTotal/qtd:0;
+    custoInsumoEspecifico=dtfPorUnidade;
+  }
 
   // Custos Diretos
   var custosExtrasUnidade=getTotalCustosExtrasAtivos();
 
   // Custo unitário final
-  var custoUnitario=valorPeca+dtfPorUnidade+custoMaoObraUnitario+custoIndiretoUnitario+custosExtrasUnidade;
+  var custoUnitario=valorPeca+custoInsumoEspecifico+custoMaoObraUnitario+custoIndiretoUnitario+custosExtrasUnidade;
   var custoTotalPedido=custoUnitario*qtd;
 
   // Preços
@@ -3894,12 +3997,12 @@ function calcularTecidos(){
   var markup=custoUnitario>0?(precoRecomendado/custoUnitario)*100:0;
 
   window._ctResultado={
-    qtd:qtd,areaTotalPorPeca:areaTotalPorPeca,areaUtilMetro:areaUtilMetro,
+    tipo:tipo,qtd:qtd,areaTotalPorPeca:areaTotalPorPeca,areaUtilMetro:areaUtilMetro,
     metrosNecessarios:metrosNecessarios,metrosComPerda:metrosComPerda,
     custoDtfTotal:custoDtfTotal,dtfPorUnidade:dtfPorUnidade,
+    custoInsumoEspecifico:custoInsumoEspecifico,
     tempoTotalMin:tempoTotalMin,custoMaoObraTotal:custoMaoObraTotal,custoMaoObraUnitario:custoMaoObraUnitario,
-    custoIndiretoUnitario:custoIndiretoUnitario,
-    custosExtrasUnidade:custosExtrasUnidade,
+    custoIndiretoUnitario:custoIndiretoUnitario,custosExtrasUnidade:custosExtrasUnidade,
     valorPeca:valorPeca,custoUnitario:custoUnitario,custoTotalPedido:custoTotalPedido,
     precoMinimo:precoMinimo,precoRecomendado:precoRecomendado,precoPremium:precoPremium,
     lucroUnitario:lucroUnitario,lucroTotal:lucroTotal,margemReal:margemReal,markup:markup
@@ -3962,9 +4065,10 @@ function renderResumoFinanceiroTecidos(r){
   var elC=ge('ct-resumo-custos'),elV=ge('ct-resumo-venda'),elL=ge('ct-resumo-lucro');
   if(!elC||!elV||!elL)return;
 
+  var labelInsumo={tecidos:'Custo do DTF',canecas:'Custo de sublimação',adesivos:'Custo do vinil/processo',impressao3d:'Custo filamento + máquina',generico:'Custo do processo'}[r.tipo||'tecidos']||'Custo do processo';
   elC.innerHTML=
-    ctLinha('Custo da peça',fmt(r.valorPeca))+
-    ctLinha('Custo do DTF',fmt(r.dtfPorUnidade))+
+    ctLinha('Custo do insumo principal',fmt(r.valorPeca))+
+    ctLinha(labelInsumo,fmt(r.custoInsumoEspecifico))+
     ctLinha('Custo mão de obra',fmt(r.custoMaoObraUnitario))+
     ctLinha('Custos indiretos',fmt(r.custoIndiretoUnitario))+
     ctLinha('Custos diretos (embalagem etc.)',fmt(r.custosExtrasUnidade))+
@@ -4041,18 +4145,18 @@ function limparTecidos(){
   setVal('ct-produto','');setVal('ct-qtd','1');setVal('ct-tipo-tecido','');setVal('ct-valor-peca','0');setVal('ct-fornecedor','');
   setVal('ct-cliente','');setVal('ct-obs','');
   var cfg=getConfigTecidos();
-  setVal('ct-valor-metro',cfg.valorMetro||'0');setVal('ct-frete',cfg.frete||'0');
-  setVal('ct-largura-rolo',cfg.larguraRolo||'57');setVal('ct-altura-metro',cfg.alturaMetro||'100');
-  setVal('ct-perda',cfg.perda!=null?cfg.perda:'15');setVal('ct-margem',cfg.margem||'45');
+  var tipo=cfg.tipoProduto||'tecidos';
+  setVal('ct-margem',cfg.margem||'45');
   setVal('ct-valor-hora',cfg.valorHora||'0');
   setVal('ct-tempo-arte','0');setVal('ct-tempo-impressao','0');setVal('ct-tempo-prensagem','0');
   setVal('ct-tempo-acabamento','0');setVal('ct-tempo-embalagem','0');
   setVal('ct-custo-indireto-extra',cfg.custoIndiretoExtra||'0');
   setVal('ct-preco-negociado','');
+  setTipoProduto(tipo);// renderiza o módulo de insumos correto e os botões
   limparArtesTecido();
   renderCustosExtrasTecido(cfg.custosExtras);
   atualizarExibicaoCustosIndiretosMEI();
-  addArteTecido();
+  if(tipo==='tecidos'||tipo==='adesivos')addArteTecido();
   ge('ct-btn-duplicar').style.display='none';
   var simEl=ge('ct-simulador-resultado');if(simEl)simEl.style.display='none';
   var alertEl=ge('ct-alertas-wrap');if(alertEl)alertEl.style.display='none';
@@ -4067,24 +4171,31 @@ function salvarOrcamentoTecidos(){
   calcularTecidos();
   var r=window._ctResultado;
   var editId=val('ct-edit-id');
+  var tipoProd=val('ct-tipo-produto')||'tecidos';
   var orcamento={
-    id:editId||'ct'+Date.now(),data:hoje(),
+    id:editId||'ct'+Date.now(),data:hoje(),tipo:tipoProd,
     produto:val('ct-produto'),cliente:val('ct-cliente')||'Cliente não identificado',
     fornecedor:val('ct-fornecedor'),tipoTecido:val('ct-tipo-tecido'),obs:val('ct-obs'),
     qtd:qtd,valorPeca:parseFloat(val('ct-valor-peca'))||0,
-    valorMetro:parseFloat(val('ct-valor-metro'))||0,frete:parseFloat(val('ct-frete'))||0,
-    larguraRolo:parseFloat(val('ct-largura-rolo'))||57,alturaMetro:parseFloat(val('ct-altura-metro'))||100,
-    perda:parseFloat(val('ct-perda'))||0,margem:parseFloat(val('ct-margem'))||0,
+    margem:parseFloat(val('ct-margem'))||0,
     valorHora:parseFloat(val('ct-valor-hora'))||0,
     tempos:{arte:parseFloat(val('ct-tempo-arte'))||0,impressao:parseFloat(val('ct-tempo-impressao'))||0,prensagem:parseFloat(val('ct-tempo-prensagem'))||0,acabamento:parseFloat(val('ct-tempo-acabamento'))||0,embalagem:parseFloat(val('ct-tempo-embalagem'))||0},
     custoIndiretoExtra:parseFloat(val('ct-custo-indireto-extra'))||0,
+    // campos específicos por tipo (salvos como campos extras para restauração)
+    valorMetro:parseFloat(val('ct-valor-metro'))||0,frete:parseFloat(val('ct-frete'))||0,
+    larguraRolo:parseFloat(val('ct-largura-rolo'))||57,alturaMetro:parseFloat(val('ct-altura-metro'))||100,
+    perda:parseFloat(val('ct-perda'))||0,
+    custoSublimacao:parseFloat(val('ct-custo-sublimacao'))||0,
+    custoVinilM2:parseFloat(val('ct-custo-vinil-m2'))||0,custoPlotagem:parseFloat(val('ct-custo-plotagem'))||0,custoLaminacao:parseFloat(val('ct-custo-laminacao'))||0,
+    custoFilamentoG:parseFloat(val('ct-custo-filamento-g'))||0,pesoPecaG:parseFloat(val('ct-peso-peca-g'))||0,tempoImpressao3d:parseFloat(val('ct-tempo-impressao-3d'))||0,custoHoraMaquina:parseFloat(val('ct-custo-hora-maquina'))||0,
+    custoProcesso:parseFloat(val('ct-custo-processo'))||0,
     artes:artes,custosExtras:getCustosExtrasTecido(),resultado:r,savedAt:new Date().toLocaleString('pt-BR')
   };
   var hist=getHistTecidos();
   if(editId){var idx=hist.findIndex(function(h){return h.id===editId;});if(idx>=0)hist[idx]=orcamento;else hist.unshift(orcamento);}
   else hist.unshift(orcamento);
   saveHistTecidos(hist);
-  saveConfigTecidos({valorMetro:orcamento.valorMetro,frete:orcamento.frete,larguraRolo:orcamento.larguraRolo,alturaMetro:orcamento.alturaMetro,perda:orcamento.perda,margem:orcamento.margem,valorHora:orcamento.valorHora,custoIndiretoExtra:orcamento.custoIndiretoExtra,custosExtras:orcamento.custosExtras});
+  saveConfigTecidos({tipoProduto:orcamento.tipo,margem:orcamento.margem,valorHora:orcamento.valorHora,custoIndiretoExtra:orcamento.custoIndiretoExtra,custosExtras:orcamento.custosExtras});
   var nomeCliente=val('ct-cliente');
   if(nomeCliente){
     var clientes=getClientes();
@@ -4110,16 +4221,22 @@ function carregarOrcamentoTecidos(id){
   var h=getHistTecidos().find(function(x){return x.id===id;});
   if(!h)return;
   ge('ct-edit-id').value=h.id;
+  // Restaura o tipo de produto primeiro (isso renderiza o módulo de insumos correto)
+  var tipo=h.tipo||'tecidos';
+  setTipoProduto(tipo);
   setVal('ct-produto',h.produto||'');setVal('ct-qtd',h.qtd);setVal('ct-tipo-tecido',h.tipoTecido||'');
   setVal('ct-valor-peca',h.valorPeca);setVal('ct-fornecedor',h.fornecedor||'');
   setVal('ct-cliente',h.cliente==='Cliente não identificado'?'':h.cliente);setVal('ct-obs',h.obs||'');
-  setVal('ct-valor-metro',h.valorMetro);setVal('ct-frete',h.frete);
-  setVal('ct-largura-rolo',h.larguraRolo);setVal('ct-altura-metro',h.alturaMetro);
-  setVal('ct-perda',h.perda);setVal('ct-margem',h.margem);
-  setVal('ct-valor-hora',h.valorHora||'0');
+  setVal('ct-margem',h.margem);setVal('ct-valor-hora',h.valorHora||'0');
   if(h.tempos){setVal('ct-tempo-arte',h.tempos.arte||0);setVal('ct-tempo-impressao',h.tempos.impressao||0);setVal('ct-tempo-prensagem',h.tempos.prensagem||0);setVal('ct-tempo-acabamento',h.tempos.acabamento||0);setVal('ct-tempo-embalagem',h.tempos.embalagem||0);}
   setVal('ct-custo-indireto-extra',h.custoIndiretoExtra||'0');
   setVal('ct-preco-negociado','');
+  // Restaura campos específicos do tipo (renderModuloInsumos já criou os elementos com setTipoProduto acima)
+  if(tipo==='tecidos'){setVal('ct-valor-metro',h.valorMetro||0);setVal('ct-frete',h.frete||0);setVal('ct-largura-rolo',h.larguraRolo||57);setVal('ct-altura-metro',h.alturaMetro||100);setVal('ct-perda',h.perda||15);}
+  else if(tipo==='canecas'){setVal('ct-custo-sublimacao',h.custoSublimacao||0);setVal('ct-frete',h.frete||0);}
+  else if(tipo==='adesivos'){setVal('ct-custo-vinil-m2',h.custoVinilM2||0);setVal('ct-perda',h.perda||10);setVal('ct-custo-plotagem',h.custoPlotagem||0);setVal('ct-custo-laminacao',h.custoLaminacao||0);}
+  else if(tipo==='impressao3d'){setVal('ct-custo-filamento-g',h.custoFilamentoG||0);setVal('ct-peso-peca-g',h.pesoPecaG||0);setVal('ct-tempo-impressao-3d',h.tempoImpressao3d||0);setVal('ct-custo-hora-maquina',h.custoHoraMaquina||0);}
+  else{setVal('ct-custo-processo',h.custoProcesso||0);setVal('ct-frete',h.frete||0);}
   limparArtesTecido();
   (h.artes||[]).forEach(function(a){addArteTecido(a.nome,a.largura,a.altura,a.qtd);});
   renderCustosExtrasTecido(h.custosExtras);
@@ -4145,8 +4262,10 @@ function renderHistTecidos(){
   tbody.innerHTML=f.map(function(h){
     var r=h.resultado||{};
     var margCor=r.margemReal>=40?'var(--green)':r.margemReal>=20?'var(--yellow)':'var(--red)';
+    var tipoLabel={tecidos:'🧵 DTF',canecas:'☕ Caneca',adesivos:'🏷️ Vinil',impressao3d:'🖨️ 3D',generico:'📦 Brinde'}[h.tipo||'tecidos']||h.tipo||'—';
     return'<tr>'+
       '<td><strong>'+(h.produto||h.cliente)+'</strong>'+(h.produto&&h.cliente?'<br><span style="font-size:10px;color:rgba(255,255,255,.4)">'+h.cliente+'</span>':'')+'</td>'+
+      '<td style="font-size:11px;color:var(--brand)">'+tipoLabel+'</td>'+
       '<td style="font-size:12px;color:rgba(255,255,255,.5)">'+fmtDt(h.data)+'</td>'+
       '<td>'+h.qtd+'</td>'+
       '<td style="font-weight:700;color:var(--brand)">'+fmt((r.precoRecomendado||0)*h.qtd)+'</td>'+
@@ -7343,7 +7462,7 @@ function showView(name){
   if(tbSub)tbSub.style.color='var(--dark-text3)';
   if(tbAccent)tbAccent.style.background='linear-gradient(180deg,var(--brand),transparent)';
 
-  var titles={dash:['Dashboard','Visão geral do negócio'],form:['Novo Orçamento','Preencha os dados abaixo'],preview:['Pré-visualização','Revise e envie ao cliente'],hist:['Histórico','Edite e acompanhe orçamentos'],os:['Ordens de Serviço','Acompanhe a produção'],templates:['Templates','Orçamentos reutilizáveis'],cat:['Catálogo de Produtos','Preços, custos e margens'],clientes:['Clientes & Follow-up','Gerencie relacionamentos'],config:['Minha Empresa','Dados, logotipo e backup'],mei:['Dashboard MEI','Controle financeiro para declaração anual'],notas:['Notas de Compra','Entrada de estoque e despesas automáticas'],fornec:['Fornecedores','Gerencie seus fornecedores'],receber:['Contas a Receber','Controle de pagamentos dos clientes'],pagar:['Contas a Pagar','RH, custos fixos e fornecedores'],dre:['DRE Simplificado','Demonstrativo de resultado mês a mês'],usuarios:['Usuários','Perfis de acesso da equipe'],'venda-rapida':['Registrar Venda','Vendas rápidas de marketplace e balcão'],catalogo:['Catálogo Profissional','Vitrine dos seus produtos, sempre atualizada'],calctecidos:['Calculadora de Tecidos (DTF)','Orçamentos rápidos e precisos de estampa']};
+  var titles={dash:['Dashboard','Visão geral do negócio'],form:['Novo Orçamento','Preencha os dados abaixo'],preview:['Pré-visualização','Revise e envie ao cliente'],hist:['Histórico','Edite e acompanhe orçamentos'],os:['Ordens de Serviço','Acompanhe a produção'],templates:['Templates','Orçamentos reutilizáveis'],cat:['Catálogo de Produtos','Preços, custos e margens'],clientes:['Clientes & Follow-up','Gerencie relacionamentos'],config:['Minha Empresa','Dados, logotipo e backup'],mei:['Dashboard MEI','Controle financeiro para declaração anual'],notas:['Notas de Compra','Entrada de estoque e despesas automáticas'],fornec:['Fornecedores','Gerencie seus fornecedores'],receber:['Contas a Receber','Controle de pagamentos dos clientes'],pagar:['Contas a Pagar','RH, custos fixos e fornecedores'],dre:['DRE Simplificado','Demonstrativo de resultado mês a mês'],usuarios:['Usuários','Perfis de acesso da equipe'],'venda-rapida':['Registrar Venda','Vendas rápidas de marketplace e balcão'],catalogo:['Catálogo Profissional','Vitrine dos seus produtos, sempre atualizada'],calctecidos:['Calculadora de Precificação','Tecidos, Canecas, Adesivos, 3D e mais']};
   ge('tb-title').textContent=titles[name][0];ge('tb-sub').textContent=titles[name][1];
   var acts={
     dash:'<button class="btn btn-brand" onclick="showView(\'form\')">✏️ Novo orçamento</button> <button class="btn btn-out" onclick="abrirRelatorioSemanal()">📊 Relatório semanal</button>',
