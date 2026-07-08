@@ -1219,17 +1219,14 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
       </div>
 
       <div class="card">
-        <div class="card-title">Funcionários e Comissões <span id="func-count" style="margin-left:6px;font-size:12px;color:var(--brand);font-weight:700"></span></div>
-        <div style="display:flex;gap:8px;margin-bottom:11px;flex-wrap:wrap">
-          <button class="btn btn-brand btn-sm" onclick="openFuncModal()">＋ Novo funcionário</button>
-          <button class="btn btn-out btn-sm" onclick="exportarRelComissoes()">📊 Relatório comissões</button>
+        <div class="card-title">Funcionários e Comissões <span id="func-count" style="margin-left:6px;font-size:12px;color:var(--brand);font-weight:700"></span>
+          <span style="margin-left:auto;display:flex;gap:7px">
+            <button class="btn btn-brand btn-sm" onclick="openFuncModal()">＋ Novo funcionário</button>
+            <button class="btn btn-out btn-sm" onclick="exportarRelComissoes()">📊 Exportar Excel</button>
+          </span>
         </div>
-        <div class="items-wrap">
-          <table class="cat"><thead><tr>
-            <th style="width:28%">Nome</th><th style="width:18%">Cargo</th><th style="width:14%">WhatsApp</th>
-            <th style="width:10%">Comissão</th><th style="width:16%">Total comissões</th><th style="width:14%"></th>
-          </tr></thead><tbody id="func-body"></tbody></table>
-        </div>
+        <p style="font-size:12px;color:rgba(255,255,255,.45);margin-bottom:12px">Comissões calculadas automaticamente por mês calendário (1 a 30/31). Clique em <strong>✅ Pagar</strong> ao efetuar o pagamento — o mês fecha e aparece no histórico.</p>
+        <div id="func-lista-comissoes"></div>
         <div id="func-empty" style="text-align:center;padding:18px;color:rgba(255,255,255,.5);font-size:13px;display:none">Nenhum funcionário cadastrado.</div>
       </div>
 
@@ -3451,24 +3448,110 @@ function getFuncs(){try{return JSON.parse(localStorage.getItem('orcpro_funcs')||
 function saveFuncs(arr){localStorage.setItem('orcpro_funcs',JSON.stringify(arr));}
 
 function renderFuncs(){
-  var funcs=getFuncs(),hist=getHist(),tbody=ge('func-body'),empty=ge('func-empty'),count=ge('func-count');
+  var funcs=getFuncs(),hist=getHist();
+  var count=ge('func-count'),empty=ge('func-empty'),lista=ge('func-lista-comissoes');
   if(count)count.textContent='('+funcs.length+')';
-  if(!funcs.length){if(tbody)tbody.innerHTML='';if(empty)empty.style.display='block';return;}
+  if(!funcs.length){
+    if(lista)lista.innerHTML='';
+    if(empty)empty.style.display='block';
+    return;
+  }
   if(empty)empty.style.display='none';
-  tbody.innerHTML=funcs.map(function(f){
-    var totalAprov=0;
-    hist.forEach(function(h){if((h.vendedor||'').toLowerCase()===f.nome.toLowerCase()&&h.status==='Aprovado')totalAprov+=calcHistTotal(h);});
-    var comissao=totalAprov*(parseFloat(f.comissao)||5)/100;
-    return'<tr>'+
-      '<td><strong>'+f.nome+'</strong></td>'+
-      '<td style="font-size:12px;color:rgba(255,255,255,.5)">'+(f.cargo||'—')+'</td>'+
-      '<td style="font-size:12px">'+(f.wpp?'<a href="https://wa.me/'+f.wpp.replace(/\D/g,'')+'" target="_blank" style="color:var(--brand)">'+f.wpp+'</a>':'—')+'</td>'+
-      '<td style="text-align:center;font-weight:600;color:var(--brand)">'+(f.comissao||5)+'%</td>'+
-      '<td style="font-weight:700;color:var(--green)">'+fmt(comissao)+'</td>'+
-      '<td style="white-space:nowrap"><button class="btn btn-out btn-sm" onclick="openFuncModal(\''+f.id+'\')">✏️</button> <button class="btn btn-danger btn-sm" onclick="deleteFunc(\''+f.id+'\')">🗑</button></td>'+
-    '</tr>';
-  }).join('');
+
+  var mesAtual=new Date().toISOString().substring(0,7);// ex: "2026-07"
+  var mesNome=new Date().toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+
+  lista.innerHTML=funcs.map(function(f){
+    var pct=parseFloat(f.comissao)||5;
+    var pagas=f.comissoesPagas||[];// histórico de pagamentos já realizados
+
+    // Vendas DO MÊS ATUAL que ainda não estão em nenhum ciclo pago
+    var vendasMesAtual=hist.filter(function(h){
+      var hm=(h.data||'').substring(0,7);
+      return hm===mesAtual&&h.status==='Aprovado'&&(h.vendedor||'').toLowerCase()===f.nome.toLowerCase();
+    });
+    var totalMesAtual=vendasMesAtual.reduce(function(a,h){return a+calcHistTotal(h);},0);
+    var comissaoMesAtual=totalMesAtual*(pct/100);
+
+    // Bloco do mês atual
+    var blocoAtual='<div style="background:rgba(255,255,255,.04);border:1px solid var(--dark-border2);border-radius:10px;padding:14px;margin-bottom:10px">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'+
+        '<div>'+
+          '<strong style="font-size:14px;color:#F0F0F5">'+f.nome+'</strong>'+
+          (f.cargo?'<span style="margin-left:8px;font-size:11px;color:rgba(255,255,255,.4)">'+f.cargo+'</span>':'')+
+          (f.wpp?'<br><a href="https://wa.me/'+f.wpp.replace(/\D/g,'')+'" target="_blank" style="font-size:11px;color:var(--brand)">'+f.wpp+'</a>':'')+
+        '</div>'+
+        '<div style="text-align:right">'+
+          '<div style="font-size:10px;color:rgba(255,255,255,.4);margin-bottom:2px">'+mesNome+' · '+pct+'% de comissão</div>'+
+          '<div style="font-size:11px;color:rgba(255,255,255,.5)">Vendas aprovadas: <strong style="color:#F0F0F5">'+fmt(totalMesAtual)+'</strong></div>'+
+          '<div style="font-size:18px;font-weight:800;color:'+(comissaoMesAtual>0?'var(--green)':'rgba(255,255,255,.3)')+'">'+fmt(comissaoMesAtual)+'</div>'+
+          (comissaoMesAtual>0?'<div style="margin-top:8px"><button class="btn btn-brand btn-sm" onclick="pagarComissao(\''+f.id+'\')">✅ Pagar '+fmt(comissaoMesAtual)+'</button></div>':
+          '<div style="font-size:11px;color:rgba(255,255,255,.3);margin-top:4px">Sem vendas no mês</div>')+
+        '</div>'+
+        '<div style="margin-left:auto;margin-top:4px;display:flex;gap:6px">'+
+          '<button class="btn btn-out btn-sm" onclick="openFuncModal(\''+f.id+'\')">✏️</button>'+
+          '<button class="btn btn-danger btn-sm" onclick="deleteFunc(\''+f.id+'\')">🗑</button>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+
+    // Histórico de pagamentos anteriores
+    var blocoHistorico='';
+    if(pagas.length){
+      blocoHistorico='<div style="margin-bottom:14px;padding:0 4px">'+
+        '<div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Histórico de pagamentos — '+f.nome+'</div>'+
+        pagas.slice().reverse().map(function(p){
+          return'<div style="display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,.02);border:1px solid var(--dark-border2);border-radius:8px;padding:8px 12px;margin-bottom:5px">'+
+            '<div>'+
+              '<strong style="font-size:12px;color:#F0F0F5">'+p.mesNome+'</strong>'+
+              '<div style="font-size:10px;color:rgba(255,255,255,.4)">Pago em '+p.paguEm+' · Vendas: '+fmt(p.totalVendido)+'</div>'+
+            '</div>'+
+            '<div style="text-align:right">'+
+              '<div style="font-size:14px;font-weight:700;color:var(--green)">'+fmt(p.valor)+'</div>'+
+              '<div style="font-size:10px;color:rgba(255,255,255,.3)">'+p.pct+'% comissão</div>'+
+            '</div>'+
+          '</div>';
+        }).join('')+
+      '</div>';
+    }
+
+    return blocoHistorico+blocoAtual;
+  }).join('<hr style="border:none;border-top:1px solid var(--dark-border2);margin:10px 0">');
 }
+
+function pagarComissao(funcId){
+  var funcs=getFuncs();
+  var idx=funcs.findIndex(function(f){return f.id===funcId;});
+  if(idx<0)return;
+  var f=funcs[idx];
+  var pct=parseFloat(f.comissao)||5;
+  var mesAtual=new Date().toISOString().substring(0,7);
+  var mesNome=new Date().toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  var hist=getHist();
+
+  var vendasMes=hist.filter(function(h){
+    var hm=(h.data||'').substring(0,7);
+    return hm===mesAtual&&h.status==='Aprovado'&&(h.vendedor||'').toLowerCase()===f.nome.toLowerCase();
+  });
+  var totalVendido=vendasMes.reduce(function(a,h){return a+calcHistTotal(h);},0);
+  var valorComissao=totalVendido*(pct/100);
+
+  if(valorComissao<=0){alert('Não há comissão a pagar para '+f.nome+' em '+mesNome+'.');return;}
+
+  if(!confirm('Confirmar pagamento de '+fmt(valorComissao)+' de comissão para '+f.nome+' ('+mesNome+')?'))return;
+
+  // Registra no histórico de pagamentos do funcionário
+  if(!funcs[idx].comissoesPagas)funcs[idx].comissoesPagas=[];
+  funcs[idx].comissoesPagas.push({
+    mes:mesAtual,mesNome:mesNome,
+    totalVendido:totalVendido,valor:valorComissao,pct:pct,
+    paguEm:new Date().toLocaleDateString('pt-BR'),paguEm_iso:hoje()
+  });
+  saveFuncs(funcs);
+  renderFuncs();
+  alert('✅ Pagamento de '+fmt(valorComissao)+' registrado para '+f.nome+'!\n\nO mês de '+mesNome+' foi fechado e o histórico foi atualizado.');
+}
+
 function openFuncModal(id){
   ge('func-edit-id').value=id||'';ge('modal-func-title').textContent=id?'Editar Funcionário':'Novo Funcionário';
   if(id){var f=getFuncs().find(function(x){return x.id===id;});if(f){setVal('func-nome',f.nome);setVal('func-cargo',f.cargo);setVal('func-wpp',f.wpp);setVal('func-comissao',f.comissao);}}
@@ -3480,21 +3563,33 @@ function deleteFunc(id){if(!confirm('Excluir?'))return;saveFuncs(getFuncs().filt
 function saveFunc(){
   var nome=val('func-nome');if(!nome){alert('Informe o nome.');return;}
   var funcs=getFuncs(),editId=val('func-edit-id');
-  var func={id:editId||'f'+Date.now(),nome:nome,cargo:val('func-cargo'),wpp:val('func-wpp'),comissao:parseFloat(val('func-comissao'))||5};
+  var funcExist=editId?funcs.find(function(x){return x.id===editId;}):null;
+  // Preserva o histórico de comissões pagas ao editar
+  var func={id:editId||'f'+Date.now(),nome:nome,cargo:val('func-cargo'),wpp:val('func-wpp'),comissao:parseFloat(val('func-comissao'))||5,comissoesPagas:funcExist?funcExist.comissoesPagas||[]:[]};
   if(editId){var idx=funcs.findIndex(function(x){return x.id===editId;});if(idx>=0)funcs[idx]=func;else funcs.push(func);}
   else funcs.push(func);
   saveFuncs(funcs);closeFuncModal();renderFuncs();atualizarVendedoresList();
 }
 function exportarRelComissoes(){
   var funcs=getFuncs(),hist=getHist();if(!funcs.length){alert('Nenhum funcionário.');return;}
-  var mes=new Date().toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
-  var rows=[['Funcionário','Cargo','Comissão%','Orç. Aprovados','Total Vendido','Comissão a pagar','Mês']];
+  var mesAtual=new Date().toISOString().substring(0,7);
+  var mesNome=new Date().toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  var rows=[['Funcionário','Cargo','Comissão%','Total Vendido Mês','Comissão Mês Atual','Status','Mês']];
   funcs.forEach(function(f){
-    var totalAprov=0,n=0;
-    hist.forEach(function(h){if((h.vendedor||'').toLowerCase()===f.nome.toLowerCase()&&h.status==='Aprovado'){totalAprov+=calcHistTotal(h);n++;}});
-    rows.push([f.nome,f.cargo||'',(f.comissao||5)+'%',n,+totalAprov.toFixed(2),+(totalAprov*(f.comissao||5)/100).toFixed(2),mes]);
+    var pct=parseFloat(f.comissao)||5;
+    var pagas=f.comissoesPagas||[];
+    var jaPago=pagas.some(function(p){return p.mes===mesAtual;});
+    var vendasMes=hist.filter(function(h){var hm=(h.data||'').substring(0,7);return hm===mesAtual&&h.status==='Aprovado'&&(h.vendedor||'').toLowerCase()===f.nome.toLowerCase();});
+    var totalVendido=vendasMes.reduce(function(a,h){return a+calcHistTotal(h);},0);
+    var comissao=totalVendido*(pct/100);
+    rows.push([f.nome,f.cargo||'',pct+'%',+totalVendido.toFixed(2),+comissao.toFixed(2),jaPago?'Pago':'A pagar',mesNome]);
+    // Adiciona linhas do histórico
+    pagas.forEach(function(p){
+      rows.push([f.nome,f.cargo||'',p.pct+'%',+p.totalVendido.toFixed(2),+p.valor.toFixed(2),'✅ Pago em '+p.paguEm,p.mesNome]);
+    });
   });
-  var wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(rows);XLSX.utils.book_append_sheet(wb,ws,'Comissões');XLSX.writeFile(wb,'comissoes_'+hoje()+'.xlsx');
+  var wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=[{wch:20},{wch:16},{wch:12},{wch:18},{wch:18},{wch:16},{wch:20}];
+  XLSX.utils.book_append_sheet(wb,ws,'Comissões');XLSX.writeFile(wb,'comissoes_'+hoje()+'.xlsx');
 }
 
 // ═══════════════════════════════════════════════════
