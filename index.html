@@ -7484,7 +7484,7 @@ function showView(name){
   };
   ge('tb-actions').innerHTML=acts[name]||'';
   if(name==='preview')buildPreview();
-  if(name==='config')fillConfigForm();
+  if(name==='config'){fillConfigForm();renderFuncs();}
   if(name==='cat')renderCat();
   if(name==='clientes')renderClientes();
   if(name==='hist')renderHist();
