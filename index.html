@@ -2148,7 +2148,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
 var iid=0;
 function fmt(n){return'R$\u00a0'+Number(n||0).toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.');}
 function fmtPct(n){return Number(n||0).toFixed(1).replace('.',',')+'%';}
-function hoje(){return new Date().toISOString().split('T')[0];}
+function hoje(){var d=new Date();var y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dia=String(d.getDate()).padStart(2,'0');return y+'-'+m+'-'+dia;}
 function fmtDt(iso){if(!iso)return'—';return new Date(iso+'T12:00').toLocaleDateString('pt-BR');}
 function addDays(iso,dias){if(!iso)return'—';var d=new Date(iso+'T12:00');d.setDate(d.getDate()+(parseInt(dias)||3));return d.toLocaleDateString('pt-BR');}
 function val(id){var e=document.getElementById(id);return e?e.value.trim():'';}
