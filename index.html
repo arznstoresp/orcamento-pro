@@ -283,6 +283,21 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
 .dash-card:nth-child(1){animation-delay:.04s}.dash-card:nth-child(2){animation-delay:.08s}.dash-card:nth-child(3){animation-delay:.12s}.dash-card:nth-child(4){animation-delay:.16s}
 
 /* ═══════════════════════════════════════════════════
+   BOTÃO DE AÇÃO FLUTUANTE (FAB) — só mobile
+   ═══════════════════════════════════════════════════ */
+.fab-container{display:none;position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));right:20px;z-index:200;flex-direction:column;align-items:flex-end;gap:10px}
+.fab-main{width:56px;height:56px;border-radius:50%;background:var(--brand);color:#fff;border:none;font-size:28px;font-weight:300;cursor:pointer;box-shadow:0 4px 16px rgba(255,107,0,.5);transition:transform .2s;display:flex;align-items:center;justify-content:center}
+.fab-main.open{transform:rotate(45deg)}
+.fab-menu{display:none;flex-direction:column;gap:8px;align-items:flex-end}
+.fab-menu.open{display:flex}
+.fab-action{background:var(--dark-surface);color:#F0F0F5;border:1px solid var(--dark-border2);border-radius:24px;padding:11px 18px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.4);white-space:nowrap}
+.fab-action:active{background:var(--brand);color:#fff}
+
+@media (max-width:880px){
+  .fab-container{display:flex}
+}
+
+/* ═══════════════════════════════════════════════════
    BOTÃO HAMBÚRGUER — só aparece no mobile
    ═══════════════════════════════════════════════════ */
 .hamburger-btn{display:none;background:none;border:none;color:var(--dark-text);font-size:22px;cursor:pointer;padding:4px 8px;margin-right:4px;border-radius:6px;flex-shrink:0}
@@ -402,6 +417,15 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
 
 <!-- SIDEBAR -->
 <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleMobileSidebar()"></div>
+
+<!-- BOTÃO DE AÇÃO FLUTUANTE (só mobile) -->
+<div id="fab-container" class="fab-container">
+  <div id="fab-menu" class="fab-menu">
+    <button class="fab-action" onclick="fabAcao('venda-rapida')">💰 Venda Rápida</button>
+    <button class="fab-action" onclick="fabAcao('form')">📄 Novo Orçamento</button>
+  </div>
+  <button id="fab-main" class="fab-main" onclick="toggleFab()">＋</button>
+</div>
 <aside class="sidebar" id="sidebar">
   <div class="sb-logo">
     <div class="sb-logo-icon">📋</div>
@@ -449,6 +473,11 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
       <div><div class="tb-title" id="tb-title">Dashboard</div><div class="tb-sub" id="tb-sub">Visão geral</div></div>
     </div>
     <div class="tb-actions" id="tb-actions"></div>
+    <div style="position:relative;margin-left:auto">
+      <input id="busca-global" placeholder="🔍 Buscar tudo..." autocomplete="off" oninput="buscarGlobal()" onblur="setTimeout(function(){var r=ge('busca-global-resultados');if(r)r.style.display='none';},200)" onfocus="if(val('busca-global'))buscarGlobal()" style="width:180px;font-size:13px;padding:8px 12px">
+      <div id="busca-global-resultados" style="display:none;position:absolute;top:100%;right:0;margin-top:6px;width:340px;max-width:88vw;max-height:60vh;overflow-y:auto;background:var(--dark-surface);border:1px solid var(--dark-border2);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:200"></div>
+    </div>
+    <span id="sync-indicator" style="display:none;font-size:11px;font-weight:600;margin-left:8px;white-space:nowrap"></span>
   </div>
 
   <div class="content">
@@ -458,6 +487,30 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
       <div id="dash-alertas"></div>
       <div class="dash-grid" id="dash-kpis"></div>
       <div style="margin-bottom:14px" id="dash-meta-wrap"></div>
+
+      <!-- Novos painéis: Orçamentos a cobrar + Taxa de conversão -->
+      <div class="dash-2col">
+        <div class="dash-panel">
+          <div class="dash-panel-title"><span class="dash-panel-title-icon">💰</span>Orçamentos a cobrar <span style="font-size:10px;color:rgba(255,255,255,.35);font-weight:400;text-transform:none;letter-spacing:0">(dinheiro na mesa)</span></div>
+          <div id="dash-a-cobrar"></div>
+        </div>
+        <div class="dash-panel">
+          <div class="dash-panel-title"><span class="dash-panel-title-icon">🎯</span>Taxa de conversão</div>
+          <div id="dash-conversao"></div>
+        </div>
+      </div>
+
+      <!-- Ranking de lucratividade + Clientes para reativar -->
+      <div class="dash-2col">
+        <div class="dash-panel">
+          <div class="dash-panel-title"><span class="dash-panel-title-icon">💎</span>Produtos mais lucrativos <span style="font-size:10px;color:rgba(255,255,255,.35);font-weight:400;text-transform:none;letter-spacing:0">(por lucro real)</span></div>
+          <div id="dash-lucrativos"></div>
+        </div>
+        <div class="dash-panel">
+          <div class="dash-panel-title"><span class="dash-panel-title-icon">🔄</span>Clientes para reativar</div>
+          <div id="dash-reativar"></div>
+        </div>
+      </div>
       <div class="dash-2col">
         <div class="dash-panel">
           <div class="dash-panel-title"><span class="dash-panel-title-icon">📈</span>Faturamento últimos 6 meses <span style="font-size:10px;color:rgba(255,255,255,.35);font-weight:400;text-transform:none;letter-spacing:0">(aprovados)</span></div>
@@ -1271,7 +1324,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
         </div>
         <div class="mt">
           <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer">
-            <input type="checkbox" id="cfg-google-auto-sync" onchange="autoSave()" style="width:auto;padding:0"> Sincronizar automaticamente 1x por dia ao abrir o sistema
+            <input type="checkbox" id="cfg-google-auto-sync" onchange="autoSave()" style="width:auto;padding:0"> Sincronização automática (sobe ao salvar, baixa ao abrir) — recomendado para uso no celular
           </label>
         </div>
         <div class="info-box mt" style="margin-bottom:0">💡 Como criar o Client ID: acesse <strong>console.cloud.google.com</strong> → crie um projeto → "APIs e Serviços" → "Credenciais" → "Criar credenciais" → "ID do cliente OAuth" → tipo "Aplicativo da Web" → adicione a URL do seu GitHub Pages em "Origens JavaScript autorizadas". É gratuito e leva uns 5 minutos.</div>
@@ -2459,7 +2512,7 @@ function recalc(){
 // CATÁLOGO
 // ═══════════════════════════════════════════════════
 function getProdutos(){try{return JSON.parse(localStorage.getItem('orcpro_produtos')||'[]');}catch(e){return[];}}
-function saveProdutos(arr){localStorage.setItem('orcpro_produtos',JSON.stringify(arr));}
+function saveProdutos(arr){localStorage.setItem('orcpro_produtos',JSON.stringify(arr));agendarAutoSyncSafe();}
 
 function calcMargem(custo,venda){if(!custo||!venda||venda===0)return null;return((venda-custo)/venda)*100;}
 
@@ -3035,7 +3088,7 @@ function importProdExcel(e){
 // CLIENTES
 // ═══════════════════════════════════════════════════
 function getClientes(){try{return JSON.parse(localStorage.getItem('orcpro_clientes')||'[]');}catch(e){return[];}}
-function saveClientes(arr){localStorage.setItem('orcpro_clientes',JSON.stringify(arr));}
+function saveClientes(arr){localStorage.setItem('orcpro_clientes',JSON.stringify(arr));agendarAutoSyncSafe();}
 
 function autoRegistrarCliente(){
   var nome=val('cli-nome');if(!nome)return;
@@ -3144,7 +3197,7 @@ function importCliExcel(e){
 // HISTÓRICO
 // ═══════════════════════════════════════════════════
 function getHist(){try{return JSON.parse(localStorage.getItem('orcpro_hist')||'[]');}catch(e){return[];}}
-function saveHist(arr){localStorage.setItem('orcpro_hist',JSON.stringify(arr));}
+function saveHist(arr){localStorage.setItem('orcpro_hist',JSON.stringify(arr));agendarAutoSyncSafe();}
 
 function capturarEstado(){
   var parc=null;try{parc=JSON.parse(localStorage.getItem('orcpro_parcelas_tmp')||'null');}catch(e){}
@@ -3379,7 +3432,7 @@ function deletarTemplate(id){if(!confirm('Excluir template?'))return;saveTemplat
 // ORDENS DE SERVIÇO
 // ═══════════════════════════════════════════════════
 function getOS(){try{return JSON.parse(localStorage.getItem('orcpro_os')||'[]');}catch(e){return[];}}
-function saveOS(arr){localStorage.setItem('orcpro_os',JSON.stringify(arr));}
+function saveOS(arr){localStorage.setItem('orcpro_os',JSON.stringify(arr));agendarAutoSyncSafe();}
 
 function gerarOS(){
   var id=null;// captura id do orçamento atual no preview
@@ -3445,7 +3498,7 @@ function enviarSatisfacao(id){
 // FUNCIONÁRIOS
 // ═══════════════════════════════════════════════════
 function getFuncs(){try{return JSON.parse(localStorage.getItem('orcpro_funcs')||'[]');}catch(e){return[];}}
-function saveFuncs(arr){localStorage.setItem('orcpro_funcs',JSON.stringify(arr));}
+function saveFuncs(arr){localStorage.setItem('orcpro_funcs',JSON.stringify(arr));agendarAutoSyncSafe();}
 
 function renderFuncs(){
   var funcs=getFuncs(),hist=getHist();
@@ -4502,7 +4555,7 @@ function atualizarFornecedoresSelect(){
 // ═══════════════════════════════════════════════════
 var notaIid=0;
 function getNotasCompra(){try{return JSON.parse(localStorage.getItem('orcpro_notas')||'[]');}catch(e){return[];}}
-function saveNotasCompra(arr){localStorage.setItem('orcpro_notas',JSON.stringify(arr));}
+function saveNotasCompra(arr){localStorage.setItem('orcpro_notas',JSON.stringify(arr));agendarAutoSyncSafe();}
 
 function addNotaItem(nome,qty,valorUnit,cor,tamanho,modelo){
   var id=++notaIid;
@@ -4717,7 +4770,7 @@ function renderNotas(){
 // CONTAS A RECEBER
 // ═══════════════════════════════════════════════════
 function getContasReceber(){try{return JSON.parse(localStorage.getItem('orcpro_receber')||'[]');}catch(e){return[];}}
-function saveContasReceber(arr){localStorage.setItem('orcpro_receber',JSON.stringify(arr));}
+function saveContasReceber(arr){localStorage.setItem('orcpro_receber',JSON.stringify(arr));agendarAutoSyncSafe();}
 
 function gerarContasReceber(h){
   var total=calcHistTotal(h);
@@ -6020,7 +6073,7 @@ function exportarDREExcel(){
 var LIMITE_MEI_ANUAL=81000;
 
 function getDespesas(){try{return JSON.parse(localStorage.getItem('orcpro_despesas')||'[]');}catch(e){return[];}}
-function saveDespesas(arr){localStorage.setItem('orcpro_despesas',JSON.stringify(arr));}
+function saveDespesas(arr){localStorage.setItem('orcpro_despesas',JSON.stringify(arr));agendarAutoSyncSafe();}
 
 function toggleDespDataPgto(){
   ge('desp-data-pgto-wrap').style.display=val('desp-status')==='pago'?'block':'none';
@@ -6115,7 +6168,7 @@ function expandirDespesasRecorrentes(despesas,ano){
 var MESES_NOMES_CURTO=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
 function getCustos(){try{return JSON.parse(localStorage.getItem('orcpro_custos')||'[]');}catch(e){return[];}}
-function saveCustos(arr){localStorage.setItem('orcpro_custos',JSON.stringify(arr));}
+function saveCustos(arr){localStorage.setItem('orcpro_custos',JSON.stringify(arr));agendarAutoSyncSafe();}
 
 // Migra dados antigos (formato: {valor, meses:[...]}) para o novo formato (valoresPorMes:{ano:{mes:valor}})
 function migrarCustosAntigos(){
@@ -6943,7 +6996,129 @@ function renderDash(){
   // ── BADGE SIDEBAR ──
   var tot=fuV+fuH,nb=ge('nb-clientes');
   if(nb){var badge=nb.querySelector('.nb-badge');if(tot>0){if(!badge)nb.insertAdjacentHTML('beforeend','<span class="nb-badge">'+tot+'</span>');else badge.textContent=tot;}else if(badge)badge.remove();}
+
+  // ── NOVOS PAINÉIS: vendas e inteligência ──
+  renderDashACobrar();
+  renderDashConversao();
+  renderDashLucrativos();
+  renderDashReativar();
 }
+
+// Orçamentos pendentes ordenados por valor — "dinheiro na mesa"
+function renderDashACobrar(){
+  var el=ge('dash-a-cobrar');if(!el)return;
+  var hist=getHist();
+  var pendentes=hist.filter(function(h){return h.status==='Aguardando aprovação'||h.status==='Em revisão';});
+  pendentes.sort(function(a,b){return calcHistTotal(b)-calcHistTotal(a);});
+  if(!pendentes.length){el.innerHTML='<div style="padding:20px;text-align:center;color:rgba(255,255,255,.35);font-size:12px">Nenhum orçamento pendente. Tudo em dia! 🎉</div>';return;}
+  var totalPend=pendentes.reduce(function(a,h){return a+calcHistTotal(h);},0);
+  el.innerHTML='<div style="font-size:11px;color:rgba(255,255,255,.5);margin-bottom:10px">Total parado: <strong style="color:var(--brand);font-size:14px">'+fmt(totalPend)+'</strong> em '+pendentes.length+' orçamento(s)</div>'+
+    pendentes.slice(0,5).map(function(h){
+      var nome=(h.cliente&&h.cliente.nome)?h.cliente.nome:(h.cliente||'Sem nome');
+      var dias=diasDesde(h.data);
+      return'<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:rgba(255,255,255,.03);border-radius:8px;margin-bottom:5px">'+
+        '<div style="min-width:0;flex:1"><div style="font-size:12px;color:#F0F0F5;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+nome+'</div>'+
+        '<div style="font-size:10px;color:'+(dias>7?'var(--red)':'rgba(255,255,255,.4)')+'">'+(dias>0?'há '+dias+' dia(s)':'hoje')+'</div></div>'+
+        '<div style="text-align:right;margin-left:8px"><div style="font-size:13px;font-weight:700;color:var(--brand)">'+fmt(calcHistTotal(h))+'</div>'+
+        '<button class="btn btn-wpp btn-sm" style="padding:3px 8px;font-size:10px;margin-top:2px" onclick="abrirFollowup(\''+h.id+'\')">💬 Cobrar</button></div>'+
+      '</div>';
+    }).join('');
+}
+
+// Taxa de conversão: aprovados ÷ total
+function renderDashConversao(){
+  var el=ge('dash-conversao');if(!el)return;
+  var hist=getHist().filter(function(h){return h.status!=='Rascunho';});
+  var total=hist.length;
+  var aprovados=hist.filter(function(h){return h.status==='Aprovado';}).length;
+  var recusados=hist.filter(function(h){return h.status==='Recusado';}).length;
+  var taxa=total>0?(aprovados/total*100):0;
+  var cor=taxa>=60?'var(--green)':taxa>=35?'var(--yellow)':'var(--red)';
+  el.innerHTML=
+    '<div style="text-align:center;padding:10px 0">'+
+      '<div style="font-size:38px;font-weight:800;color:'+cor+'">'+taxa.toFixed(0)+'%</div>'+
+      '<div style="font-size:11px;color:rgba(255,255,255,.4)">dos orçamentos viram venda</div>'+
+    '</div>'+
+    '<div style="display:flex;gap:8px;margin-top:8px">'+
+      '<div style="flex:1;text-align:center;background:rgba(34,197,94,.1);border-radius:8px;padding:8px"><div style="font-size:16px;font-weight:700;color:var(--green)">'+aprovados+'</div><div style="font-size:10px;color:rgba(255,255,255,.4)">Aprovados</div></div>'+
+      '<div style="flex:1;text-align:center;background:rgba(220,38,38,.1);border-radius:8px;padding:8px"><div style="font-size:16px;font-weight:700;color:var(--red)">'+recusados+'</div><div style="font-size:10px;color:rgba(255,255,255,.4)">Recusados</div></div>'+
+      '<div style="flex:1;text-align:center;background:rgba(255,255,255,.04);border-radius:8px;padding:8px"><div style="font-size:16px;font-weight:700;color:#F0F0F5">'+total+'</div><div style="font-size:10px;color:rgba(255,255,255,.4)">Total</div></div>'+
+    '</div>';
+}
+
+// Produtos ordenados por LUCRO real gerado (não por volume)
+function renderDashLucrativos(){
+  var el=ge('dash-lucrativos');if(!el)return;
+  var hist=getHist().filter(function(h){return h.status==='Aprovado';});
+  var lucroPorProduto={};
+  hist.forEach(function(h){
+    (h.items||[]).forEach(function(it){
+      if(!it.desc)return;
+      var qty=parseFloat(it.qty)||0;
+      var price=parseFloat(it.price)||0;
+      var custo=parseFloat(it.custo)||0;// custo total do item (já multiplicado por qty no save)
+      var receita=qty*price;
+      var lucro=receita-custo;
+      if(!lucroPorProduto[it.desc])lucroPorProduto[it.desc]={lucro:0,qty:0};
+      lucroPorProduto[it.desc].lucro+=lucro;
+      lucroPorProduto[it.desc].qty+=qty;
+    });
+  });
+  var ranking=Object.keys(lucroPorProduto).map(function(k){return{nome:k,lucro:lucroPorProduto[k].lucro,qty:lucroPorProduto[k].qty};});
+  ranking.sort(function(a,b){return b.lucro-a.lucro;});
+  ranking=ranking.slice(0,6);
+  if(!ranking.length){el.innerHTML='<div style="padding:20px;text-align:center;color:rgba(255,255,255,.35);font-size:12px">Sem vendas aprovadas ainda.</div>';return;}
+  var maxLucro=ranking[0].lucro||1;
+  el.innerHTML=ranking.map(function(r,i){
+    var pct=maxLucro>0?(r.lucro/maxLucro*100):0;
+    return'<div style="margin-bottom:9px">'+
+      '<div style="display:flex;justify-content:space-between;margin-bottom:3px">'+
+        '<span style="font-size:12px;color:#F0F0F5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60%">'+(i+1)+'. '+r.nome+'</span>'+
+        '<span style="font-size:12px;font-weight:700;color:var(--green)">'+fmt(r.lucro)+'</span>'+
+      '</div>'+
+      '<div style="height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,var(--brand),#FF8533);border-radius:3px"></div></div>'+
+    '</div>';
+  }).join('');
+}
+
+// Clientes que compraram mas sumiram há mais de 45 dias
+function renderDashReativar(){
+  var el=ge('dash-reativar');if(!el)return;
+  var hist=getHist().filter(function(h){return h.status==='Aprovado';});
+  var ultimaCompra={};
+  hist.forEach(function(h){
+    var nome=(h.cliente&&h.cliente.nome)?h.cliente.nome:(h.cliente||'');
+    if(!nome)return;
+    var data=h.data||'';
+    if(!ultimaCompra[nome]||data>ultimaCompra[nome])ultimaCompra[nome]=data;
+  });
+  var reativar=Object.keys(ultimaCompra).map(function(nome){
+    return{nome:nome,ultima:ultimaCompra[nome],dias:diasDesde(ultimaCompra[nome])};
+  }).filter(function(c){return c.dias>=45;});
+  reativar.sort(function(a,b){return b.dias-a.dias;});
+  reativar=reativar.slice(0,6);
+  if(!reativar.length){el.innerHTML='<div style="padding:20px;text-align:center;color:rgba(255,255,255,.35);font-size:12px">Nenhum cliente inativo. Sua base está ativa! 👍</div>';return;}
+  var clientes=getClientes();
+  el.innerHTML=reativar.map(function(c){
+    var cli=clientes.find(function(x){return x.nome.toLowerCase()===c.nome.toLowerCase();});
+    var wpp=cli&&cli.wpp?cli.wpp.replace(/\D/g,''):'';
+    var msg=encodeURIComponent('Olá, '+c.nome+'! Tudo bem? Faz um tempo que não fazemos um pedido juntos. Temos novidades — quer dar uma olhada?');
+    return'<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:rgba(255,255,255,.03);border-radius:8px;margin-bottom:5px">'+
+      '<div style="min-width:0;flex:1"><div style="font-size:12px;color:#F0F0F5;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+c.nome+'</div>'+
+      '<div style="font-size:10px;color:var(--yellow)">há '+c.dias+' dias sem comprar</div></div>'+
+      (wpp?'<a href="https://wa.me/55'+wpp+'?text='+msg+'" target="_blank" class="btn btn-wpp btn-sm" style="padding:3px 8px;font-size:10px;margin-left:8px">💬 Reativar</a>':'')+
+    '</div>';
+  }).join('');
+}
+
+// Helper: dias desde uma data YYYY-MM-DD
+function diasDesde(dataStr){
+  if(!dataStr)return 0;
+  var d=new Date(dataStr+'T00:00:00');
+  var hoje2=new Date(hoje()+'T00:00:00');
+  return Math.floor((hoje2-d)/(1000*60*60*24));
+}
+
 
 // ═══════════════════════════════════════════════════
 // BUILD PREVIEW / PDF
@@ -7342,7 +7517,12 @@ function closeFollowupMassaModal(){ge('modal-followup-massa').className='modal-o
 // BACKUP / RESTAURAÇÃO
 // ═══════════════════════════════════════════════════
 function montarObjetoBackup(){
-  return{versao:'6.4',exportadoEm:new Date().toISOString(),empresa:getCfg(),produtos:getProdutos(),clientes:getClientes(),historico:getHist(),os:getOS(),templates:getTemplates(),funcionarios:getFuncs(),despesas:getDespesas(),fornecedores:getFornecedores(),notasCompra:getNotasCompra(),movEstoque:getMovEstoque(),custosFixos:getCustos(),rh:getPagamentosRH(),contasReceber:getContasReceber(),usuarios:getUsuarios(),canaisVenda:getCanaisVenda(),histTecidos:getHistTecidos(),configTecidos:getConfigTecidos(),contador:localStorage.getItem('orcpro_cnt')||'0',os_contador:localStorage.getItem('orcpro_os_cnt')||'0'};
+  return{versao:'6.5',exportadoEm:new Date().toISOString(),empresa:getCfg(),produtos:getProdutos(),clientes:getClientes(),historico:getHist(),os:getOS(),templates:getTemplates(),funcionarios:getFuncs(),despesas:getDespesas(),fornecedores:getFornecedores(),notasCompra:getNotasCompra(),movEstoque:getMovEstoque(),custosFixos:getCustos(),rh:getPagamentosRH(),contasReceber:getContasReceber(),usuarios:getUsuarios(),canaisVenda:getCanaisVenda(),histTecidos:getHistTecidos(),configTecidos:getConfigTecidos(),
+    logo:localStorage.getItem('orcpro_logo')||'',
+    contasPagas:localStorage.getItem('orcpro_pagar_pagas')||'{}',
+    precifModelos:localStorage.getItem('orcpro_precif_modelos')||'[]',
+    canaisInicializado:localStorage.getItem('orcpro_canais_inicializado')||'',
+    contador:localStorage.getItem('orcpro_cnt')||'0',os_contador:localStorage.getItem('orcpro_os_cnt')||'0',recibo_cnt:localStorage.getItem('orcpro_recibo_cnt')||'0'};
 }
 function aplicarObjetoBackup(d){
   if(d.empresa)localStorage.setItem('orcpro_emp',JSON.stringify(d.empresa));
@@ -7363,8 +7543,14 @@ function aplicarObjetoBackup(d){
   if(d.canaisVenda)localStorage.setItem('orcpro_canais',JSON.stringify(d.canaisVenda));
   if(d.histTecidos)localStorage.setItem('orcpro_ct_hist',JSON.stringify(d.histTecidos));
   if(d.configTecidos)localStorage.setItem('orcpro_ct_config',JSON.stringify(d.configTecidos));
+  // Chaves que antes ficavam de fora do backup — agora preservadas:
+  if(d.logo)localStorage.setItem('orcpro_logo',d.logo);
+  if(d.contasPagas)localStorage.setItem('orcpro_pagar_pagas',d.contasPagas);
+  if(d.precifModelos)localStorage.setItem('orcpro_precif_modelos',d.precifModelos);
+  if(d.canaisInicializado)localStorage.setItem('orcpro_canais_inicializado',d.canaisInicializado);
   if(d.contador)localStorage.setItem('orcpro_cnt',d.contador);
   if(d.os_contador)localStorage.setItem('orcpro_os_cnt',d.os_contador);
+  if(d.recibo_cnt)localStorage.setItem('orcpro_recibo_cnt',d.recibo_cnt);
 }
 
 function exportarBackup(){
@@ -7432,20 +7618,21 @@ function atualizarStatusGoogleDrive(){
   }
 }
 
-function obterTokenGoogleValido(callback){
+function obterTokenGoogleValido(callback,silencioso){
   if(googleAccessToken){callback();return;}
   var clientId=val('cfg-google-client-id')||(getCfg().googleClientId);
-  if(!clientId){alert('Configure e conecte o Google Drive primeiro.');return;}
-  if(typeof google==='undefined'||!google.accounts){alert('Biblioteca do Google ainda carregando, tente novamente em alguns segundos.');return;}
+  if(!clientId){if(!silencioso)alert('Configure e conecte o Google Drive primeiro.');return;}
+  if(typeof google==='undefined'||!google.accounts){if(!silencioso)alert('Biblioteca do Google ainda carregando, tente novamente em alguns segundos.');return;}
   googleTokenClient=google.accounts.oauth2.initTokenClient({
     client_id:clientId,scope:GOOGLE_DRIVE_SCOPE,
     callback:function(resp){
-      if(resp.error){alert('Erro de autenticação: '+resp.error);return;}
+      if(resp.error){if(!silencioso)alert('Erro de autenticação: '+resp.error);return;}
       googleAccessToken=resp.access_token;
       callback();
     }
   });
-  googleTokenClient.requestAccessToken();
+  // Em modo silencioso, não força o popup de consentimento (só usa sessão existente)
+  googleTokenClient.requestAccessToken(silencioso?{prompt:''}:{});
 }
 
 function sincronizarGoogleDriveAgora(){
@@ -7510,15 +7697,158 @@ function verificarAutoSyncGoogleDrive(){
   var ultima=status.ultimaSincronizacao?new Date(status.ultimaSincronizacao):null;
   var agora=new Date();
   if(!ultima||(agora-ultima)>24*60*60*1000){
-    // Sincroniza silenciosamente uma vez por dia (token pode pedir popup na primeira vez do dia)
     sincronizarGoogleDriveAgora();
   }
 }
+
+// Wrapper seguro: só agenda sync se a função existir (evita erro se chamada cedo demais)
+function agendarAutoSyncSafe(){if(typeof agendarAutoSync==='function'){try{agendarAutoSync();}catch(e){}}}
+
+// ── SINCRONIZAÇÃO AUTOMÁTICA (silenciosa, sem alertas) ──
+var _autoSyncTimer=null;
+function sincronizarGoogleDriveSilencioso(callback){
+  var cfg=getCfg();
+  var status=getGoogleDriveStatus();
+  if(!cfg.googleAutoSync||!status.conectado){if(callback)callback(false);return;}
+  if(typeof googleAccessToken==='undefined'||!googleAccessToken){if(callback)callback(false);return;}
+  var dados=JSON.stringify(montarObjetoBackup());
+  var nomeArquivo='orcamentopro_backup.json';
+  var metadata=status.fileId?{name:nomeArquivo}:{name:nomeArquivo,parents:['appDataFolder']};
+  var boundary='orcpro_boundary_'+Date.now();
+  var body='--'+boundary+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify(metadata)+'\r\n'+
+    '--'+boundary+'\r\nContent-Type: application/json\r\n\r\n'+dados+'\r\n--'+boundary+'--';
+  var url=status.fileId?'https://www.googleapis.com/upload/drive/v3/files/'+status.fileId+'?uploadType=multipart':'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+  fetch(url,{method:status.fileId?'PATCH':'POST',headers:{'Authorization':'Bearer '+googleAccessToken,'Content-Type':'multipart/related; boundary='+boundary},body:body})
+    .then(function(r){return r.json();})
+    .then(function(data){
+      if(data.id){
+        saveGoogleDriveStatus({conectado:true,fileId:data.id,ultimaSincronizacao:new Date().toISOString()});
+        atualizarIndicadorSync('ok');
+        if(callback)callback(true);
+      }else{atualizarIndicadorSync('erro');if(callback)callback(false);}
+    }).catch(function(){atualizarIndicadorSync('erro');if(callback)callback(false);});
+}
+
+// Chamada após salvar qualquer dado — agenda um sync com atraso (debounce de 3s)
+// para não disparar a cada tecla, mas garantir que o dado suba pouco depois de salvar.
+function agendarAutoSync(){
+  var cfg=getCfg();
+  if(!cfg.googleAutoSync)return;
+  atualizarIndicadorSync('pendente');
+  if(_autoSyncTimer)clearTimeout(_autoSyncTimer);
+  _autoSyncTimer=setTimeout(function(){sincronizarGoogleDriveSilencioso();},3000);
+}
+
+// Baixa a versão do Drive ao abrir o app, se for mais recente que a local
+function autoBaixarDoDriveAoAbrir(){
+  var cfg=getCfg();
+  var status=getGoogleDriveStatus();
+  if(!cfg.googleAutoSync||!status.conectado||!status.fileId)return;
+  obterTokenGoogleValido(function(){
+    fetch('https://www.googleapis.com/drive/v3/files/'+status.fileId+'?fields=modifiedTime',{headers:{'Authorization':'Bearer '+googleAccessToken}})
+      .then(function(r){return r.json();})
+      .then(function(meta){
+        if(!meta.modifiedTime)return;
+        var driveTime=new Date(meta.modifiedTime);
+        var localTime=status.ultimaSincronizacao?new Date(status.ultimaSincronizacao):new Date(0);
+        // Se o Drive tem versão mais recente (ex: você salvou no computador), baixa automaticamente
+        if(driveTime>localTime){
+          fetch('https://www.googleapis.com/drive/v3/files/'+status.fileId+'?alt=media',{headers:{'Authorization':'Bearer '+googleAccessToken}})
+            .then(function(r){return r.json();})
+            .then(function(dados){
+              aplicarObjetoBackup(dados);
+              saveGoogleDriveStatus({conectado:true,fileId:status.fileId,ultimaSincronizacao:new Date().toISOString()});
+              atualizarIndicadorSync('ok');
+              // Recarrega a tela atual para refletir os dados baixados
+              var v=localStorage.getItem('orcpro_last_view')||'dash';
+              if(typeof showView==='function')showView(v);
+            }).catch(function(){});
+        }
+      }).catch(function(){});
+  },true);// modo silencioso — não força popup se o token expirou
+}
+
+function atualizarIndicadorSync(estado){
+  var el=ge('sync-indicator');if(!el)return;
+  var mapa={
+    ok:{txt:'☁️ Sincronizado',cor:'var(--green)'},
+    pendente:{txt:'☁️ Sincronizando...',cor:'var(--yellow)'},
+    erro:{txt:'☁️ Erro na sincronização',cor:'var(--red)'}
+  };
+  var m=mapa[estado]||mapa.ok;
+  el.textContent=m.txt;el.style.color=m.cor;el.style.display='inline-block';
+}
+
 
 
 // ═══════════════════════════════════════════════════
 // NAVEGAÇÃO
 // ═══════════════════════════════════════════════════
+function toggleFab(){
+  var menu=ge('fab-menu'),main=ge('fab-main');
+  if(!menu||!main)return;
+  var aberto=menu.classList.contains('open');
+  if(aberto){menu.classList.remove('open');main.classList.remove('open');}
+  else{menu.classList.add('open');main.classList.add('open');}
+}
+function fabAcao(view){
+  var menu=ge('fab-menu'),main=ge('fab-main');
+  if(menu)menu.classList.remove('open');
+  if(main)main.classList.remove('open');
+  showView(view);
+}
+
+function buscarGlobal(){
+  var q=(val('busca-global')||'').toLowerCase().trim();
+  var box=ge('busca-global-resultados');
+  if(!box)return;
+  if(q.length<2){box.style.display='none';return;}
+
+  var resultados=[];
+
+  // Clientes
+  getClientes().forEach(function(c){
+    if((c.nome||'').toLowerCase().includes(q)||(c.wpp||'').includes(q)||(c.email||'').toLowerCase().includes(q)){
+      resultados.push({tipo:'👤 Cliente',nome:c.nome,sub:c.wpp||c.email||'',acao:"showView('clientes');setTimeout(function(){var b=ge('cli-search');if(b){b.value='"+(c.nome||'').replace(/'/g,"")+"';if(typeof renderClientes==='function')renderClientes();}},100)"});
+    }
+  });
+  // Produtos
+  getProdutos().forEach(function(p){
+    if((p.nome||'').toLowerCase().includes(q)||(p.sku||'').toLowerCase().includes(q)){
+      resultados.push({tipo:'📦 Produto',nome:p.nome,sub:'Varejo: '+fmt(p.varejo||0),acao:"showView('cat');setTimeout(function(){var b=ge('cat-search');if(b){b.value='"+(p.nome||'').replace(/'/g,"")+"';if(typeof renderCat==='function')renderCat();}},100)"});
+    }
+  });
+  // Orçamentos
+  getHist().forEach(function(h){
+    var nome=(h.cliente&&h.cliente.nome)?h.cliente.nome:(h.cliente||'');
+    var num=h.num||'';
+    if(nome.toLowerCase().includes(q)||num.toLowerCase().includes(q)){
+      resultados.push({tipo:'📄 Orçamento',nome:(num?num+' — ':'')+nome,sub:h.status+' · '+fmt(calcHistTotal(h)),acao:"showView('hist');setTimeout(function(){var b=ge('hist-search');if(b){b.value='"+nome.replace(/'/g,"")+"';if(typeof renderHist==='function')renderHist();}},100)"});
+    }
+  });
+  // Notas de compra
+  getNotasCompra().forEach(function(n){
+    if((n.fornecedorNome||'').toLowerCase().includes(q)||(n.numero||'').toLowerCase().includes(q)){
+      resultados.push({tipo:'🧾 Nota',nome:(n.numero?'#'+n.numero+' — ':'')+n.fornecedorNome,sub:fmtDt(n.data),acao:"showView('notas')"});
+    }
+  });
+
+  if(!resultados.length){
+    box.innerHTML='<div style="padding:16px;text-align:center;color:rgba(255,255,255,.4);font-size:13px">Nada encontrado para "'+q+'"</div>';
+    box.style.display='block';return;
+  }
+
+  resultados=resultados.slice(0,20);
+  box.innerHTML=resultados.map(function(r){
+    return'<div onclick="ge(\'busca-global\').value=\'\';ge(\'busca-global-resultados\').style.display=\'none\';'+r.acao.replace(/"/g,'&quot;')+'" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--dark-border2)" onmouseover="this.style.background=\'rgba(255,255,255,.05)\'" onmouseout="this.style.background=\'transparent\'">'+
+      '<div style="font-size:10px;color:var(--brand);margin-bottom:2px">'+r.tipo+'</div>'+
+      '<div style="font-size:13px;color:#F0F0F5;font-weight:600">'+r.nome+'</div>'+
+      (r.sub?'<div style="font-size:11px;color:rgba(255,255,255,.4)">'+r.sub+'</div>':'')+
+    '</div>';
+  }).join('');
+  box.style.display='block';
+}
+
 function toggleMobileSidebar(){
   var sb=document.getElementById('sidebar');
   var overlay=document.getElementById('sidebar-overlay');
@@ -8007,6 +8337,8 @@ window.onload=function(){
   if(checkLinkPublico())return;
   initPIN();
   desregistrarServiceWorkerAntigo();
+  // Sincronização automática: baixa a versão do Drive se for mais recente (ex: salvou no PC)
+  setTimeout(function(){if(typeof autoBaixarDoDriveAoAbrir==='function')autoBaixarDoDriveAoAbrir();},2000);
 };
 
 function desregistrarServiceWorkerAntigo(){
