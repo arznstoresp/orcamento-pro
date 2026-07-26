@@ -1306,6 +1306,8 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
           <button class="btn btn-green" onclick="exportarBackup()">📦 Exportar backup</button>
           <label class="btn btn-out" style="cursor:pointer">📥 Restaurar<input type="file" id="backup-file" accept=".json" style="display:none" onchange="importarBackup(event)"></label>
         </div>
+        <!-- Medidor de armazenamento -->
+        <div id="storage-meter" style="margin-top:14px"></div>
       </div>
 
       <div class="card">
@@ -2404,8 +2406,20 @@ function renderTodasProdFotos(){for(var i=0;i<3;i++)renderProdFotoPreview(i);}
 // ═══════════════════════════════════════════════════
 // NUMERAÇÃO
 // ═══════════════════════════════════════════════════
-function nextNum(){var cfg=getCfg();var pfx=cfg.prefixo||new Date().getFullYear().toString();var n=(parseInt(localStorage.getItem('orcpro_cnt')||'0')+1);localStorage.setItem('orcpro_cnt',n);return pfx+'-'+String(n).padStart(3,'0');}
-function nextOSNum(){var n=(parseInt(localStorage.getItem('orcpro_os_cnt')||'0')+1);localStorage.setItem('orcpro_os_cnt',n);return'OS-'+String(n).padStart(4,'0');}
+// Retorna qual SERIA o próximo número, sem ainda consumir o contador (não grava nada)
+function peekNum(){var cfg=getCfg();var pfx=cfg.prefixo||new Date().getFullYear().toString();var n=(parseInt(localStorage.getItem('orcpro_cnt')||'0')+1);return pfx+'-'+String(n).padStart(3,'0');}
+// Gera e RESERVA o próximo número (usado ao abrir um novo orçamento em branco)
+function nextNum(){var pfx=(getCfg().prefixo||new Date().getFullYear().toString());var n=(parseInt(localStorage.getItem('orcpro_cnt')||'0')+1);try{localStorage.setItem('orcpro_cnt',n);}catch(e){}return pfx+'-'+String(n).padStart(3,'0');}
+// Confirma que um número foi usado — avança o contador se necessário (chamado após salvar com sucesso)
+function confirmarNumConsumido(num){
+  if(!num)return;
+  var m=String(num).match(/(\d+)$/);
+  if(!m)return;
+  var usado=parseInt(m[1]);
+  var atual=parseInt(localStorage.getItem('orcpro_cnt')||'0');
+  if(usado>atual){try{localStorage.setItem('orcpro_cnt',usado);}catch(e){}}
+}
+function nextOSNum(){var n=(parseInt(localStorage.getItem('orcpro_os_cnt')||'0')+1);try{localStorage.setItem('orcpro_os_cnt',n);}catch(e){}return'OS-'+String(n).padStart(4,'0');}
 
 // ═══════════════════════════════════════════════════
 // PAGAMENTO / PARCELAS
@@ -2512,7 +2526,7 @@ function recalc(){
 // CATÁLOGO
 // ═══════════════════════════════════════════════════
 function getProdutos(){try{return JSON.parse(localStorage.getItem('orcpro_produtos')||'[]');}catch(e){return[];}}
-function saveProdutos(arr){localStorage.setItem('orcpro_produtos',JSON.stringify(arr));agendarAutoSyncSafe();}
+function saveProdutos(arr){return gravarSeguro('orcpro_produtos',JSON.stringify(arr),'produtos');}
 
 function calcMargem(custo,venda){if(!custo||!venda||venda===0)return null;return((venda-custo)/venda)*100;}
 
@@ -3088,7 +3102,7 @@ function importProdExcel(e){
 // CLIENTES
 // ═══════════════════════════════════════════════════
 function getClientes(){try{return JSON.parse(localStorage.getItem('orcpro_clientes')||'[]');}catch(e){return[];}}
-function saveClientes(arr){localStorage.setItem('orcpro_clientes',JSON.stringify(arr));agendarAutoSyncSafe();}
+function saveClientes(arr){return gravarSeguro('orcpro_clientes',JSON.stringify(arr),'clientes');}
 
 function autoRegistrarCliente(){
   var nome=val('cli-nome');if(!nome)return;
@@ -3197,7 +3211,33 @@ function importCliExcel(e){
 // HISTÓRICO
 // ═══════════════════════════════════════════════════
 function getHist(){try{return JSON.parse(localStorage.getItem('orcpro_hist')||'[]');}catch(e){return[];}}
-function saveHist(arr){localStorage.setItem('orcpro_hist',JSON.stringify(arr));agendarAutoSyncSafe();}
+function saveHist(arr){return gravarSeguro('orcpro_hist',JSON.stringify(arr),'orçamentos');}
+
+// ── GRAVAÇÃO SEGURA — protege contra falha silenciosa de salvamento ──
+// Antes, se o localStorage estivesse cheio (limite ~5MB) o setItem lançava exceção,
+// o orçamento não era salvo e o usuário não recebia nenhum aviso. Agora tratamos isso.
+function gravarSeguro(chave,valor,rotulo){
+  try{
+    localStorage.setItem(chave,valor);
+    agendarAutoSyncSafe();
+    return true;
+  }catch(e){
+    var msg='⚠️ ERRO AO SALVAR '+(rotulo||'dados').toUpperCase()+'!\n\n';
+    if(e&&(e.name==='QuotaExceededError'||e.code===22||e.code===1014||(e.message&&e.message.toLowerCase().indexOf('quota')>=0))){
+      msg+='O armazenamento do navegador está CHEIO. Seus dados NÃO foram salvos.\n\n';
+      msg+='Como resolver agora:\n';
+      msg+='1. Faça um backup (Minha Empresa → Exportar backup)\n';
+      msg+='2. Remova o logo da empresa ou fotos de produtos pesadas\n';
+      msg+='3. Se usa muitas imagens, considere usá-las em menor resolução\n\n';
+      msg+='Seu backup no Google Drive (se ativo) preserva o que já foi salvo antes.';
+    }else{
+      msg+='Ocorreu um erro inesperado: '+(e&&e.message?e.message:'desconhecido')+'\n\n';
+      msg+='Tente novamente. Se persistir, faça um backup e recarregue a página.';
+    }
+    alert(msg);
+    return false;
+  }
+}
 
 function capturarEstado(){
   var parc=null;try{parc=JSON.parse(localStorage.getItem('orcpro_parcelas_tmp')||'null');}catch(e){}
@@ -3212,20 +3252,58 @@ function capturarEstado(){
     items:getItems(),savedAt:new Date().toLocaleString('pt-BR')};
 }
 function salvarOrcamento(){
+  // 1. Garante que existe um número — se estiver vazio (bug ao abrir direto), gera um novo
   var num=val('orc-num');
-  if(!val('cli-nome')&&!ge('items-body').querySelector('tr')){alert('Preencha o cliente ou adicione um item.');return;}
-  var hist=getHist(),idx=hist.findIndex(function(h){return h.num===num;}),estado=capturarEstado();
-  if(idx>=0){if(!confirm('Sobrescrever orçamento #'+num+'?'))return;hist[idx]=estado;}else hist.unshift(estado);
-  saveHist(hist);
-  // ── AUTOMAÇÕES ──
-  // 1. Agendar follow-up automático
-  agendarFollowupAuto(estado.num,estado.cliente.nome,estado.cliente.wpp,estado.data);
-  // 2. Auto-calcular prazo se estiver vazio
+  if(!num||!num.trim()){
+    num=nextNum();
+    setVal('orc-num',num);
+  }
+
+  // 2. Validação de conteúdo — precisa de cliente OU pelo menos um item
+  var temCliente=!!val('cli-nome').trim();
+  var itensAtuais=getItems().filter(function(it){return it.desc&&it.desc.trim();});
+  if(!temCliente&&!itensAtuais.length){
+    alert('Preencha o nome do cliente ou adicione ao menos um item antes de salvar.');
+    return;
+  }
+
+  // 3. Captura o estado completo do formulário
+  var estado=capturarEstado();
+
+  // 4. Salva ou sobrescreve conforme o número
+  var hist=getHist();
+  var idx=hist.findIndex(function(h){return h.num===num;});
+  if(idx>=0){
+    if(!confirm('Já existe um orçamento #'+num+'. Deseja sobrescrever?'))return;
+    // Preserva o id original ao sobrescrever (mantém rastreabilidade)
+    estado.id=hist[idx].id||estado.id;
+    hist[idx]=estado;
+  }else{
+    hist.unshift(estado);
+  }
+
+  // 5. Grava com verificação REAL de sucesso — só continua se salvou de fato
+  var ok=saveHist(hist);
+  if(!ok){
+    // gravarSeguro já mostrou o alerta explicando o erro — não finge que salvou
+    return;
+  }
+  // Confirma o número no contador só depois de salvar de fato (evita buracos na numeração)
+  confirmarNumConsumido(num);
+
+  // 6. Automações (só rodam após salvamento confirmado)
+  try{agendarFollowupAuto(estado.num,estado.cliente.nome,estado.cliente.wpp,estado.data);}catch(e){}
   if(!val('prazo')){
     var prazoAuto=calcularPrazoAutomatico();
-    if(prazoAuto){setVal('prazo',prazoAuto);estado.prazo=prazoAuto;}
+    if(prazoAuto){setVal('prazo',prazoAuto);estado.prazo=prazoAuto;hist[idx>=0?idx:0]=estado;saveHist(hist);}
   }
-  ge('tb-actions').querySelectorAll('.btn-out').forEach(function(b){if(b.textContent.trim().startsWith('💾')){b.textContent='✅ Salvo!';setTimeout(function(){b.innerHTML='💾 Salvar';},1800);}});
+
+  // 7. Feedback visual de sucesso confirmado
+  var btnFound=false;
+  ge('tb-actions').querySelectorAll('.btn-out').forEach(function(b){
+    if(b.textContent.trim().startsWith('💾')){btnFound=true;b.textContent='✅ Salvo!';setTimeout(function(){b.innerHTML='💾 Salvar';},1800);}
+  });
+  if(!btnFound)alert('✅ Orçamento #'+num+' salvo com sucesso!');
 }
 
 function calcItemSub(x){
@@ -3432,7 +3510,7 @@ function deletarTemplate(id){if(!confirm('Excluir template?'))return;saveTemplat
 // ORDENS DE SERVIÇO
 // ═══════════════════════════════════════════════════
 function getOS(){try{return JSON.parse(localStorage.getItem('orcpro_os')||'[]');}catch(e){return[];}}
-function saveOS(arr){localStorage.setItem('orcpro_os',JSON.stringify(arr));agendarAutoSyncSafe();}
+function saveOS(arr){return gravarSeguro('orcpro_os',JSON.stringify(arr),'ordens de serviço');}
 
 function gerarOS(){
   var id=null;// captura id do orçamento atual no preview
@@ -3498,7 +3576,7 @@ function enviarSatisfacao(id){
 // FUNCIONÁRIOS
 // ═══════════════════════════════════════════════════
 function getFuncs(){try{return JSON.parse(localStorage.getItem('orcpro_funcs')||'[]');}catch(e){return[];}}
-function saveFuncs(arr){localStorage.setItem('orcpro_funcs',JSON.stringify(arr));agendarAutoSyncSafe();}
+function saveFuncs(arr){return gravarSeguro('orcpro_funcs',JSON.stringify(arr),'funcionários');}
 
 function renderFuncs(){
   var funcs=getFuncs(),hist=getHist();
@@ -3871,7 +3949,7 @@ function exportarRelatorioCompraExcel(){
 // CALCULADORA DE TECIDOS (DTF) — módulo evoluído
 // ═══════════════════════════════════════════════════
 function getHistTecidos(){try{return JSON.parse(localStorage.getItem('orcpro_ct_hist')||'[]');}catch(e){return[];}}
-function saveHistTecidos(arr){localStorage.setItem('orcpro_ct_hist',JSON.stringify(arr));}
+function saveHistTecidos(arr){return gravarSeguro('orcpro_ct_hist',JSON.stringify(arr),'orçamentos da calculadora');}
 function getConfigTecidos(){try{return JSON.parse(localStorage.getItem('orcpro_ct_config')||'{}');}catch(e){return{};}}
 function saveConfigTecidos(cfg){localStorage.setItem('orcpro_ct_config',JSON.stringify(cfg));}
 
@@ -4555,7 +4633,7 @@ function atualizarFornecedoresSelect(){
 // ═══════════════════════════════════════════════════
 var notaIid=0;
 function getNotasCompra(){try{return JSON.parse(localStorage.getItem('orcpro_notas')||'[]');}catch(e){return[];}}
-function saveNotasCompra(arr){localStorage.setItem('orcpro_notas',JSON.stringify(arr));agendarAutoSyncSafe();}
+function saveNotasCompra(arr){return gravarSeguro('orcpro_notas',JSON.stringify(arr),'notas de compra');}
 
 function addNotaItem(nome,qty,valorUnit,cor,tamanho,modelo){
   var id=++notaIid;
@@ -4770,7 +4848,7 @@ function renderNotas(){
 // CONTAS A RECEBER
 // ═══════════════════════════════════════════════════
 function getContasReceber(){try{return JSON.parse(localStorage.getItem('orcpro_receber')||'[]');}catch(e){return[];}}
-function saveContasReceber(arr){localStorage.setItem('orcpro_receber',JSON.stringify(arr));agendarAutoSyncSafe();}
+function saveContasReceber(arr){return gravarSeguro('orcpro_receber',JSON.stringify(arr),'contas a receber');}
 
 function gerarContasReceber(h){
   var total=calcHistTotal(h);
@@ -5008,7 +5086,8 @@ function salvarVendaRapida(){
 
   var hist=getHist();
   hist.unshift(venda);
-  saveHist(hist);
+  var okVenda=saveHist(hist);
+  if(!okVenda)return;// gravarSeguro já avisou o usuário — não continua nem finge sucesso
 
   // Reaproveita exatamente a mesma lógica usada quando um orçamento é aprovado
   baixarEstoquePorAprovacao(venda);
@@ -6073,7 +6152,7 @@ function exportarDREExcel(){
 var LIMITE_MEI_ANUAL=81000;
 
 function getDespesas(){try{return JSON.parse(localStorage.getItem('orcpro_despesas')||'[]');}catch(e){return[];}}
-function saveDespesas(arr){localStorage.setItem('orcpro_despesas',JSON.stringify(arr));agendarAutoSyncSafe();}
+function saveDespesas(arr){return gravarSeguro('orcpro_despesas',JSON.stringify(arr),'despesas');}
 
 function toggleDespDataPgto(){
   ge('desp-data-pgto-wrap').style.display=val('desp-status')==='pago'?'block':'none';
@@ -6168,7 +6247,7 @@ function expandirDespesasRecorrentes(despesas,ano){
 var MESES_NOMES_CURTO=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
 function getCustos(){try{return JSON.parse(localStorage.getItem('orcpro_custos')||'[]');}catch(e){return[];}}
-function saveCustos(arr){localStorage.setItem('orcpro_custos',JSON.stringify(arr));agendarAutoSyncSafe();}
+function saveCustos(arr){return gravarSeguro('orcpro_custos',JSON.stringify(arr),'custos fixos');}
 
 // Migra dados antigos (formato: {valor, meses:[...]}) para o novo formato (valoresPorMes:{ano:{mes:valor}})
 function migrarCustosAntigos(){
@@ -7516,6 +7595,32 @@ function closeFollowupMassaModal(){ge('modal-followup-massa').className='modal-o
 // ═══════════════════════════════════════════════════
 // BACKUP / RESTAURAÇÃO
 // ═══════════════════════════════════════════════════
+// Calcula e exibe quanto do armazenamento local está sendo usado (limite ~5MB)
+function renderStorageMeter(){
+  var el=ge('storage-meter');if(!el)return;
+  var totalBytes=0;
+  try{
+    for(var i=0;i<localStorage.length;i++){
+      var k=localStorage.key(i);
+      var v=localStorage.getItem(k)||'';
+      totalBytes+=(k.length+v.length)*2;// UTF-16: ~2 bytes por caractere
+    }
+  }catch(e){}
+  var limiteMB=5;// limite típico dos navegadores
+  var usadoMB=totalBytes/(1024*1024);
+  var pct=Math.min(100,(usadoMB/limiteMB)*100);
+  var cor=pct>=85?'var(--red)':pct>=60?'var(--yellow)':'var(--green)';
+  var aviso='';
+  if(pct>=85)aviso='<div style="font-size:11px;color:var(--red);margin-top:6px;font-weight:600">⚠️ Armazenamento quase cheio! Faça backup e considere remover imagens pesadas para não perder dados.</div>';
+  else if(pct>=60)aviso='<div style="font-size:11px;color:var(--yellow);margin-top:6px">Atenção: uso moderado. Mantenha backups em dia.</div>';
+  el.innerHTML=
+    '<div style="display:flex;justify-content:space-between;font-size:11px;color:rgba(255,255,255,.5);margin-bottom:5px">'+
+      '<span>Armazenamento usado</span><span style="font-weight:700;color:'+cor+'">'+usadoMB.toFixed(2)+' MB de ~'+limiteMB+' MB ('+pct.toFixed(0)+'%)</span>'+
+    '</div>'+
+    '<div style="height:8px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+cor+';border-radius:4px;transition:width .3s"></div></div>'+
+    aviso;
+}
+
 function montarObjetoBackup(){
   return{versao:'6.5',exportadoEm:new Date().toISOString(),empresa:getCfg(),produtos:getProdutos(),clientes:getClientes(),historico:getHist(),os:getOS(),templates:getTemplates(),funcionarios:getFuncs(),despesas:getDespesas(),fornecedores:getFornecedores(),notasCompra:getNotasCompra(),movEstoque:getMovEstoque(),custosFixos:getCustos(),rh:getPagamentosRH(),contasReceber:getContasReceber(),usuarios:getUsuarios(),canaisVenda:getCanaisVenda(),histTecidos:getHistTecidos(),configTecidos:getConfigTecidos(),
     logo:localStorage.getItem('orcpro_logo')||'',
@@ -7909,7 +8014,7 @@ function showView(name){
   };
   ge('tb-actions').innerHTML=acts[name]||'';
   if(name==='preview')buildPreview();
-  if(name==='config'){fillConfigForm();renderFuncs();}
+  if(name==='config'){fillConfigForm();renderFuncs();renderStorageMeter();}
   if(name==='cat')renderCat();
   if(name==='clientes')renderClientes();
   if(name==='hist')renderHist();
