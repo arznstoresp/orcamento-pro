@@ -2358,7 +2358,7 @@ function atualizarVendedoresList(){
 // ═══════════════════════════════════════════════════
 // LOGO
 // ═══════════════════════════════════════════════════
-function handleLogoUpload(e){var file=e.target.files[0];if(!file)return;if(file.size>2*1024*1024){alert('Máximo 2MB.');return;}var r=new FileReader();r.onload=function(ev){localStorage.setItem('orcpro_logo',ev.target.result);loadLogoPreview();showSaved();};r.readAsDataURL(file);}
+function handleLogoUpload(e){var file=e.target.files[0];if(!file)return;if(file.size>5*1024*1024){alert('Escolha uma imagem de até 5MB. Ela será comprimida automaticamente.');return;}var r=new FileReader();r.onload=function(ev){comprimirImagem(ev.target.result,400,0.8,function(comprimida){if(gravarSeguro('orcpro_logo',comprimida,'logo')){loadLogoPreview();showSaved();}});};r.readAsDataURL(file);}
 function loadLogoPreview(){
   var logo=localStorage.getItem('orcpro_logo');var wrap=ge('logo-preview-wrap');var mini=ge('logo-mini-preview');
   if(logo){if(wrap)wrap.innerHTML='<img src="'+logo+'" class="logo-preview"><div class="logo-upload-hint">Clique para trocar</div>';if(mini)mini.innerHTML='<img src="'+logo+'" style="max-height:38px;max-width:100px;object-fit:contain">';}
@@ -2371,14 +2371,41 @@ function removeLogo(){if(!confirm('Remover?'))return;localStorage.removeItem('or
 // ═══════════════════════════════════════════════════
 var prodFotosTemp=['','',''];// array em memória com as 3 fotos do produto sendo editado/criado
 
+// ── COMPRESSÃO DE IMAGEM ──
+// Reduz drasticamente o tamanho das imagens antes de salvar (redimensiona + recomprime em JPEG).
+// Uma foto de 3MB tirada do celular vira ~80-150KB sem perda visível de qualidade para o uso do app.
+function comprimirImagem(dataUrl,maxLado,qualidade,callback){
+  maxLado=maxLado||800;qualidade=qualidade||0.72;
+  var img=new Image();
+  img.onload=function(){
+    var w=img.width,h=img.height;
+    // Redimensiona mantendo proporção, limitando o maior lado a maxLado
+    if(w>h&&w>maxLado){h=Math.round(h*maxLado/w);w=maxLado;}
+    else if(h>=w&&h>maxLado){w=Math.round(w*maxLado/h);h=maxLado;}
+    var canvas=document.createElement('canvas');
+    canvas.width=w;canvas.height=h;
+    var ctx=canvas.getContext('2d');
+    // Fundo branco (JPEG não tem transparência) — evita fundo preto em PNGs
+    ctx.fillStyle='#FFFFFF';ctx.fillRect(0,0,w,h);
+    ctx.drawImage(img,0,0,w,h);
+    try{callback(canvas.toDataURL('image/jpeg',qualidade));}
+    catch(e){callback(dataUrl);}// se falhar, usa a original
+  };
+  img.onerror=function(){callback(dataUrl);};
+  img.src=dataUrl;
+}
+
 function handleProdFoto(e,idx){
   var file=e.target.files[0];if(!file)return;
-  if(file.size>1*1024*1024){alert('Máximo 1MB por foto.');return;}
+  if(file.size>5*1024*1024){alert('Escolha uma imagem de até 5MB. Ela será comprimida automaticamente.');return;}
   var r=new FileReader();
   r.onload=function(ev){
-    prodFotosTemp[idx]=ev.target.result;
-    renderProdFotoPreview(idx);
-    if(idx===0)setVal('prod-foto-data',ev.target.result);// retrocompatibilidade: foto principal espelhada no campo antigo
+    // Comprime antes de guardar — economiza muito espaço
+    comprimirImagem(ev.target.result,800,0.72,function(comprimida){
+      prodFotosTemp[idx]=comprimida;
+      renderProdFotoPreview(idx);
+      if(idx===0)setVal('prod-foto-data',comprimida);
+    });
   };
   r.readAsDataURL(file);
 }
@@ -7599,26 +7626,98 @@ function closeFollowupMassaModal(){ge('modal-followup-massa').className='modal-o
 function renderStorageMeter(){
   var el=ge('storage-meter');if(!el)return;
   var totalBytes=0;
+  var porChave={};
   try{
     for(var i=0;i<localStorage.length;i++){
       var k=localStorage.key(i);
       var v=localStorage.getItem(k)||'';
-      totalBytes+=(k.length+v.length)*2;// UTF-16: ~2 bytes por caractere
+      var bytes=(k.length+v.length)*2;// UTF-16: ~2 bytes por caractere
+      totalBytes+=bytes;
+      porChave[k]=bytes;
     }
   }catch(e){}
-  var limiteMB=5;// limite típico dos navegadores
+  var limiteMB=5;
   var usadoMB=totalBytes/(1024*1024);
   var pct=Math.min(100,(usadoMB/limiteMB)*100);
   var cor=pct>=85?'var(--red)':pct>=60?'var(--yellow)':'var(--green)';
+
+  // Detalhamento: mapeia chaves para nomes amigáveis e identifica o que pesa mais
+  var nomes={orcpro_logo:'Logo da empresa',orcpro_produtos:'Produtos (com fotos)',orcpro_hist:'Orçamentos e vendas',orcpro_clientes:'Clientes',orcpro_notas:'Notas de compra',orcpro_os:'Ordens de serviço',orcpro_ct_hist:'Calculadora',orcpro_mov_estoque:'Movimentação de estoque'};
+  var itensPeso=Object.keys(porChave).map(function(k){return{chave:k,nome:nomes[k]||k,mb:porChave[k]/(1024*1024)};}).filter(function(x){return x.mb>0.05;}).sort(function(a,b){return b.mb-a.mb;}).slice(0,5);
+
   var aviso='';
-  if(pct>=85)aviso='<div style="font-size:11px;color:var(--red);margin-top:6px;font-weight:600">⚠️ Armazenamento quase cheio! Faça backup e considere remover imagens pesadas para não perder dados.</div>';
+  if(pct>=85)aviso='<div style="font-size:12px;color:var(--red);margin-top:8px;font-weight:600;line-height:1.5">⚠️ Armazenamento cheio! Isso impede novos orçamentos de salvar. Use o botão abaixo para otimizar as imagens — resolve na hora.</div>';
   else if(pct>=60)aviso='<div style="font-size:11px;color:var(--yellow);margin-top:6px">Atenção: uso moderado. Mantenha backups em dia.</div>';
+
+  // Estima quantas fotos de produtos existem (maior consumidor típico)
+  var qtdFotos=0;
+  try{var prods=getProdutos();prods.forEach(function(p){if(p.foto)qtdFotos++;if(p.fotos)qtdFotos+=p.fotos.length;});}catch(e){}
+
   el.innerHTML=
     '<div style="display:flex;justify-content:space-between;font-size:11px;color:rgba(255,255,255,.5);margin-bottom:5px">'+
       '<span>Armazenamento usado</span><span style="font-weight:700;color:'+cor+'">'+usadoMB.toFixed(2)+' MB de ~'+limiteMB+' MB ('+pct.toFixed(0)+'%)</span>'+
     '</div>'+
     '<div style="height:8px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+cor+';border-radius:4px;transition:width .3s"></div></div>'+
-    aviso;
+    aviso+
+    (itensPeso.length?'<div style="margin-top:12px"><div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">O que ocupa mais espaço</div>'+
+      itensPeso.map(function(x){
+        return'<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;color:rgba(255,255,255,.6)"><span>'+x.nome+'</span><span style="font-weight:600">'+x.mb.toFixed(2)+' MB</span></div>';
+      }).join('')+'</div>':'')+
+    (pct>=60||qtdFotos>0?
+      '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--dark-border2)">'+
+        '<button class="btn btn-brand btn-sm" onclick="otimizarImagensExistentes()">🗜️ Otimizar imagens agora ('+qtdFotos+' foto(s))</button>'+
+        '<div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:6px;line-height:1.5">Comprime todas as fotos de produtos e o logo já salvos, liberando espaço sem perder qualidade visível. Faça um backup antes, por segurança.</div>'+
+      '</div>':'');
+}
+
+// Comprime todas as imagens JÁ salvas (fotos de produtos + logo) para liberar espaço
+function otimizarImagensExistentes(){
+  if(!confirm('Isso vai comprimir todas as fotos de produtos e o logo já salvos para liberar espaço.\n\nRecomendo exportar um backup antes. Deseja continuar?'))return;
+  var prods=getProdutos();
+  var totalImagens=0;
+  prods.forEach(function(p){if(p.foto)totalImagens++;if(p.fotos)totalImagens+=p.fotos.length;});
+  if(localStorage.getItem('orcpro_logo'))totalImagens++;
+  if(!totalImagens){alert('Não há imagens para otimizar.');return;}
+
+  var processadas=0;
+  var el=ge('storage-meter');
+  if(el)el.insertAdjacentHTML('afterbegin','<div id="otim-status" style="background:rgba(255,107,0,.1);border:1px solid var(--brand-glow);border-radius:8px;padding:10px;margin-bottom:10px;font-size:12px;color:var(--brand)">🗜️ Otimizando imagens... aguarde.</div>');
+
+  function finalizar(){
+    saveProdutos(prods);
+    var st=ge('otim-status');if(st)st.remove();
+    renderStorageMeter();
+    alert('✅ Imagens otimizadas! Espaço liberado.\n\nSe ainda estiver cheio, considere remover fotos de produtos que você não usa mais.');
+  }
+
+  // Processa cada produto sequencialmente (compressão é assíncrona)
+  var fila=[];
+  prods.forEach(function(p,pi){
+    if(p.foto)fila.push({tipo:'prodFoto',pi:pi});
+    if(p.fotos)p.fotos.forEach(function(f,fi){fila.push({tipo:'prodFotos',pi:pi,fi:fi});});
+  });
+  var temLogo=!!localStorage.getItem('orcpro_logo');
+
+  function processarProximo(i){
+    if(i>=fila.length){
+      // Por último, o logo
+      if(temLogo){
+        comprimirImagem(localStorage.getItem('orcpro_logo'),400,0.8,function(c){
+          gravarSeguro('orcpro_logo',c,'logo');
+          finalizar();
+        });
+      }else finalizar();
+      return;
+    }
+    var item=fila[i];
+    var origem=item.tipo==='prodFoto'?prods[item.pi].foto:prods[item.pi].fotos[item.fi];
+    comprimirImagem(origem,800,0.72,function(c){
+      if(item.tipo==='prodFoto'){prods[item.pi].foto=c;}
+      else{prods[item.pi].fotos[item.fi]=c;}
+      processarProximo(i+1);
+    });
+  }
+  processarProximo(0);
 }
 
 function montarObjetoBackup(){
