@@ -2358,7 +2358,7 @@ function atualizarVendedoresList(){
 // ═══════════════════════════════════════════════════
 // LOGO
 // ═══════════════════════════════════════════════════
-function handleLogoUpload(e){var file=e.target.files[0];if(!file)return;if(file.size>5*1024*1024){alert('Escolha uma imagem de até 5MB. Ela será comprimida automaticamente.');return;}var r=new FileReader();r.onload=function(ev){comprimirImagem(ev.target.result,400,0.8,function(comprimida){if(gravarSeguro('orcpro_logo',comprimida,'logo')){loadLogoPreview();showSaved();}});};r.readAsDataURL(file);}
+function handleLogoUpload(e){var file=e.target.files[0];if(!file)return;if(file.size>5*1024*1024){alert('Escolha uma imagem de até 5MB. Ela será comprimida automaticamente.');return;}var r=new FileReader();r.onload=function(ev){comprimirImagem(ev.target.result,400,0.8,function(comprimida){if(gravarSeguro('orcpro_logo',comprimida,'logo')){loadLogoPreview();showSaved();}},true);};r.readAsDataURL(file);}
 function loadLogoPreview(){
   var logo=localStorage.getItem('orcpro_logo');var wrap=ge('logo-preview-wrap');var mini=ge('logo-mini-preview');
   if(logo){if(wrap)wrap.innerHTML='<img src="'+logo+'" class="logo-preview"><div class="logo-upload-hint">Clique para trocar</div>';if(mini)mini.innerHTML='<img src="'+logo+'" style="max-height:38px;max-width:100px;object-fit:contain">';}
@@ -2374,7 +2374,7 @@ var prodFotosTemp=['','',''];// array em memória com as 3 fotos do produto send
 // ── COMPRESSÃO DE IMAGEM ──
 // Reduz drasticamente o tamanho das imagens antes de salvar (redimensiona + recomprime em JPEG).
 // Uma foto de 3MB tirada do celular vira ~80-150KB sem perda visível de qualidade para o uso do app.
-function comprimirImagem(dataUrl,maxLado,qualidade,callback){
+function comprimirImagem(dataUrl,maxLado,qualidade,callback,preservarTransparencia){
   maxLado=maxLado||800;qualidade=qualidade||0.72;
   var img=new Image();
   img.onload=function(){
@@ -2385,11 +2385,18 @@ function comprimirImagem(dataUrl,maxLado,qualidade,callback){
     var canvas=document.createElement('canvas');
     canvas.width=w;canvas.height=h;
     var ctx=canvas.getContext('2d');
-    // Fundo branco (JPEG não tem transparência) — evita fundo preto em PNGs
-    ctx.fillStyle='#FFFFFF';ctx.fillRect(0,0,w,h);
-    ctx.drawImage(img,0,0,w,h);
-    try{callback(canvas.toDataURL('image/jpeg',qualidade));}
-    catch(e){callback(dataUrl);}// se falhar, usa a original
+    if(preservarTransparencia){
+      // PNG mantém fundo transparente (ideal para logos) — não pinta fundo
+      ctx.drawImage(img,0,0,w,h);
+      try{callback(canvas.toDataURL('image/png'));}
+      catch(e){callback(dataUrl);}
+    }else{
+      // JPEG é bem menor, mas não tem transparência — usa fundo branco (ideal para fotos)
+      ctx.fillStyle='#FFFFFF';ctx.fillRect(0,0,w,h);
+      ctx.drawImage(img,0,0,w,h);
+      try{callback(canvas.toDataURL('image/jpeg',qualidade));}
+      catch(e){callback(dataUrl);}
+    }
   };
   img.onerror=function(){callback(dataUrl);};
   img.src=dataUrl;
@@ -7705,7 +7712,7 @@ function otimizarImagensExistentes(){
         comprimirImagem(localStorage.getItem('orcpro_logo'),400,0.8,function(c){
           gravarSeguro('orcpro_logo',c,'logo');
           finalizar();
-        });
+        },true);// preserva transparência do logo
       }else finalizar();
       return;
     }
