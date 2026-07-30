@@ -8676,6 +8676,9 @@ window.onload=function(){
   if(checkLinkPublico())return;
   initPIN();
   desregistrarServiceWorkerAntigo();
+  // Garante que o campo de busca começa sempre vazio, mesmo se o navegador tentar preencher (autofill)
+  var bg=ge('busca-global');
+  if(bg){bg.value='';setTimeout(function(){bg.value='';},300);setTimeout(function(){bg.value='';},1000);}
   // Sincronização automática: baixa a versão do Drive se for mais recente (ex: salvou no PC)
   setTimeout(function(){if(typeof autoBaixarDoDriveAoAbrir==='function')autoBaixarDoDriveAoAbrir();},2000);
 };
