@@ -3403,10 +3403,29 @@ function renderHistComDados(f,isFilter,filterLabel){
   var tbody=ge('hist-body'),empty=ge('hist-empty'),count=ge('hist-count');
   var hist=getHist();
   if(count)count.textContent='('+hist.length+')'+(isFilter?' — '+filterLabel+': '+f.length:'');
+
+  // Detecção de duplicidade: números que aparecem mais de uma vez
+  var contagem={};
+  hist.forEach(function(h){var n=h.num||'';contagem[n]=(contagem[n]||0)+1;});
+  var duplicados=Object.keys(contagem).filter(function(n){return n&&contagem[n]>1;});
+  var avisoDup=ge('hist-dup-aviso');
+  if(duplicados.length){
+    if(!avisoDup){
+      avisoDup=document.createElement('div');
+      avisoDup.id='hist-dup-aviso';
+      var tb=ge('hist-body');
+      if(tb&&tb.closest('.card'))tb.closest('.card').insertBefore(avisoDup,tb.closest('.card').firstChild);
+    }
+    avisoDup.style.cssText='background:rgba(251,146,60,.12);border:1px solid rgba(251,146,60,.4);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#FCA05B';
+    avisoDup.innerHTML='⚠️ <strong>'+duplicados.length+' número(s) de orçamento duplicado(s):</strong> '+duplicados.slice(0,10).join(', ')+
+      '. Os duplicados estão marcados na lista abaixo com 🔶. Verifique e exclua os que forem repetição.';
+  }else if(avisoDup){avisoDup.remove();}
+
   if(!f.length){tbody.innerHTML='';if(empty)empty.style.display='block';return;}
   if(empty)empty.style.display='none';
   var hoje2=hoje();
   tbody.innerHTML=f.map(function(h){
+    var ehDuplicado=h.num&&contagem[h.num]>1;
     var total=calcHistTotal(h);
     var mg=h.margemCalc;
     var mgHtml=mg!=null?'<span style="font-size:11px;font-weight:600;color:'+(mg>30?'var(--green)':mg>15?'var(--yellow)':'var(--red)')+'">'+fmtPct(mg)+'</span>':'<span style="color:rgba(255,255,255,.5)">—</span>';
@@ -3416,9 +3435,9 @@ function renderHistComDados(f,isFilter,filterLabel){
     // highlight se vencido e pendente
     var valDate=new Date((h.data||hoje2)+'T12:00');valDate.setDate(valDate.getDate()+(parseInt(h.validade)||3));
     var vencido=(h.status==='Aguardando aprovação'||h.status==='Em revisão')&&valDate<new Date();
-    var rowStyle=vencido?'background:#fff5f5;':'';
+    var rowStyle=ehDuplicado?'background:rgba(251,146,60,.08);':(vencido?'background:#fff5f5;':'');
     return'<tr style="'+rowStyle+'">'+
-      '<td style="font-weight:700;color:var(--brand)">#'+h.num+(vencido?' <span title="Vencido" style="color:var(--red)">⚠️</span>':'')+'</td>'+
+      '<td style="font-weight:700;color:var(--brand)">'+(ehDuplicado?'<span title="Número duplicado">🔶</span> ':'')+'#'+h.num+(vencido?' <span title="Vencido" style="color:var(--red)">⚠️</span>':'')+'</td>'+
       '<td><strong style="font-size:13px">'+(h.cliente.nome||'—')+'</strong></td>'+
       '<td style="font-size:12px">'+fmtDt(h.data)+'</td>'+
       '<td style="font-size:12px;'+(vencido?'color:var(--red);font-weight:600':'')+'">'+addDays(h.data,h.validade)+(vencido?' ⚠️':'')+'</td>'+
@@ -7771,12 +7790,22 @@ function exportarBackup(){
 }
 function importarBackup(e){
   var file=e.target.files[0];if(!file)return;
-  if(!confirm('⚠️ Isso SUBSTITUI todos os dados. Continuar?'))return;
+  var modo=confirm('Como aplicar este backup?\n\n• OK = JUNTAR com os dados atuais (recupera o que sumiu sem apagar nada) — recomendado\n\n• Cancelar = SUBSTITUIR tudo pelo backup (apaga os dados atuais)');
   var reader=new FileReader();
   reader.onload=function(ev){
     try{var d=JSON.parse(ev.target.result);
-      aplicarObjetoBackup(d);
-      ge('backup-file').value='';alert('✅ Backup restaurado!');location.reload();
+      if(modo){
+        var antes=getHist().length;
+        aplicarBackupComMerge(d);
+        var depois=getHist().length;
+        ge('backup-file').value='';
+        alert('✅ Backup fundido!\n\nOrçamentos antes: '+antes+'\nAgora: '+depois+'\nRecuperados: '+(depois-antes));
+      }else{
+        if(!confirm('⚠️ Tem certeza? Isso vai APAGAR os dados atuais e deixar só os do backup.'))return;
+        aplicarObjetoBackup(d);
+        ge('backup-file').value='';alert('✅ Backup restaurado (substituição completa)!');
+      }
+      location.reload();
     }catch(err){alert('Erro: '+err.message);}
   };reader.readAsText(file);
 }
@@ -7886,17 +7915,32 @@ function sincronizarGoogleDriveAgora(){
 }
 
 function restaurarDoGoogleDrive(){
-  if(!confirm('⚠️ Isso vai SUBSTITUIR todos os dados locais pelo backup salvo no Google Drive. Continuar?'))return;
+  if(!confirm('🔄 RECUPERAR dados do Google Drive.\n\nIsto vai JUNTAR (fundir) o backup do Drive com o que já está aqui — sem apagar nada. Orçamentos que sumiram localmente mas estão no Drive serão recuperados.\n\nContinuar?'))return;
   obterTokenGoogleValido(function(){
     var status=getGoogleDriveStatus();
-    if(!status.fileId){alert('Nenhum backup encontrado no Drive ainda. Sincronize pelo menos uma vez primeiro.');return;}
+    if(!status.fileId){alert('Nenhum backup encontrado no Drive ainda.');return;}
     fetch('https://www.googleapis.com/drive/v3/files/'+status.fileId+'?alt=media',{
       headers:{'Authorization':'Bearer '+googleAccessToken}
     }).then(function(r){return r.json();})
       .then(function(dados){
-        aplicarObjetoBackup(dados);
-        alert('✅ Backup restaurado do Google Drive!');location.reload();
-      }).catch(function(err){alert('Erro ao restaurar: '+err.message);});
+        var antesHist=getHist().length,antesProd=getProdutos().length,antesCli=getClientes().length;
+        aplicarBackupComMerge(dados);
+        var depoisHist=getHist().length,depoisProd=getProdutos().length,depoisCli=getClientes().length;
+        var recHist=depoisHist-antesHist,recProd=depoisProd-antesProd,recCli=depoisCli-antesCli;
+        var msg='✅ Recuperação concluída!\n\n';
+        if(recHist>0||recProd>0||recCli>0){
+          msg+='Recuperados do Drive:\n';
+          if(recHist>0)msg+='• '+recHist+' orçamento(s)\n';
+          if(recProd>0)msg+='• '+recProd+' produto(s)\n';
+          if(recCli>0)msg+='• '+recCli+' cliente(s)\n';
+          msg+='\nTotal agora: '+depoisHist+' orçamentos.';
+        }else{
+          msg+='Nenhum dado adicional no Drive — tudo que estava lá você já tinha aqui.\nTotal: '+depoisHist+' orçamentos.';
+        }
+        alert(msg);
+        // Sobe a versão fundida de volta ao Drive
+        setTimeout(function(){sincronizarGoogleDriveSilencioso(function(){location.reload();});},1000);
+      }).catch(function(err){alert('Erro ao recuperar: '+err.message);});
   });
 }
 
@@ -7951,32 +7995,84 @@ function agendarAutoSync(){
 }
 
 // Baixa a versão do Drive ao abrir o app, se for mais recente que a local
+// Funde dois arrays de registros por id/num, sem perder nada de nenhum lado.
+// Em caso de mesmo id, mantém a versão com mais informação (mais recente por savedAt/timestamp).
+function fundirRegistros(local,remoto,chaveId){
+  chaveId=chaveId||'id';
+  var mapa={};
+  var ordem=[];
+  function chave(r){return r[chaveId]||r.num||r.id||JSON.stringify(r);}
+  // Primeiro insere os locais
+  (local||[]).forEach(function(r){var k=chave(r);if(!(k in mapa)){ordem.push(k);}mapa[k]=r;});
+  // Depois funde os remotos: se não existe local, adiciona; se existe, mantém o mais "completo/recente"
+  (remoto||[]).forEach(function(r){
+    var k=chave(r);
+    if(!(k in mapa)){mapa[k]=r;ordem.push(k);}
+    else{
+      var atual=mapa[k];
+      // Escolhe o mais recente por savedAt ou por quantidade de dados
+      var tR=r.savedAt?new Date(r.savedAt).getTime():0;
+      var tA=atual.savedAt?new Date(atual.savedAt).getTime():0;
+      if(tR>tA)mapa[k]=r;
+      else if(tR===tA&&JSON.stringify(r).length>JSON.stringify(atual).length)mapa[k]=r;
+    }
+  });
+  return ordem.map(function(k){return mapa[k];});
+}
+
+// Aplica o backup do Drive FUNDINDO com o local (nunca apaga dados que só existem localmente)
+function aplicarBackupComMerge(d){
+  if(!d)return;
+  function parse(v,fb){try{return typeof v==='string'?JSON.parse(v):(v||fb);}catch(e){return fb;}}
+  // Históricos e listas: funde por id
+  var locHist=getHist(),remHist=parse(d.historico,[]);
+  gravarSeguro('orcpro_hist',JSON.stringify(fundirRegistros(locHist,remHist,'id')),'orçamentos');
+
+  var locProd=getProdutos(),remProd=parse(d.produtos,[]);
+  gravarSeguro('orcpro_produtos',JSON.stringify(fundirRegistros(locProd,remProd,'id')),'produtos');
+
+  var locCli=getClientes(),remCli=parse(d.clientes,[]);
+  gravarSeguro('orcpro_clientes',JSON.stringify(fundirRegistros(locCli,remCli,'id')),'clientes');
+
+  var locOS=getOS(),remOS=parse(d.os,[]);
+  gravarSeguro('orcpro_os',JSON.stringify(fundirRegistros(locOS,remOS,'id')),'ordens de serviço');
+
+  var locNotas=getNotasCompra(),remNotas=parse(d.notasCompra,[]);
+  gravarSeguro('orcpro_notas',JSON.stringify(fundirRegistros(locNotas,remNotas,'id')),'notas');
+
+  var locCR=getContasReceber(),remCR=parse(d.contasReceber,[]);
+  gravarSeguro('orcpro_receber',JSON.stringify(fundirRegistros(locCR,remCR,'id')),'contas a receber');
+
+  var locFunc=getFuncs(),remFunc=parse(d.funcionarios,[]);
+  gravarSeguro('orcpro_funcs',JSON.stringify(fundirRegistros(locFunc,remFunc,'id')),'funcionários');
+
+  var locCT=getHistTecidos(),remCT=parse(d.histTecidos,[]);
+  gravarSeguro('orcpro_ct_hist',JSON.stringify(fundirRegistros(locCT,remCT,'id')),'calculadora');
+
+  // Dados de configuração únicos: só adota o remoto se o local estiver vazio
+  if(d.empresa&&(!getCfg()||!getCfg().nome))localStorage.setItem('orcpro_emp',JSON.stringify(parse(d.empresa,{})));
+  if(d.logo&&!localStorage.getItem('orcpro_logo'))localStorage.setItem('orcpro_logo',d.logo);
+}
+
 function autoBaixarDoDriveAoAbrir(){
   var cfg=getCfg();
   var status=getGoogleDriveStatus();
   if(!cfg.googleAutoSync||!status.conectado||!status.fileId)return;
   obterTokenGoogleValido(function(){
-    fetch('https://www.googleapis.com/drive/v3/files/'+status.fileId+'?fields=modifiedTime',{headers:{'Authorization':'Bearer '+googleAccessToken}})
+    fetch('https://www.googleapis.com/drive/v3/files/'+status.fileId+'?alt=media',{headers:{'Authorization':'Bearer '+googleAccessToken}})
       .then(function(r){return r.json();})
-      .then(function(meta){
-        if(!meta.modifiedTime)return;
-        var driveTime=new Date(meta.modifiedTime);
-        var localTime=status.ultimaSincronizacao?new Date(status.ultimaSincronizacao):new Date(0);
-        // Se o Drive tem versão mais recente (ex: você salvou no computador), baixa automaticamente
-        if(driveTime>localTime){
-          fetch('https://www.googleapis.com/drive/v3/files/'+status.fileId+'?alt=media',{headers:{'Authorization':'Bearer '+googleAccessToken}})
-            .then(function(r){return r.json();})
-            .then(function(dados){
-              aplicarObjetoBackup(dados);
-              saveGoogleDriveStatus({conectado:true,fileId:status.fileId,ultimaSincronizacao:new Date().toISOString()});
-              atualizarIndicadorSync('ok');
-              // Recarrega a tela atual para refletir os dados baixados
-              var v=localStorage.getItem('orcpro_last_view')||'dash';
-              if(typeof showView==='function')showView(v);
-            }).catch(function(){});
-        }
+      .then(function(dados){
+        // MERGE em vez de sobrescrever: junta o que está no Drive com o que está local,
+        // sem apagar nada. Depois sobe a versão fundida de volta.
+        aplicarBackupComMerge(dados);
+        saveGoogleDriveStatus({conectado:true,fileId:status.fileId,ultimaSincronizacao:new Date().toISOString()});
+        atualizarIndicadorSync('ok');
+        var v=localStorage.getItem('orcpro_last_view')||'dash';
+        if(typeof showView==='function')showView(v);
+        // Sobe a versão fundida para o Drive ficar completo também
+        setTimeout(function(){sincronizarGoogleDriveSilencioso();},1500);
       }).catch(function(){});
-  },true);// modo silencioso — não força popup se o token expirou
+  },true);
 }
 
 function atualizarIndicadorSync(estado){
