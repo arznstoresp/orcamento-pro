@@ -474,7 +474,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
     </div>
     <div class="tb-actions" id="tb-actions"></div>
     <div style="position:relative;margin-left:auto">
-      <input id="busca-global" placeholder="🔍 Buscar tudo..." autocomplete="off" oninput="buscarGlobal()" onblur="setTimeout(function(){var r=ge('busca-global-resultados');if(r)r.style.display='none';},200)" onfocus="if(val('busca-global'))buscarGlobal()" style="width:180px;font-size:13px;padding:8px 12px">
+      <input id="busca-global" type="search" name="busca-global-orcpro" placeholder="🔍 Buscar tudo..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="buscarGlobal()" onblur="setTimeout(function(){var r=ge('busca-global-resultados');if(r)r.style.display='none';},200)" onfocus="if(val('busca-global'))buscarGlobal()" style="width:180px;font-size:13px;padding:8px 12px">
       <div id="busca-global-resultados" style="display:none;position:absolute;top:100%;right:0;margin-top:6px;width:340px;max-width:88vw;max-height:60vh;overflow-y:auto;background:var(--dark-surface);border:1px solid var(--dark-border2);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:200"></div>
     </div>
     <span id="sync-indicator" style="display:none;font-size:11px;font-weight:600;margin-left:8px;white-space:nowrap"></span>
