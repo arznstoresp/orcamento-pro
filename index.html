@@ -671,6 +671,21 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
           <div><label class="lbl">WhatsApp</label><input id="cli-wpp" placeholder="(11) 98888-0000" oninput="maskPhone(this)" maxlength="15"></div>
           <div><label class="lbl">E-mail</label><input id="cli-email" type="email" placeholder="cliente@email.com"></div>
         </div>
+        <div class="g2 mt">
+          <div><label class="lbl">Tipo de cliente</label>
+            <select id="cli-tipo-pessoa" onchange="onTipoPessoaChange()">
+              <option value="PF">Pessoa Física</option>
+              <option value="PJ">Pessoa Jurídica (empresa)</option>
+            </select>
+          </div>
+          <div id="cli-ie-wrap" style="display:none"><label class="lbl">Inscrição Estadual <span class="lbl-hint">— do cliente PJ</span></label><input id="cli-ie" placeholder="Isento ou número da IE"></div>
+        </div>
+        <div id="cli-nf-wrap" class="mt" style="display:none;background:rgba(255,107,0,.08);border:1px solid rgba(255,107,0,.25);border-radius:8px;padding:10px 12px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#F0F0F5">
+            <input type="checkbox" id="cli-exige-nf" style="width:auto;padding:0"> 🧾 Este cliente exige Nota Fiscal
+          </label>
+          <div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:5px;line-height:1.5">Venda para empresa (PJ) tem emissão de NF obrigatória por lei. Marcando aqui, os orçamentos deste cliente ganham um botão para preparar os dados da nota.</div>
+        </div>
         <div class="mt">
           <label class="lbl">CEP <span class="lbl-hint">— preenchimento automático</span></label>
           <div class="field-row"><input id="cli-cep" placeholder="00000-000" oninput="maskCep(this)" maxlength="9" style="max-width:130px"><button type="button" class="btn btn-out btn-sm" onclick="buscaCep()">🔍 Buscar</button></div>
