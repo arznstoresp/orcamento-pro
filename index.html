@@ -4445,12 +4445,26 @@ function limparTecidos(){
 function salvarOrcamentoTecidos(){
   var qtd=parseFloat(val('ct-qtd'))||0;
   if(!qtd){alert('Informe a quantidade.');return;}
+  var tipoProd=val('ct-tipo-produto')||'tecidos';
+  var usaArtes=CT_TIPOS[tipoProd]&&CT_TIPOS[tipoProd].usaArtes;
   var artes=getArtesTecido().filter(function(a){return a.nome&&a.largura>0&&a.altura>0;});
-  if(!artes.length){alert('Adicione ao menos uma arte com nome, largura e altura.');return;}
+  // Só os tipos que usam arte (tecidos/DTF e adesivos) exigem arte cadastrada.
+  // Canecas, impressão 3D e genéricos não dependem de arte — antes ficavam impossíveis de salvar.
+  if(usaArtes&&!artes.length){
+    alert('Para '+(CT_TIPOS[tipoProd].label||'este tipo')+', adicione ao menos uma arte com nome, largura e altura.');
+    return;
+  }
+  // Para os demais tipos, valida se há algum custo informado (evita salvar orçamento vazio)
+  if(!usaArtes){
+    var temCusto=(parseFloat(val('ct-valor-peca'))||0)>0||getCustoInsumoEspecifico().custoProcesso>0;
+    if(!temCusto){
+      alert('Informe ao menos o valor do insumo principal ou o custo do processo antes de salvar.');
+      return;
+    }
+  }
   calcularTecidos();
   var r=window._ctResultado;
   var editId=val('ct-edit-id');
-  var tipoProd=val('ct-tipo-produto')||'tecidos';
   var orcamento={
     id:editId||'ct'+Date.now(),data:hoje(),tipo:tipoProd,
     produto:val('ct-produto'),cliente:val('ct-cliente')||'Cliente não identificado',
@@ -4473,20 +4487,21 @@ function salvarOrcamentoTecidos(){
   var hist=getHistTecidos();
   if(editId){var idx=hist.findIndex(function(h){return h.id===editId;});if(idx>=0)hist[idx]=orcamento;else hist.unshift(orcamento);}
   else hist.unshift(orcamento);
-  saveHistTecidos(hist);
+  if(!saveHistTecidos(hist))return;// se a gravação falhar, não finge sucesso
   saveConfigTecidos({tipoProduto:orcamento.tipo,margem:orcamento.margem,valorHora:orcamento.valorHora,custoIndiretoExtra:orcamento.custoIndiretoExtra,custosExtras:orcamento.custosExtras});
   var nomeCliente=val('ct-cliente');
   if(nomeCliente){
     var clientes=getClientes();
     if(!clientes.find(function(c){return c.nome.toLowerCase()===nomeCliente.toLowerCase();})){
-      clientes.push({id:'c'+Date.now(),nome:nomeCliente,wpp:'',email:'',doc:'',end:'',status:'Novo',followup:'',obs:'Cliente de orçamento DTF',orcamentos:[],ultimoContato:hoje()});
+      clientes.push({id:'c'+Date.now(),nome:nomeCliente,wpp:'',email:'',doc:'',end:'',status:'Novo',followup:'',obs:'Cliente do Precificador',orcamentos:[],ultimoContato:hoje()});
       saveClientes(clientes);
     }
   }
   ge('ct-edit-id').value=orcamento.id;
   ge('ct-btn-duplicar').style.display='inline-flex';
   renderHistTecidos();
-  alert('✅ Orçamento de tecidos salvo!');
+  var nomeTipo=(CT_TIPOS[tipoProd]&&CT_TIPOS[tipoProd].label)?CT_TIPOS[tipoProd].label:'orçamento';
+  alert('✅ Orçamento salvo! ('+nomeTipo+')');
 }
 
 function duplicarOrcamentoTecidos(){
