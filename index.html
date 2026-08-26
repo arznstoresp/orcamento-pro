@@ -2204,6 +2204,9 @@ var iid=0;
 function fmt(n){return'R$\u00a0'+Number(n||0).toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.');}
 function fmtPct(n){return Number(n||0).toFixed(1).replace('.',',')+'%';}
 function hoje(){var d=new Date();var y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dia=String(d.getDate()).padStart(2,'0');return y+'-'+m+'-'+dia;}
+// Mês atual no fuso local (São Paulo), no formato "AAAA-MM".
+// Usar toISOString() aqui daria o mês errado à noite no último dia do mês (UTC já virou).
+function mesAtualLocal(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
 function fmtDt(iso){if(!iso)return'—';return new Date(iso+'T12:00').toLocaleDateString('pt-BR');}
 function addDays(iso,dias){if(!iso)return'—';var d=new Date(iso+'T12:00');d.setDate(d.getDate()+(parseInt(dias)||3));return d.toLocaleDateString('pt-BR');}
 function val(id){var e=document.getElementById(id);return e?e.value.trim():'';}
@@ -2310,7 +2313,7 @@ function saveConfig(){
     autoPrecoAtacado:ge('cfg-auto-preco-atacado')&&ge('cfg-auto-preco-atacado').checked,
     relatorioSemanal:ge('cfg-relatorio-semanal')&&ge('cfg-relatorio-semanal').checked
   };
-  localStorage.setItem('orcpro_emp',JSON.stringify(cfg));
+  if(!gravarSeguro('orcpro_emp',JSON.stringify(cfg),'configuração da empresa'))return;
   updateMiniPreview();showSaved();
   atualizarVendedoresList();
 }
@@ -3520,7 +3523,7 @@ function exportarHistXls(){
 // TEMPLATES
 // ═══════════════════════════════════════════════════
 function getTemplates(){try{return JSON.parse(localStorage.getItem('orcpro_templates')||'[]');}catch(e){return[];}}
-function saveTemplates(arr){localStorage.setItem('orcpro_templates',JSON.stringify(arr));}
+function saveTemplates(arr){return gravarSeguro('orcpro_templates',JSON.stringify(arr),'modelos');}
 
 function salvarComoTemplate(){ge('modal-tpl').className='modal-overlay open';setVal('tpl-nome','');setVal('tpl-desc','');}
 function closeTplModal(){ge('modal-tpl').className='modal-overlay';}
@@ -3642,7 +3645,7 @@ function renderFuncs(){
   }
   if(empty)empty.style.display='none';
 
-  var mesAtual=new Date().toISOString().substring(0,7);// ex: "2026-07"
+  var mesAtual=mesAtualLocal();
   var mesNome=new Date().toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
 
   lista.innerHTML=funcs.map(function(f){
@@ -3709,7 +3712,7 @@ function pagarComissao(funcId){
   if(idx<0)return;
   var f=funcs[idx];
   var pct=parseFloat(f.comissao)||5;
-  var mesAtual=new Date().toISOString().substring(0,7);
+  var mesAtual=mesAtualLocal();
   var mesNome=new Date().toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
   var hist=getHist();
 
@@ -3756,7 +3759,7 @@ function saveFunc(){
 }
 function exportarRelComissoes(){
   var funcs=getFuncs(),hist=getHist();if(!funcs.length){alert('Nenhum funcionário.');return;}
-  var mesAtual=new Date().toISOString().substring(0,7);
+  var mesAtual=mesAtualLocal();
   var mesNome=new Date().toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
   var rows=[['Funcionário','Cargo','Comissão%','Total Vendido Mês','Comissão Mês Atual','Status','Mês']];
   funcs.forEach(function(f){
@@ -4004,7 +4007,7 @@ function exportarRelatorioCompraExcel(){
 function getHistTecidos(){try{return JSON.parse(localStorage.getItem('orcpro_ct_hist')||'[]');}catch(e){return[];}}
 function saveHistTecidos(arr){return gravarSeguro('orcpro_ct_hist',JSON.stringify(arr),'orçamentos da calculadora');}
 function getConfigTecidos(){try{return JSON.parse(localStorage.getItem('orcpro_ct_config')||'{}');}catch(e){return{};}}
-function saveConfigTecidos(cfg){localStorage.setItem('orcpro_ct_config',JSON.stringify(cfg));}
+function saveConfigTecidos(cfg){return gravarSeguro('orcpro_ct_config',JSON.stringify(cfg),'config da calculadora');}
 
 var ctArteIid=0,ctCustoIid=0;
 
@@ -4640,7 +4643,7 @@ function baixarEstoquePorAprovacao(h){
 // FORNECEDORES
 // ═══════════════════════════════════════════════════
 function getFornecedores(){try{return JSON.parse(localStorage.getItem('orcpro_fornecedores')||'[]');}catch(e){return[];}}
-function saveFornecedores(arr){localStorage.setItem('orcpro_fornecedores',JSON.stringify(arr));}
+function saveFornecedores(arr){return gravarSeguro('orcpro_fornecedores',JSON.stringify(arr),'fornecedores');}
 
 function openFornecedorModal(id){
   ge('fornecedor-edit-id').value=id||'';
@@ -5440,7 +5443,7 @@ function kpiCardGenerico(l,cls,ico,v,sub){
 // CONTAS A PAGAR (unificado: RH + Custos + Notas)
 // ═══════════════════════════════════════════════════
 function getContasPagarPagas(){try{return JSON.parse(localStorage.getItem('orcpro_pagar_pagas')||'{}');}catch(e){return{};}}
-function saveContasPagarPagas(obj){localStorage.setItem('orcpro_pagar_pagas',JSON.stringify(obj));}
+function saveContasPagarPagas(obj){return gravarSeguro('orcpro_pagar_pagas',JSON.stringify(obj),'contas pagas');}
 
 function montarListaContasPagar(){
   var hoje2=new Date(),mesAtual=hoje2.getMonth(),anoAtual=hoje2.getFullYear();
@@ -5566,7 +5569,7 @@ function getCanaisVenda(){
     return canais;
   }catch(e){return[];}
 }
-function saveCanaisVenda(arr){localStorage.setItem('orcpro_canais',JSON.stringify(arr));}
+function saveCanaisVenda(arr){return gravarSeguro('orcpro_canais',JSON.stringify(arr),'canais de venda');}
 
 // Tabela de tarifa fixa por faixa de preço — regra do Mercado Livre (produtos abaixo de R$ 79,00)
 function calcularTaxaFixaMercadoLivre(precoVenda){
@@ -5685,7 +5688,7 @@ function getRateioCustoFixoPorProduto(qtdManual){
 
 // ── Modelos salvos (um precificador por tipo de produto: caneca, camiseta, etc) ──
 function getModelosPrecificador(){try{return JSON.parse(localStorage.getItem('orcpro_precif_modelos')||'[]');}catch(e){return[];}}
-function saveModelosPrecificador(arr){localStorage.setItem('orcpro_precif_modelos',JSON.stringify(arr));}
+function saveModelosPrecificador(arr){return gravarSeguro('orcpro_precif_modelos',JSON.stringify(arr),'modelos de precificação');}
 
 var precifIid=0;
 
@@ -6084,7 +6087,7 @@ function calcularMargemPorProduto(){
 // USUÁRIOS E PERMISSÕES
 // ═══════════════════════════════════════════════════
 function getUsuarios(){try{return JSON.parse(localStorage.getItem('orcpro_usuarios')||'[]');}catch(e){return[];}}
-function saveUsuarios(arr){localStorage.setItem('orcpro_usuarios',JSON.stringify(arr));}
+function saveUsuarios(arr){return gravarSeguro('orcpro_usuarios',JSON.stringify(arr),'usuários');}
 function getUsuarioLogado(){try{return JSON.parse(localStorage.getItem('orcpro_usuario_logado')||'null');}catch(e){return null;}}
 
 function openUsuarioModal(id){
@@ -6472,7 +6475,7 @@ function marcarCustoMesPago(id,ano,mesIdx,pago){
 // RH — FOLHA DE PAGAMENTO
 // ═══════════════════════════════════════════════════
 function getPagamentosRH(){try{return JSON.parse(localStorage.getItem('orcpro_rh')||'[]');}catch(e){return[];}}
-function savePagamentosRH(arr){localStorage.setItem('orcpro_rh',JSON.stringify(arr));}
+function savePagamentosRH(arr){return gravarSeguro('orcpro_rh',JSON.stringify(arr),'pagamentos RH');}
 
 function openPagamentoModal(id){
   ge('pagto-edit-id').value=id||'';
@@ -6873,7 +6876,7 @@ function renderDash(){
   var meses={},mesesAprov={},prods={};
   // mês anterior para comparação
   var d=new Date();d.setMonth(d.getMonth()-1);
-  var mesAnterior=d.toISOString().substring(0,7);
+  var mesAnterior=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
   var totalMesAnt=0;
 
   hist.forEach(function(h){
