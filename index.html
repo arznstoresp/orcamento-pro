@@ -1738,6 +1738,16 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-generico">
+  <div class="modal" style="width:680px;max-width:96vw;max-height:88vh;overflow-y:auto">
+    <div class="modal-title" id="modal-generico-title">Detalhes</div>
+    <div id="modal-generico-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-out" onclick="fecharModalGenerico()">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-func">
   <div class="modal">
     <div class="modal-title" id="modal-func-title">Funcionário</div>
@@ -2288,7 +2298,22 @@ function removerPIN(){
 // MASKS
 // ═══════════════════════════════════════════════════
 function maskPhone(el){var v=el.value.replace(/\D/g,'').substring(0,11);el.value=v.length<=10?v.replace(/^(\d{2})(\d{4})(\d{0,4})$/,'($1) $2-$3').replace(/-$/,''):v.replace(/^(\d{2})(\d{5})(\d{0,4})$/,'($1) $2-$3').replace(/-$/,'');}
-function maskCpfCnpj(el){var v=el.value.replace(/\D/g,'');el.value=v.length<=11?v.replace(/^(\d{3})(\d{3})(\d{3})(\d{0,2})$/,'$1.$2.$3-$4').replace(/-$/,'').replace(/\.$/,''):v.substring(0,14).replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2})$/,'$1.$2.$3/$4-$5').replace(/-$/,'').replace(/\/$/,'').replace(/\.$/,'');}
+function maskCpfCnpj(el){var v=el.value.replace(/\D/g,'');el.value=v.length<=11?v.replace(/^(\d{3})(\d{3})(\d{3})(\d{0,2})$/,'$1.$2.$3-$4').replace(/-$/,'').replace(/\.$/,''):v.substring(0,14).replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2})$/,'$1.$2.$3/$4-$5').replace(/-$/,'').replace(/\/$/,'').replace(/\.$/,'');
+  // Detecta automaticamente se é CNPJ (14 dígitos) e sugere Pessoa Jurídica
+  var digitos=el.value.replace(/\D/g,'');
+  if(digitos.length>11&&ge('cli-tipo-pessoa')&&ge('cli-tipo-pessoa').value==='PF'){
+    ge('cli-tipo-pessoa').value='PJ';onTipoPessoaChange();
+  }
+}
+// Mostra/esconde campos fiscais conforme o tipo de pessoa
+function onTipoPessoaChange(){
+  var tipo=val('cli-tipo-pessoa');
+  var ehPJ=tipo==='PJ';
+  if(ge('cli-ie-wrap'))ge('cli-ie-wrap').style.display=ehPJ?'block':'none';
+  if(ge('cli-nf-wrap'))ge('cli-nf-wrap').style.display=ehPJ?'block':'none';
+  // Cliente PJ, por padrão, exige nota fiscal (é obrigatório por lei)
+  if(ehPJ&&ge('cli-exige-nf')&&!ge('cli-exige-nf')._tocado)ge('cli-exige-nf').checked=true;
+}
 function maskCep(el){var v=el.value.replace(/\D/g,'').substring(0,8);el.value=v.replace(/^(\d{5})(\d{0,3})$/,'$1-$2').replace(/-$/,'');}
 
 // ═══════════════════════════════════════════════════
@@ -3159,11 +3184,116 @@ function saveClientes(arr){return gravarSeguro('orcpro_clientes',JSON.stringify(
 function autoRegistrarCliente(){
   var nome=val('cli-nome');if(!nome)return;
   var clientes=getClientes(),wpp=val('cli-wpp'),email=val('cli-email'),doc=val('cli-doc'),end=val('cli-end');
+  var tipoPessoa=val('cli-tipo-pessoa')||'PF',ie=val('cli-ie'),exigeNF=ge('cli-exige-nf')&&ge('cli-exige-nf').checked;
   var idx=clientes.findIndex(function(c){return c.nome.toLowerCase()===nome.toLowerCase()||(wpp&&c.wpp===wpp)||(email&&c.email===email);});
   var orcNum=val('orc-num');
-  if(idx>=0){var c=clientes[idx];c.wpp=wpp||c.wpp;c.email=email||c.email;c.doc=doc||c.doc;c.end=end||c.end;c.orcamentos=c.orcamentos||[];if(orcNum&&c.orcamentos.indexOf(orcNum)<0)c.orcamentos.push(orcNum);if(!c.status||c.status==='Novo')c.status='Proposta enviada';c.ultimoContato=hoje();clientes[idx]=c;}
-  else clientes.push({id:'c'+Date.now(),nome:nome,wpp:wpp,email:email,doc:doc,end:end,status:'Proposta enviada',followup:'',obs:'',orcamentos:orcNum?[orcNum]:[],ultimoContato:hoje()});
+  if(idx>=0){var c=clientes[idx];c.wpp=wpp||c.wpp;c.email=email||c.email;c.doc=doc||c.doc;c.end=end||c.end;c.tipoPessoa=tipoPessoa;c.ie=ie||c.ie;c.exigeNF=exigeNF;c.orcamentos=c.orcamentos||[];if(orcNum&&c.orcamentos.indexOf(orcNum)<0)c.orcamentos.push(orcNum);if(!c.status||c.status==='Novo')c.status='Proposta enviada';c.ultimoContato=hoje();clientes[idx]=c;}
+  else clientes.push({id:'c'+Date.now(),nome:nome,wpp:wpp,email:email,doc:doc,end:end,tipoPessoa:tipoPessoa,ie:ie,exigeNF:exigeNF,status:'Proposta enviada',followup:'',obs:'',orcamentos:orcNum?[orcNum]:[],ultimoContato:hoje()});
   saveClientes(clientes);
+}
+
+// ═══════════════════════════════════════════════════
+// NOTA FISCAL — Preparação de dados (Nível 1: emissão assistida)
+// Reúne tudo que a nota precisa e organiza para copiar no portal de emissão.
+// ═══════════════════════════════════════════════════
+function prepararNotaFiscal(orcId){
+  var hist=getHist();
+  var h=hist.find(function(x){return x.id===orcId;});
+  if(!h){alert('Orçamento não encontrado.');return;}
+  var cfg=getCfg();
+  var itens=(h.items||[]).filter(function(it){return it.desc;});
+  var total=calcHistTotal(h);
+
+  // Monta o conteúdo organizado
+  var linhas=itens.map(function(it,i){
+    var qtd=parseFloat(it.qty)||0,preco=parseFloat(it.price)||0;
+    return(i+1)+'. '+it.desc+' — '+qtd+' x '+fmt(preco)+' = '+fmt(qtd*preco);
+  }).join('\n');
+
+  var cli=h.cliente||{};
+  var conteudoNota={
+    emitente:(cfg.nome||'')+(cfg.cnpj?' — CNPJ: '+cfg.cnpj:''),
+    destinatario:cli.nome||'',
+    docDest:cli.doc||'',
+    ieDest:cli.ie||'Isento',
+    endDest:cli.end||'',
+    emailDest:cli.email||'',
+    itens:linhas,
+    total:fmt(total)
+  };
+
+  var ehPJ=cli.tipoPessoa==='PJ'||(cli.doc&&cli.doc.replace(/\D/g,'').length>11);
+
+  var html='<div style="max-width:640px">'+
+    '<div style="background:rgba(255,107,0,.1);border:1px solid rgba(255,107,0,.3);border-radius:10px;padding:14px;margin-bottom:16px">'+
+      '<div style="font-size:15px;font-weight:700;color:var(--brand);margin-bottom:4px">🧾 Dados para emissão da Nota Fiscal</div>'+
+      '<div style="font-size:12px;color:rgba(255,255,255,.6);line-height:1.5">Copie os dados abaixo e cole no seu portal de emissão (SEFAZ / Emissor Nacional). '+(ehPJ?'<strong style="color:var(--brand)">Cliente PJ — emissão obrigatória.</strong>':'Cliente pessoa física.')+'</div>'+
+    '</div>';
+
+  function bloco(rotulo,valor,copiavel){
+    if(!valor)valor='<span style="color:rgba(255,255,255,.35)">— não informado —</span>';
+    return'<div style="margin-bottom:12px">'+
+      '<div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">'+rotulo+'</div>'+
+      '<div style="display:flex;gap:8px;align-items:flex-start">'+
+        '<div style="flex:1;background:rgba(255,255,255,.04);border:1px solid var(--dark-border2);border-radius:7px;padding:9px 12px;font-size:13px;color:#F0F0F5;white-space:pre-wrap;word-break:break-word">'+valor+'</div>'+
+        (copiavel!==false?'<button class="btn btn-out btn-sm" onclick="copiarTexto(this,\''+String(valor).replace(/'/g,"\\'").replace(/\n/g,'\\n').replace(/<[^>]+>/g,'')+'\')" style="white-space:nowrap">📋</button>':'')+
+      '</div>'+
+    '</div>';
+  }
+
+  html+='<div style="font-size:13px;font-weight:700;color:#F0F0F5;margin:16px 0 8px">Emitente (você)</div>';
+  html+=bloco('Sua empresa',conteudoNota.emitente);
+  html+='<div style="font-size:13px;font-weight:700;color:#F0F0F5;margin:16px 0 8px">Destinatário (cliente)</div>';
+  html+=bloco('Nome / Razão Social',conteudoNota.destinatario);
+  html+=bloco('CPF / CNPJ',conteudoNota.docDest);
+  if(ehPJ)html+=bloco('Inscrição Estadual',conteudoNota.ieDest);
+  html+=bloco('Endereço',conteudoNota.endDest);
+  if(conteudoNota.emailDest)html+=bloco('E-mail (para enviar a nota)',conteudoNota.emailDest);
+  html+='<div style="font-size:13px;font-weight:700;color:#F0F0F5;margin:16px 0 8px">Itens e valor</div>';
+  html+=bloco('Discriminação dos produtos',conteudoNota.itens);
+  html+=bloco('Valor total da nota',conteudoNota.total);
+
+  // Botão para copiar TUDO de uma vez + link para o portal
+  var textoCompleto='DADOS PARA NOTA FISCAL\n\n'+
+    'EMITENTE: '+conteudoNota.emitente+'\n\n'+
+    'DESTINATÁRIO: '+conteudoNota.destinatario+'\n'+
+    'CPF/CNPJ: '+conteudoNota.docDest+'\n'+
+    (ehPJ?'Inscrição Estadual: '+conteudoNota.ieDest+'\n':'')+
+    'Endereço: '+conteudoNota.endDest+'\n'+
+    (conteudoNota.emailDest?'E-mail: '+conteudoNota.emailDest+'\n':'')+
+    '\nITENS:\n'+conteudoNota.itens+'\n\n'+
+    'VALOR TOTAL: '+conteudoNota.total;
+
+  html+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;padding-top:16px;border-top:1px solid var(--dark-border2)">'+
+    '<button class="btn btn-brand" onclick="copiarTexto(this,\''+textoCompleto.replace(/'/g,"\\'").replace(/\n/g,'\\n')+'\')">📋 Copiar tudo</button>'+
+    '<a href="https://www.nfse.gov.br" target="_blank" class="btn btn-out">🌐 Abrir Emissor Nacional (serviços)</a>'+
+    '<a href="https://www.gov.br/nfe/pt-br" target="_blank" class="btn btn-out">🌐 Portal NF-e (produtos)</a>'+
+  '</div>'+
+  '<div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:12px;line-height:1.5">Dica: confirme com seu contador se a nota deste produto é NF-e (produto) ou NFS-e (serviço). O portal correto depende dos CNAEs do seu CNPJ.</div>'+
+  '</div>';
+
+  abrirModalGenerico('Preparar Nota Fiscal',html);
+}
+
+function abrirModalGenerico(titulo,htmlConteudo){
+  if(ge('modal-generico-title'))ge('modal-generico-title').textContent=titulo;
+  if(ge('modal-generico-body'))ge('modal-generico-body').innerHTML=htmlConteudo;
+  if(ge('modal-generico'))ge('modal-generico').className='modal-overlay open';
+}
+function fecharModalGenerico(){
+  if(ge('modal-generico'))ge('modal-generico').className='modal-overlay';
+}
+
+function copiarTexto(btn,texto){
+  var t=(texto||'').replace(/\\n/g,'\n');
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(function(){
+      var orig=btn.textContent;btn.textContent='✅';setTimeout(function(){btn.textContent=orig;},1200);
+    }).catch(function(){fallbackCopiar(t,btn);});
+  }else fallbackCopiar(t,btn);
+}
+function fallbackCopiar(t,btn){
+  try{var ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);var orig=btn.textContent;btn.textContent='✅';setTimeout(function(){btn.textContent=orig;},1200);}catch(e){alert('Copie manualmente:\n\n'+t);}
 }
 
 function renderClientes(){
@@ -3300,7 +3430,7 @@ function capturarEstado(){
     op1:val('op1-label'),op2:val('op2-label'),op3:val('op3-label'),
     descGeral:val('inp-desc'),frete:val('inp-frete'),parcelas:parc,
     totalCalc:t.total,custoCalc:t.custo,margemCalc:t.margem,
-    cliente:{nome:val('cli-nome'),doc:val('cli-doc'),wpp:val('cli-wpp'),email:val('cli-email'),cep:val('cli-cep'),end:val('cli-end')},
+    cliente:{nome:val('cli-nome'),doc:val('cli-doc'),wpp:val('cli-wpp'),email:val('cli-email'),cep:val('cli-cep'),end:val('cli-end'),tipoPessoa:val('cli-tipo-pessoa')||'PF',ie:val('cli-ie'),exigeNF:ge('cli-exige-nf')&&ge('cli-exige-nf').checked},
     items:getItems(),savedAt:new Date().toLocaleString('pt-BR')};
 }
 function salvarOrcamento(){
@@ -3467,6 +3597,7 @@ function renderHistComDados(f,isFilter,filterLabel){
         '<button class="btn btn-out btn-sm" onclick="previewOrcamento(\''+h.id+'\')" title="Ver">👁</button>'+
         '<button class="btn btn-wpp btn-sm" onclick="abrirFollowup(\''+h.id+'\')" title="Enviar mensagem">💬</button>'+
         '<button class="btn btn-out btn-sm" onclick="duplicarOrcamento(\''+h.id+'\')" title="Duplicar">📋</button>'+
+        '<button class="btn '+((h.cliente&&h.cliente.exigeNF)?'btn-brand':'btn-out')+' btn-sm" onclick="prepararNotaFiscal(\''+h.id+'\')" title="Preparar Nota Fiscal">🧾</button>'+
         '<button class="btn btn-danger btn-sm" onclick="deletarOrcamento(\''+h.id+'\')" title="Excluir">🗑</button>'+
       '</td>'+
     '</tr>';
@@ -3505,6 +3636,10 @@ function editarOrcamento(id){
   var h=getHist().find(function(x){return x.id===id;});if(!h)return;
   setVal('cli-nome',h.cliente.nome);setVal('cli-doc',h.cliente.doc);setVal('cli-wpp',h.cliente.wpp);
   setVal('cli-email',h.cliente.email);setVal('cli-cep',h.cliente.cep||'');setVal('cli-end',h.cliente.end);
+  if(ge('cli-tipo-pessoa')){ge('cli-tipo-pessoa').value=h.cliente.tipoPessoa||'PF';}
+  setVal('cli-ie',h.cliente.ie||'');
+  if(ge('cli-exige-nf')){ge('cli-exige-nf').checked=!!h.cliente.exigeNF;ge('cli-exige-nf')._tocado=true;}
+  if(typeof onTipoPessoaChange==='function')onTipoPessoaChange();
   setVal('orc-num',h.num);setVal('orc-data',h.data);setVal('orc-val',h.validade||'3');setVal('orc-status',h.status);
   setVal('orc-desc',h.desc);setVal('tipo-preco',h.tipoPreco||'varejo');setVal('pgto',h.pgto);
   setVal('prazo',h.prazo);setVal('entrega',h.entrega||'A definir');setVal('obs',h.obs);setVal('termos',h.termos||'');
