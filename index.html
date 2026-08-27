@@ -1186,11 +1186,14 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
           <div><label class="lbl">CNPJ / CPF</label><input id="cfg-cnpj" oninput="maskCpfCnpj(this);autoSave()" maxlength="18" placeholder="00.000.000/0001-00"></div>
         </div>
         <div class="g2 mt">
+          <div><label class="lbl">Inscrição Estadual <span class="lbl-hint">— sua, para emitir NF-e</span></label><input id="cfg-ie" oninput="autoSave()" placeholder="000.000.000.000"></div>
           <div><label class="lbl">Telefone</label><input id="cfg-tel" oninput="maskPhone(this);autoSave()" maxlength="15" placeholder="(11) 99999-0000"></div>
-          <div><label class="lbl">E-mail</label><input id="cfg-email" type="email" oninput="autoSave()" placeholder="contato@empresa.com"></div>
         </div>
         <div class="g2 mt">
+          <div><label class="lbl">E-mail</label><input id="cfg-email" type="email" oninput="autoSave()" placeholder="contato@empresa.com"></div>
           <div><label class="lbl">Website / Instagram</label><input id="cfg-site" oninput="autoSave()" placeholder="@empresa"></div>
+        </div>
+        <div class="g2 mt">
           <div><label class="lbl">Cidade — Estado</label><input id="cfg-cidade" oninput="autoSave()" placeholder="São Paulo — SP"></div>
         </div>
         <div class="mt"><label class="lbl">Endereço</label><input id="cfg-end" oninput="autoSave()" placeholder="Rua, número, bairro, CEP"></div>
@@ -2334,7 +2337,7 @@ function buscaCep(){
 function getCfg(){try{return JSON.parse(localStorage.getItem('orcpro_emp')||'{}');}catch(e){return{};}}
 function saveConfig(){
   var cfg={
-    nome:val('cfg-nome'),cnpj:val('cfg-cnpj'),tel:val('cfg-tel'),email:val('cfg-email'),
+    nome:val('cfg-nome'),cnpj:val('cfg-cnpj'),ie:val('cfg-ie'),tel:val('cfg-tel'),email:val('cfg-email'),
     site:val('cfg-site'),cidade:val('cfg-cidade'),end:val('cfg-end'),obs:val('cfg-obs'),
     termos:val('cfg-termos'),banco:val('cfg-banco'),prefixo:val('cfg-prefixo'),
     slogan:val('cfg-slogan'),meta:parseFloat(val('cfg-meta'))||0,categorias:val('cfg-categorias'),
@@ -2362,7 +2365,7 @@ function autoSave(){clearTimeout(stimer);stimer=setTimeout(saveConfig,900);}
 function showSaved(){var b=ge('saved-badge');if(!b)return;b.className='saved-badge show';setTimeout(function(){b.className='saved-badge';},2500);}
 function fillConfigForm(){
   var c=getCfg();
-  setVal('cfg-nome',c.nome);setVal('cfg-cnpj',c.cnpj);setVal('cfg-tel',c.tel);setVal('cfg-email',c.email);
+  setVal('cfg-nome',c.nome);setVal('cfg-cnpj',c.cnpj);setVal('cfg-ie',c.ie||'');setVal('cfg-tel',c.tel);setVal('cfg-email',c.email);
   setVal('cfg-site',c.site);setVal('cfg-cidade',c.cidade);setVal('cfg-end',c.end);setVal('cfg-obs',c.obs);
   setVal('cfg-termos',c.termos);setVal('cfg-banco',c.banco);setVal('cfg-prefixo',c.prefixo);
   setVal('cfg-slogan',c.slogan);setVal('cfg-meta',c.meta||'');setVal('cfg-categorias',c.categorias||'');
@@ -3212,7 +3215,7 @@ function prepararNotaFiscal(orcId){
 
   var cli=h.cliente||{};
   var conteudoNota={
-    emitente:(cfg.nome||'')+(cfg.cnpj?' — CNPJ: '+cfg.cnpj:''),
+    emitente:(cfg.nome||'')+(cfg.cnpj?' — CNPJ: '+cfg.cnpj:'')+(cfg.ie?' — IE: '+cfg.ie:''),
     destinatario:cli.nome||'',
     docDest:cli.doc||'',
     ieDest:cli.ie||'Isento',
@@ -3227,7 +3230,7 @@ function prepararNotaFiscal(orcId){
   var html='<div style="max-width:640px">'+
     '<div style="background:rgba(255,107,0,.1);border:1px solid rgba(255,107,0,.3);border-radius:10px;padding:14px;margin-bottom:16px">'+
       '<div style="font-size:15px;font-weight:700;color:var(--brand);margin-bottom:4px">🧾 Dados para emissão da Nota Fiscal</div>'+
-      '<div style="font-size:12px;color:rgba(255,255,255,.6);line-height:1.5">Copie os dados abaixo e cole no seu portal de emissão (SEFAZ / Emissor Nacional). '+(ehPJ?'<strong style="color:var(--brand)">Cliente PJ — emissão obrigatória.</strong>':'Cliente pessoa física.')+'</div>'+
+      '<div style="font-size:12px;color:rgba(255,255,255,.6);line-height:1.5">Copie os dados abaixo e cole no portal de emissão de NF-e da SEFAZ-SP. '+(ehPJ?'<strong style="color:var(--brand)">Cliente empresa (PJ) — emissão obrigatória por lei.</strong>':'Cliente pessoa física — emissão opcional, mas recomendada.')+'</div>'+
     '</div>';
 
   function bloco(rotulo,valor,copiavel){
@@ -3266,10 +3269,9 @@ function prepararNotaFiscal(orcId){
 
   html+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;padding-top:16px;border-top:1px solid var(--dark-border2)">'+
     '<button class="btn btn-brand" onclick="copiarTexto(this,\''+textoCompleto.replace(/'/g,"\\'").replace(/\n/g,'\\n')+'\')">📋 Copiar tudo</button>'+
-    '<a href="https://www.nfse.gov.br" target="_blank" class="btn btn-out">🌐 Abrir Emissor Nacional (serviços)</a>'+
-    '<a href="https://www.gov.br/nfe/pt-br" target="_blank" class="btn btn-out">🌐 Portal NF-e (produtos)</a>'+
+    '<a href="https://www.nfe.fazenda.sp.gov.br/EmissorNFe/" target="_blank" class="btn btn-out">🌐 Emitir NF-e (SEFAZ-SP)</a>'+
   '</div>'+
-  '<div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:12px;line-height:1.5">Dica: confirme com seu contador se a nota deste produto é NF-e (produto) ou NFS-e (serviço). O portal correto depende dos CNAEs do seu CNPJ.</div>'+
+  '<div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:12px;line-height:1.5">Seu MEI é de comércio (venda de produtos), então a nota é NF-e. Você já está credenciado na SEFAZ-SP para emitir. Guarde o XML/PDF de cada nota emitida por pelo menos 5 anos.</div>'+
   '</div>';
 
   abrirModalGenerico('Preparar Nota Fiscal',html);
