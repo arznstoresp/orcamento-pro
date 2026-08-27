@@ -3604,6 +3604,77 @@ function renderHist(){
   renderHistComDados(f,false,'');
 }
 
+// Renumera automaticamente os orçamentos duplicados, sem apagar nenhum.
+// Mantém o primeiro de cada número (mais antigo) e dá números novos aos demais.
+function resolverDuplicadosAuto(){
+  var hist=getHist();
+  var contagem={};
+  hist.forEach(function(h){var n=h.num||'';contagem[n]=(contagem[n]||0)+1;});
+  var duplicados=Object.keys(contagem).filter(function(n){return n&&contagem[n]>1;});
+  if(!duplicados.length){alert('Não há números duplicados.');return;}
+
+  var qtdRenumerar=hist.filter(function(h){return h.num&&contagem[h.num]>1;}).length-duplicados.length;
+  if(!confirm('Isto vai dar um número novo a '+qtdRenumerar+' orçamento(s) duplicado(s), mantendo o primeiro de cada número.\n\nNADA será apagado — todos os orçamentos continuam. Recomendo exportar um backup antes.\n\nContinuar?'))return;
+
+  // Descobre o maior número já usado, para os novos começarem a partir dali
+  var pfx=(getCfg().prefixo||new Date().getFullYear().toString());
+  var maiorNum=parseInt(localStorage.getItem('orcpro_cnt')||'0');
+  hist.forEach(function(h){
+    var m=String(h.num||'').match(/(\d+)$/);
+    if(m){var n=parseInt(m[1]);if(n>maiorNum)maiorNum=n;}
+  });
+
+  // Para cada número duplicado, mantém o primeiro e renumera os outros
+  var jaVisto={};
+  var proximoNum=maiorNum;
+  var renumerados=0;
+  // Ordena por data de salvamento para manter o mais antigo com o número original
+  hist.sort(function(a,b){
+    var ta=a.savedAt?new Date(a.savedAt).getTime():0;
+    var tb=b.savedAt?new Date(b.savedAt).getTime():0;
+    return ta-tb;
+  });
+  hist.forEach(function(h){
+    var n=h.num||'';
+    if(contagem[n]>1){
+      if(!jaVisto[n]){
+        jaVisto[n]=true;// primeiro fica com o número original
+      }else{
+        proximoNum++;
+        h.num=pfx+'-'+String(proximoNum).padStart(3,'0');
+        h._renumeradoDe=n;// registra de onde veio (rastreabilidade)
+        renumerados++;
+      }
+    }
+  });
+  // Atualiza o contador para o novo maior número
+  try{localStorage.setItem('orcpro_cnt',String(proximoNum));}catch(e){}
+  if(!saveHist(hist)){alert('Erro ao salvar. Tente novamente.');return;}
+  alert('✅ Pronto! '+renumerados+' orçamento(s) receberam números novos.\n\nNenhum orçamento foi apagado. Os duplicados agora têm números únicos.');
+  renderHist();
+}
+
+// Remove apenas cópias 100% idênticas (mesmo cliente, valor e data) — mantém uma de cada.
+function removerDuplicadosIdenticos(){
+  var hist=getHist();
+  var vistos={};
+  var manter=[];
+  var removidos=0;
+  hist.forEach(function(h){
+    var nome=(h.cliente&&h.cliente.nome)?h.cliente.nome:(h.cliente||'');
+    var total=calcHistTotal(h);
+    // "assinatura" do orçamento: número + cliente + total + data
+    var assinatura=(h.num||'')+'|'+nome+'|'+total.toFixed(2)+'|'+(h.data||'');
+    if(vistos[assinatura]){removidos++;}// é cópia idêntica, não mantém
+    else{vistos[assinatura]=true;manter.push(h);}
+  });
+  if(!removidos){alert('Não encontrei cópias 100% idênticas.\n\nSeus duplicados têm clientes ou valores diferentes — nesse caso, use "Renumerar duplicados" para não perder nenhuma venda.');return;}
+  if(!confirm('Encontrei '+removidos+' cópia(s) idêntica(s) (mesmo número, cliente, valor e data).\n\nVou manter uma de cada e remover as repetições exatas. Recomendo backup antes.\n\nContinuar?'))return;
+  if(!saveHist(manter)){alert('Erro ao salvar.');return;}
+  alert('✅ '+removidos+' cópia(s) idêntica(s) removida(s). As originais foram mantidas.');
+  renderHist();
+}
+
 function renderHistComDados(f,isFilter,filterLabel){
   var tbody=ge('hist-body'),empty=ge('hist-empty'),count=ge('hist-count');
   var hist=getHist();
@@ -3623,7 +3694,12 @@ function renderHistComDados(f,isFilter,filterLabel){
     }
     avisoDup.style.cssText='background:rgba(251,146,60,.12);border:1px solid rgba(251,146,60,.4);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#FCA05B';
     avisoDup.innerHTML='⚠️ <strong>'+duplicados.length+' número(s) de orçamento duplicado(s):</strong> '+duplicados.slice(0,10).join(', ')+
-      '. Os duplicados estão marcados na lista abaixo com 🔶. Verifique e exclua os que forem repetição.';
+      '. Os duplicados estão marcados na lista abaixo com 🔶.'+
+      '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">'+
+        '<button class="btn btn-brand btn-sm" onclick="resolverDuplicadosAuto()">🔢 Renumerar duplicados automaticamente</button>'+
+        '<button class="btn btn-out btn-sm" onclick="removerDuplicadosIdenticos()">🗑️ Remover só as cópias idênticas</button>'+
+      '</div>'+
+      '<div style="font-size:11px;color:rgba(255,255,255,.55);margin-top:8px;line-height:1.5">Renumerar: dá um número novo a cada duplicado, sem apagar nada (ideal quando são clientes/valores diferentes, como no seu caso). Remover idênticas: apaga só quando são cópias 100% iguais (mesmo cliente, valor e data).</div>';
   }else if(avisoDup){avisoDup.remove();}
 
   if(!f.length){tbody.innerHTML='';if(empty)empty.style.display='block';return;}
