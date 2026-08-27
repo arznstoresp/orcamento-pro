@@ -286,6 +286,49 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
 .dash-card:nth-child(1){animation-delay:.04s}.dash-card:nth-child(2){animation-delay:.08s}.dash-card:nth-child(3){animation-delay:.12s}.dash-card:nth-child(4){animation-delay:.16s}
 
 /* ═══════════════════════════════════════════════════
+   CATÁLOGO PROFISSIONAL — vitrine assimétrica
+   ═══════════════════════════════════════════════════ */
+.cat-capa{background:linear-gradient(135deg,var(--dark-card2),var(--dark-surface));border:1px solid var(--dark-border2);border-radius:16px;padding:32px 28px;margin-bottom:22px;position:relative;overflow:hidden}
+.cat-capa::before{content:'';position:absolute;top:-40%;right:-10%;width:300px;height:300px;background:radial-gradient(circle,var(--brand-glow),transparent 70%);pointer-events:none}
+.cat-capa-marca{font-size:12px;font-weight:700;color:var(--brand);text-transform:uppercase;letter-spacing:3px;margin-bottom:8px}
+.cat-capa-titulo{font-size:32px;font-weight:800;color:#F5F5FA;font-family:Georgia,'Times New Roman',serif;line-height:1.1;margin-bottom:6px}
+.cat-capa-slogan{font-size:14px;color:rgba(255,255,255,.55);font-style:italic;margin-bottom:12px;max-width:70%}
+.cat-capa-meta{font-size:11px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1.5px}
+
+.cat-secao{margin-bottom:32px}
+.cat-secao-head{display:flex;align-items:center;gap:14px;margin-bottom:16px}
+.cat-secao-titulo{font-size:20px;font-weight:800;color:#F0F0F5;font-family:Georgia,serif;white-space:nowrap}
+.cat-secao-linha{flex:1;height:1px;background:linear-gradient(90deg,var(--brand-glow),transparent)}
+.cat-secao-count{font-size:11px;font-weight:700;color:var(--brand);background:var(--brand-glow);width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+
+/* Card destaque — grande, horizontal no desktop */
+.cat-destaque{display:grid;grid-template-columns:1.1fr 1fr;background:var(--dark-card2);border:1px solid var(--dark-border2);border-radius:14px;overflow:hidden;margin-bottom:14px;min-height:280px;transition:transform .2s,box-shadow .2s}
+.cat-destaque:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(0,0,0,.35)}
+.cat-destaque-foto{position:relative;min-height:280px;background:#000}
+.cat-destaque-badge{position:absolute;top:14px;left:14px;background:var(--brand);color:#fff;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:5px 12px;border-radius:20px;box-shadow:0 2px 12px var(--brand-glow)}
+.cat-destaque-info{padding:26px 28px;display:flex;flex-direction:column}
+.cat-eyebrow{font-size:11px;font-weight:700;color:var(--brand);text-transform:uppercase;letter-spacing:2px;margin-bottom:8px}
+.cat-destaque-nome{font-size:24px;font-weight:800;color:#F5F5FA;line-height:1.2;font-family:Georgia,serif;margin-bottom:8px}
+.cat-destaque-desc{font-size:13px;color:rgba(255,255,255,.55);line-height:1.6;margin-top:4px}
+
+/* Grid dos demais produtos */
+.cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
+.cat-card{background:var(--dark-card2);border:1px solid var(--dark-border2);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;transition:transform .2s,box-shadow .2s,border-color .2s}
+.cat-card:hover{transform:translateY(-3px);box-shadow:0 10px 28px rgba(0,0,0,.3);border-color:var(--brand-glow)}
+.cat-card-foto{width:100%;height:160px;overflow:hidden;background:#000}
+.cat-card-info{padding:12px 14px;display:flex;flex-direction:column;flex:1}
+.cat-card-nome{font-size:14px;font-weight:700;color:#F0F0F5;line-height:1.3;margin-bottom:4px}
+.cat-card-desc{font-size:11px;color:rgba(255,255,255,.45);line-height:1.5;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.cat-variacao{font-size:10px;color:var(--brand-l);margin:2px 0}
+
+@media (max-width:720px){
+  .cat-destaque{grid-template-columns:1fr}
+  .cat-destaque-foto{min-height:200px;height:200px}
+  .cat-capa-slogan{max-width:100%}
+  .cat-capa-titulo{font-size:26px}
+}
+
+/* ═══════════════════════════════════════════════════
    BOTÃO DE AÇÃO FLUTUANTE (FAB) — só mobile
    ═══════════════════════════════════════════════════ */
 .fab-container{display:none;position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));right:20px;z-index:200;flex-direction:column;align-items:flex-end;gap:10px}
@@ -2794,20 +2837,54 @@ function agruparProdutosPorCategoria(produtos){
   return resultado;
 }
 
-function montarCardProdutoCatalogo(p,modo){
-  var foto=p.foto?'<img src="'+p.foto+'" style="width:100%;height:150px;object-fit:cover;border-radius:8px 8px 0 0">':'<div style="width:100%;height:150px;background:rgba(255,255,255,.05);border-radius:8px 8px 0 0;display:flex;align-items:center;justify-content:center;font-size:36px">📦</div>';
-  var precoHtml='';
-  if(modo==='varejo')precoHtml='<div style="font-size:17px;font-weight:800;color:var(--brand)">'+fmt(p.varejo)+'</div>';
-  else if(modo==='atacado')precoHtml='<div style="font-size:17px;font-weight:800;color:var(--brand)">'+fmt(p.atacado)+'</div><div style="font-size:10px;color:rgba(255,255,255,.4)">a partir de '+p.minAtacado+' un.</div>';
-  else if(modo==='ambos')precoHtml='<div style="display:flex;justify-content:space-between;align-items:baseline"><div><div style="font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase">Varejo</div><div style="font-size:15px;font-weight:800;color:var(--brand)">'+fmt(p.varejo)+'</div></div><div style="text-align:right"><div style="font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase">Atacado ('+p.minAtacado+'+)</div><div style="font-size:15px;font-weight:800;color:var(--brand-l)">'+fmt(p.atacado)+'</div></div></div>';
+// Placeholder elegante para produtos sem foto: usa a inicial do nome num fundo com gradiente da marca
+function placeholderProdutoCatalogo(p,altura){
+  altura=altura||150;
+  var inicial=(p.nome||'?').trim().charAt(0).toUpperCase();
+  // Gera um tom sutil baseado no nome, para os placeholders não ficarem todos iguais
+  var hash=0;for(var i=0;i<(p.nome||'').length;i++)hash=(p.nome.charCodeAt(i)+((hash<<5)-hash));
+  var matiz=Math.abs(hash)%40;// variação pequena dentro da faixa quente da marca
+  return'<div style="width:100%;height:'+altura+'px;background:linear-gradient(135deg,hsl('+(20+matiz)+',70%,18%),hsl('+(15+matiz)+',60%,10%));display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden">'+
+    '<div style="font-size:'+(altura*0.42)+'px;font-weight:800;color:rgba(255,140,51,.35);font-family:Georgia,serif;line-height:1">'+inicial+'</div>'+
+    '<div style="position:absolute;bottom:8px;right:10px;font-size:9px;color:rgba(255,255,255,.25);text-transform:uppercase;letter-spacing:1px">sem foto</div>'+
+  '</div>';
+}
+
+function precoCatalogoHtml(p,modo,grande){
+  var tamPreco=grande?'22px':'17px';
+  if(modo==='sem_preco')return'';
+  if(modo==='varejo')return'<div style="font-size:'+tamPreco+';font-weight:800;color:var(--brand)">'+fmt(p.varejo)+'</div>';
+  if(modo==='atacado')return'<div style="font-size:'+tamPreco+';font-weight:800;color:var(--brand)">'+fmt(p.atacado)+'</div><div style="font-size:10px;color:rgba(255,255,255,.4)">a partir de '+p.minAtacado+' un.</div>';
+  // ambos
+  return'<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px"><div><div style="font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px">Varejo</div><div style="font-size:'+(grande?'19px':'15px')+';font-weight:800;color:var(--brand)">'+fmt(p.varejo)+'</div></div><div style="text-align:right"><div style="font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px">Atacado ('+p.minAtacado+'+)</div><div style="font-size:'+(grande?'19px':'15px')+';font-weight:800;color:var(--brand-l)">'+fmt(p.atacado)+'</div></div></div>';
+}
+
+// Card destaque — maior, produto em evidência (primeiro de cada categoria)
+function montarCardDestaque(p,modo){
+  var foto=p.foto?'<img src="'+p.foto+'" style="width:100%;height:100%;object-fit:cover" loading="lazy">':placeholderProdutoCatalogo(p,280);
   var variacaoTxt=formatarVariacaoProduto(p);
-  return'<div style="background:var(--dark-card2);border:1px solid var(--dark-border2);border-radius:10px;overflow:hidden">'+
-    foto+
-    '<div style="padding:10px 12px">'+
-      '<div style="font-size:13px;font-weight:600;color:#F0F0F5;margin-bottom:4px;line-height:1.3">'+p.nome+'</div>'+
-      (variacaoTxt?'<div style="font-size:10px;color:var(--brand-l);margin-bottom:4px">🎨 '+variacaoTxt+'</div>':'')+
-      (p.desc?'<div style="font-size:11px;color:rgba(255,255,255,.45);margin-bottom:6px;line-height:1.4">'+p.desc+'</div>':'')+
-      precoHtml+
+  return'<div class="cat-destaque">'+
+    '<div class="cat-destaque-foto">'+foto+'<div class="cat-destaque-badge">Destaque</div></div>'+
+    '<div class="cat-destaque-info">'+
+      (p.cat?'<div class="cat-eyebrow">'+p.cat+'</div>':'')+
+      '<div class="cat-destaque-nome">'+p.nome+'</div>'+
+      (variacaoTxt?'<div class="cat-variacao">🎨 '+variacaoTxt+'</div>':'')+
+      (p.desc?'<div class="cat-destaque-desc">'+p.desc+'</div>':'')+
+      '<div style="margin-top:auto;padding-top:12px">'+precoCatalogoHtml(p,modo,true)+'</div>'+
+    '</div>'+
+  '</div>';
+}
+
+function montarCardProdutoCatalogo(p,modo){
+  var foto=p.foto?'<img src="'+p.foto+'" style="width:100%;height:160px;object-fit:cover" loading="lazy">':placeholderProdutoCatalogo(p,160);
+  var variacaoTxt=formatarVariacaoProduto(p);
+  return'<div class="cat-card">'+
+    '<div class="cat-card-foto">'+foto+'</div>'+
+    '<div class="cat-card-info">'+
+      '<div class="cat-card-nome">'+p.nome+'</div>'+
+      (variacaoTxt?'<div class="cat-variacao">🎨 '+variacaoTxt+'</div>':'')+
+      (p.desc?'<div class="cat-card-desc">'+p.desc+'</div>':'')+
+      '<div style="margin-top:auto;padding-top:8px">'+precoCatalogoHtml(p,modo,false)+'</div>'+
     '</div>'+
   '</div>';
 }
@@ -2823,12 +2900,32 @@ function renderCatalogoProfissional(){
   if(emptyEl)emptyEl.style.display='none';
 
   var grupos=agruparProdutosPorCategoria(produtos);
-  conteudoEl.innerHTML=grupos.map(function(g){
-    return'<div class="card">'+
-      '<div class="card-title">'+g.categoria+' <span style="margin-left:6px;font-size:11px;color:rgba(255,255,255,.4);font-weight:400;text-transform:none;letter-spacing:0">('+g.produtos.length+')</span></div>'+
-      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px">'+
-        g.produtos.map(function(p){return montarCardProdutoCatalogo(p,modo);}).join('')+
+  var cfg=getCfg();
+
+  // Cabeçalho editorial do catálogo (aparece só na tela; no PDF tem o seu próprio)
+  var totalProdutos=produtos.length;
+  var capa='<div class="cat-capa">'+
+    '<div class="cat-capa-marca">'+(cfg.nome||'Catálogo')+'</div>'+
+    '<div class="cat-capa-titulo">Catálogo de Produtos</div>'+
+    (cfg.slogan?'<div class="cat-capa-slogan">'+cfg.slogan+'</div>':'')+
+    '<div class="cat-capa-meta">'+totalProdutos+' produtos · '+grupos.length+' categorias</div>'+
+  '</div>';
+
+  conteudoEl.innerHTML=capa+grupos.map(function(g){
+    var lista=g.produtos.slice();
+    // O primeiro produto (preferindo um COM foto) vira destaque
+    var idxDestaque=lista.findIndex(function(p){return p.foto;});
+    if(idxDestaque<0)idxDestaque=0;
+    var destaque=lista.splice(idxDestaque,1)[0];
+
+    return'<div class="cat-secao">'+
+      '<div class="cat-secao-head">'+
+        '<span class="cat-secao-titulo">'+g.categoria+'</span>'+
+        '<span class="cat-secao-linha"></span>'+
+        '<span class="cat-secao-count">'+g.produtos.length+'</span>'+
       '</div>'+
+      montarCardDestaque(destaque,modo)+
+      (lista.length?'<div class="cat-grid">'+lista.map(function(p){return montarCardProdutoCatalogo(p,modo);}).join('')+'</div>':'')+
     '</div>';
   }).join('');
 }
