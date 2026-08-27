@@ -3604,6 +3604,32 @@ function renderHist(){
   renderHistComDados(f,false,'');
 }
 
+// Renumera UM orçamento específico, dando a ele o próximo número livre.
+// Mostra qual será o novo número e pede confirmação — controle total, um por um.
+function renumerarUm(id){
+  var hist=getHist();
+  var h=hist.find(function(x){return x.id===id;});
+  if(!h){alert('Orçamento não encontrado.');return;}
+
+  // Descobre o próximo número livre (maior de todos + 1)
+  var pfx=(getCfg().prefixo||new Date().getFullYear().toString());
+  var maiorNum=parseInt(localStorage.getItem('orcpro_cnt')||'0');
+  hist.forEach(function(x){
+    var m=String(x.num||'').match(/(\d+)$/);
+    if(m){var n=parseInt(m[1]);if(n>maiorNum)maiorNum=n;}
+  });
+  var novoNum=pfx+'-'+String(maiorNum+1).padStart(3,'0');
+
+  var nomeCliente=(h.cliente&&h.cliente.nome)?h.cliente.nome:'—';
+  if(!confirm('Renumerar este orçamento?\n\nCliente: '+nomeCliente+'\nValor: '+fmt(calcHistTotal(h))+'\n\nNúmero atual: #'+h.num+'\nNúmero novo: #'+novoNum+'\n\nNada é apagado — só o número muda. Continuar?'))return;
+
+  h._renumeradoDe=h.num;// registra o número antigo (rastreabilidade)
+  h.num=novoNum;
+  try{localStorage.setItem('orcpro_cnt',String(maiorNum+1));}catch(e){}
+  if(!saveHist(hist)){alert('Erro ao salvar. Tente novamente.');return;}
+  renderHist();
+}
+
 // Renumera automaticamente os orçamentos duplicados, sem apagar nenhum.
 // Mantém o primeiro de cada número (mais antigo) e dá números novos aos demais.
 function resolverDuplicadosAuto(){
@@ -3694,12 +3720,9 @@ function renderHistComDados(f,isFilter,filterLabel){
     }
     avisoDup.style.cssText='background:rgba(251,146,60,.12);border:1px solid rgba(251,146,60,.4);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#FCA05B';
     avisoDup.innerHTML='⚠️ <strong>'+duplicados.length+' número(s) de orçamento duplicado(s):</strong> '+duplicados.slice(0,10).join(', ')+
-      '. Os duplicados estão marcados na lista abaixo com 🔶.'+
-      '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">'+
-        '<button class="btn btn-brand btn-sm" onclick="resolverDuplicadosAuto()">🔢 Renumerar duplicados automaticamente</button>'+
-        '<button class="btn btn-out btn-sm" onclick="removerDuplicadosIdenticos()">🗑️ Remover só as cópias idênticas</button>'+
-      '</div>'+
-      '<div style="font-size:11px;color:rgba(255,255,255,.55);margin-top:8px;line-height:1.5">Renumerar: dá um número novo a cada duplicado, sem apagar nada (ideal quando são clientes/valores diferentes, como no seu caso). Remover idênticas: apaga só quando são cópias 100% iguais (mesmo cliente, valor e data).</div>';
+      '. As linhas duplicadas estão marcadas com 🔶 e têm um botão <strong>🔢 Renumerar</strong> ao lado do número.'+
+      '<div style="font-size:11px;color:rgba(255,255,255,.55);margin-top:8px;line-height:1.5">Confira cada uma e clique em 🔢 Renumerar para dar um número novo (ideal quando são clientes/valores diferentes — nada é apagado). Se forem cópias 100% idênticas, use o botão abaixo.</div>'+
+      '<div style="margin-top:8px"><button class="btn btn-out btn-sm" onclick="removerDuplicadosIdenticos()">🗑️ Remover só as cópias idênticas</button></div>';
   }else if(avisoDup){avisoDup.remove();}
 
   if(!f.length){tbody.innerHTML='';if(empty)empty.style.display='block';return;}
@@ -3718,7 +3741,7 @@ function renderHistComDados(f,isFilter,filterLabel){
     var vencido=(h.status==='Aguardando aprovação'||h.status==='Em revisão')&&valDate<new Date();
     var rowStyle=ehDuplicado?'background:rgba(251,146,60,.08);':(vencido?'background:#fff5f5;':'');
     return'<tr style="'+rowStyle+'">'+
-      '<td style="font-weight:700;color:var(--brand)">'+(ehDuplicado?'<span title="Número duplicado">🔶</span> ':'')+'#'+h.num+(vencido?' <span title="Vencido" style="color:var(--red)">⚠️</span>':'')+'</td>'+
+      '<td style="font-weight:700;color:var(--brand)">'+(ehDuplicado?'<span title="Número duplicado">🔶</span> ':'')+'#'+h.num+(vencido?' <span title="Vencido" style="color:var(--red)">⚠️</span>':'')+(ehDuplicado?' <button class="btn btn-brand btn-sm" style="padding:2px 7px;font-size:10px;margin-left:4px" onclick="renumerarUm(\''+h.id+'\')" title="Dar um número novo a este orçamento">🔢 Renumerar</button>':'')+'</td>'+
       '<td><strong style="font-size:13px">'+(h.cliente.nome||'—')+'</strong></td>'+
       '<td style="font-size:12px">'+fmtDt(h.data)+'</td>'+
       '<td style="font-size:12px;'+(vencido?'color:var(--red);font-weight:600':'')+'">'+addDays(h.data,h.validade)+(vencido?' ⚠️':'')+'</td>'+
