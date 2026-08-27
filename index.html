@@ -1775,6 +1775,31 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
     <div class="g2 mt"><div><label class="lbl">Unidade</label><select id="prod-unit"><option>un</option><option>cx</option><option>kg</option><option>m</option><option>m²</option><option>L</option><option>par</option><option>pç</option></select></div><div></div></div>
 
     <div class="mt" style="background:rgba(255,255,255,.03);border:1px solid var(--dark-border2);border-radius:10px;padding:12px 14px">
+      <label class="lbl" style="margin-bottom:8px;display:block">🧾 Dados fiscais (para Nota Fiscal) <span class="lbl-hint">— preencha uma vez e o app entrega pronto na hora de emitir</span></label>
+      <div><label class="lbl" style="font-size:11px">Tipo de produto <span class="lbl-hint">— escolha e o NCM é sugerido automaticamente</span></label>
+        <select id="prod-tipo-fiscal" onchange="aplicarNcmPorTipo()">
+          <option value="">— escolher para preencher o NCM —</option>
+          <option value="6109.10.00">Camiseta / vestuário de algodão</option>
+          <option value="6109.90.00">Camiseta / vestuário de poliéster (dry-fit, sublimação)</option>
+          <option value="6912.00.00">Caneca / xícara de cerâmica</option>
+          <option value="3924.10.00">Caneca / copo de plástico</option>
+          <option value="7013.37.00">Caneca / copo de vidro</option>
+          <option value="3919.90.20">Adesivo / vinil autocolante</option>
+          <option value="4911.99.00">Impresso / estampa / arte gráfica em geral</option>
+          <option value="3926.40.00">Item de acrílico / plástico decorativo</option>
+          <option value="4820.10.00">Papelaria / agenda / caderno</option>
+          <option value="3919.10.00">Chaveiro / item plástico pequeno</option>
+          <option value="__manual">Outro (vou digitar o NCM)</option>
+        </select>
+      </div>
+      <div class="g2 mt">
+        <div><label class="lbl" style="font-size:11px">NCM <span class="lbl-hint">— 8 dígitos</span></label><input id="prod-ncm" placeholder="0000.00.00" maxlength="10"></div>
+        <div><label class="lbl" style="font-size:11px">CFOP <span class="lbl-hint">— venda dentro do estado: 5102</span></label><input id="prod-cfop" placeholder="5102" maxlength="4"></div>
+      </div>
+      <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:8px;line-height:1.5">💡 Os NCMs sugeridos são os mais comuns para cada tipo, mas o material muda o código. Confirme uma vez com seu contador ou pelo 0800 570 0800 do Sebrae (gratuito) — depois fica salvo para sempre. CFOP 5102 é o mais comum para venda de mercadoria dentro do seu estado.</div>
+    </div>
+
+    <div class="mt" style="background:rgba(255,255,255,.03);border:1px solid var(--dark-border2);border-radius:10px;padding:12px 14px">
       <label class="lbl" style="margin-bottom:8px;display:block">🎨 Variações <span class="lbl-hint">— use o Nome de cima genérico (ex: "Camiseta Premium") e cadastre cada cor/tamanho aqui, não repita no nome</span></label>
       <div id="prod-variacoes-lista" style="display:flex;flex-direction:column;gap:8px"></div>
       <button type="button" class="add-row" style="margin-top:8px" onclick="addProdVariacao()">＋ Adicionar variação</button>
@@ -2881,6 +2906,21 @@ function exportarCatalogoPDF(){
   w.document.close();
 }
 
+// Ao escolher o tipo de produto, preenche o NCM automaticamente (e CFOP padrão se vazio)
+function aplicarNcmPorTipo(){
+  var tipo=val('prod-tipo-fiscal');
+  if(!tipo)return;
+  if(tipo==='__manual'){
+    // libera o campo para digitação manual, não sobrescreve
+    var campo=ge('prod-ncm');if(campo){campo.focus();}
+    return;
+  }
+  // O value do option JÁ é o NCM
+  setVal('prod-ncm',tipo);
+  // CFOP padrão de venda de mercadoria dentro do estado, se ainda não preenchido
+  if(!val('prod-cfop'))setVal('prod-cfop','5102');
+}
+
 function openProdModal(id){
   ge('prod-edit-id').value=id||'';ge('modal-prod-title').textContent=id?'Editar Produto':'Novo Produto';
   ge('prod-composicao-temp').value='';
@@ -2894,7 +2934,7 @@ function openProdModal(id){
   if(id){
     var p=getProdutos().find(function(x){return x.id===id;});
     if(p){
-      setVal('prod-nome',p.nome);setVal('prod-cat',p.cat);setVal('prod-unit',p.unit);setVal('prod-sku',p.sku);setVal('prod-custo',p.custo||'');setVal('prod-varejo',p.varejo);setVal('prod-atacado',p.atacado);setVal('prod-min',p.minAtacado);setVal('prod-desc',p.desc);
+      setVal('prod-nome',p.nome);setVal('prod-cat',p.cat);setVal('prod-unit',p.unit);setVal('prod-sku',p.sku);setVal('prod-ncm',p.ncm||'');setVal('prod-cfop',p.cfop||'');setVal('prod-custo',p.custo||'');setVal('prod-varejo',p.varejo);setVal('prod-atacado',p.atacado);setVal('prod-min',p.minAtacado);setVal('prod-desc',p.desc);
       // Carrega variações: usa o array novo 'variacoes' se existir, senão retrocompatibilidade com o campo antigo 'variacao' (objeto único)
       var variacoesExistentes=p.variacoes&&p.variacoes.length?p.variacoes:(p.variacao&&(p.variacao.cor||p.variacao.tamanho||p.variacao.modelo)?[p.variacao]:[]);
       variacoesExistentes.forEach(function(v){addProdVariacao(v);});
@@ -2920,7 +2960,8 @@ function openProdModal(id){
     }
   }
   else{
-    ['prod-nome','prod-cat','prod-sku','prod-custo','prod-varejo','prod-atacado','prod-desc','prod-foto-data'].forEach(function(i){setVal(i,'');});
+    ['prod-nome','prod-cat','prod-sku','prod-ncm','prod-cfop','prod-custo','prod-varejo','prod-atacado','prod-desc','prod-foto-data'].forEach(function(i){setVal(i,'');});
+    setVal('prod-tipo-fiscal','');
     setVal('prod-unit','un');setVal('prod-min','10');
     for(var fi=0;fi<3;fi++){ge('prod-foto-file-'+fi).value='';}
     renderTodasProdFotos();
@@ -3056,7 +3097,7 @@ function saveProd(){
 
   var fotosFinais=prodFotosTemp.filter(function(f){return f;});// remove vazios, mantém ordem
   var controlaEstoque=ge('prod-controla-estoque').checked;
-  var prod={id:editId||'p'+Date.now(),nome:nome,cat:val('prod-cat'),unit:val('prod-unit'),sku:val('prod-sku'),custo:custo,varejo:varejo,atacado:atacado||varejo,minAtacado:parseInt(val('prod-min'))||10,desc:val('prod-desc'),foto:fotosFinais[0]||'',fotos:fotosFinais,controlaEstoque:controlaEstoque,estoqueQtd:controlaEstoque?(parseFloat(val('prod-estoque-qtd'))||0):0,estoqueMin:controlaEstoque?(parseFloat(val('prod-estoque-min'))||0):0,composicaoCusto:composicaoCusto,exibirCatalogo:ge('prod-exibir-catalogo').checked,variacoes:variacoes};
+  var prod={id:editId||'p'+Date.now(),nome:nome,cat:val('prod-cat'),unit:val('prod-unit'),sku:val('prod-sku'),ncm:val('prod-ncm'),cfop:val('prod-cfop'),custo:custo,varejo:varejo,atacado:atacado||varejo,minAtacado:parseInt(val('prod-min'))||10,desc:val('prod-desc'),foto:fotosFinais[0]||'',fotos:fotosFinais,controlaEstoque:controlaEstoque,estoqueQtd:controlaEstoque?(parseFloat(val('prod-estoque-qtd'))||0):0,estoqueMin:controlaEstoque?(parseFloat(val('prod-estoque-min'))||0):0,composicaoCusto:composicaoCusto,exibirCatalogo:ge('prod-exibir-catalogo').checked,variacoes:variacoes};
   if(editId){var idx=prods.findIndex(function(x){return x.id===editId;});if(idx>=0)prods[idx]=prod;else prods.push(prod);}
   else prods.push(prod);
   saveProdutos(prods);closeProdModal();renderCat();
@@ -3210,10 +3251,21 @@ function prepararNotaFiscal(orcId){
   var itens=(h.items||[]).filter(function(it){return it.desc;});
   var total=calcHistTotal(h);
 
-  // Monta o conteúdo organizado
+  // Monta o conteúdo organizado — inclui NCM/CFOP de cada produto (busca no cadastro)
+  var produtos=getProdutos();
   var linhas=itens.map(function(it,i){
     var qtd=parseFloat(it.qty)||0,preco=parseFloat(it.price)||0;
-    return(i+1)+'. '+it.desc+' — '+qtd+' x '+fmt(preco)+' = '+fmt(qtd*preco);
+    // Tenta achar o produto cadastrado para pegar NCM/CFOP
+    var prod=produtos.find(function(p){return p.nome===it.desc||(it.desc&&p.nome&&it.desc.indexOf(p.nome)>=0);});
+    var ncm=prod&&prod.ncm?prod.ncm:'';
+    var cfop=prod&&prod.cfop?prod.cfop:'';
+    var infoFiscal='';
+    if(ncm||cfop){
+      infoFiscal=' | '+(ncm?'NCM '+ncm:'')+(ncm&&cfop?' · ':'')+(cfop?'CFOP '+cfop:'');
+    }else{
+      infoFiscal=' | ⚠️ NCM não cadastrado';
+    }
+    return(i+1)+'. '+it.desc+' — '+qtd+' x '+fmt(preco)+' = '+fmt(qtd*preco)+infoFiscal;
   }).join('\n');
 
   var cli=h.cliente||{};
