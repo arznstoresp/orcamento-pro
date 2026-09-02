@@ -4476,7 +4476,12 @@ function getCustosExtrasTecido(){
   });
 }
 function getTotalCustosExtrasAtivos(){
-  return getCustosExtrasTecido().filter(function(c){return c.ativo;}).reduce(function(a,c){return a+c.valor;},0);
+  // Custos por UNIDADE (embalagem, etiqueta, tag, sacola, outros): cada peça carrega o valor cheio
+  return getCustosExtrasTecido().filter(function(c){return c.ativo&&c.id!=='frete_interno';}).reduce(function(a,c){return a+c.valor;},0);
+}
+// Custos do PEDIDO inteiro (frete interno): valor único, rateado entre as peças — não multiplica por unidade
+function getTotalCustosPedidoAtivos(){
+  return getCustosExtrasTecido().filter(function(c){return c.ativo&&c.id==='frete_interno';}).reduce(function(a,c){return a+c.valor;},0);
 }
 
 // ── Custos Indiretos — puxar do MEI + extra ──
@@ -4531,6 +4536,121 @@ function setTipoProduto(tipo){
   calcularTecidos();
 }
 
+// ═══════════════════════════════════════════════════
+// TABELA DE GRAVAÇÃO DO FORNECEDOR (UV Digital — Global Gravações)
+// Encoda as faixas de preço por quantidade. Fácil de editar/expandir no futuro.
+// ═══════════════════════════════════════════════════
+var TABELA_GRAVACAO={
+  fornecedor:'Global Gravações — UV Digital',
+  faturamentoMinimo:100,
+  dadosVariaveis:2.50,// acréscimo por peça quando há nome/número personalizado
+  categorias:[
+    {id:'pequenas_leves',nome:'Peças pequenas e leves',exemplo:'Canetas, pen drives, protetor webcam',tipo:'faixa',
+      faixas:[{ate:500,preco:0.45},{ate:1000,preco:0.40},{ate:3000,preco:0.35},{ate:5000,preco:0.33},{ate:1e9,preco:0.30}]},
+    {id:'pequenas_25',nome:'Peças pequenas (2,5 × 9,5 cm)',exemplo:'Pop socket, adaptador de tomada, espelho pequeno',tipo:'faixa',
+      faixas:[{ate:200,preco:0.60},{ate:500,preco:0.55},{ate:1e9,preco:0.50}]},
+    {id:'medias',nome:'Peças médias (até 6 × 9 cm — 54 cm²)',exemplo:'Pen card, power bank',tipo:'faixa',
+      faixas:[{ate:500,preco:0.80},{ate:1500,preco:0.75},{ate:1e9,preco:0.70}]},
+    {id:'squeeze',nome:'Squeeze / Garrafa (impressão 2,5–3,0 cm)',exemplo:'Squeeze, garrafa',tipo:'faixa',
+      faixas:[{ate:200,preco:4.00},{ate:500,preco:3.50},{ate:1e9,preco:3.00}]},
+    {id:'grandes',nome:'Peças grandes (acima de 54 cm²)',exemplo:'Blocos, produtos grandes',tipo:'formula',
+      formula:0.025,formulaDesc:'comprimento × altura × 0,025'}
+  ]
+};
+
+// Calcula o preço da gravação por peça, dada a categoria e a quantidade
+function calcularGravacao(categoriaId,qtd,dims,dadosVariaveis){
+  var cat=TABELA_GRAVACAO.categorias.find(function(c){return c.id===categoriaId;});
+  if(!cat)return null;
+  var precoBase=0;
+  if(cat.tipo==='faixa'){
+    // Acha a primeira faixa que comporta a quantidade
+    for(var i=0;i<cat.faixas.length;i++){
+      if(qtd<=cat.faixas[i].ate){precoBase=cat.faixas[i].preco;break;}
+    }
+  }else if(cat.tipo==='formula'){
+    var c=(dims&&dims.comprimento)||0,a=(dims&&dims.altura)||0;
+    precoBase=c*a*cat.formula;
+  }
+  var extra=dadosVariaveis?TABELA_GRAVACAO.dadosVariaveis:0;
+  var porPeca=precoBase+extra;
+  return{
+    categoria:cat,precoBase:precoBase,dadosVariaveis:extra,
+    porPeca:porPeca,total:porPeca*qtd,
+    atingeMinimo:(porPeca*qtd)>=TABELA_GRAVACAO.faturamentoMinimo
+  };
+}
+
+// Abre o painel do calculador de gravação
+function abrirCalculadorGravacao(){
+  var qtdAtual=val('ct-qtd')||'';
+  var opcoes=TABELA_GRAVACAO.categorias.map(function(c){
+    return'<option value="'+c.id+'">'+c.nome+'</option>';
+  }).join('');
+  var html='<div style="max-width:560px">'+
+    '<div style="background:rgba(255,107,0,.08);border:1px solid rgba(255,107,0,.25);border-radius:10px;padding:12px 14px;margin-bottom:16px">'+
+      '<div style="font-size:13px;font-weight:700;color:var(--brand)">🖨️ Gravação UV Digital — '+TABELA_GRAVACAO.fornecedor.split(' — ')[0]+'</div>'+
+      '<div style="font-size:11px;color:rgba(255,255,255,.55);margin-top:4px">Escolha a categoria da peça e a quantidade. O custo por peça é calculado pela tabela do fornecedor automaticamente.</div>'+
+    '</div>'+
+    '<div><label class="lbl">Categoria da peça</label>'+
+      '<select id="grav-categoria" onchange="atualizarPreviewGravacao()">'+opcoes+'</select>'+
+      '<div id="grav-exemplo" style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px"></div>'+
+    '</div>'+
+    '<div class="g2 mt">'+
+      '<div><label class="lbl">Quantidade</label><input type="number" id="grav-qtd" value="'+qtdAtual+'" min="1" oninput="atualizarPreviewGravacao()"></div>'+
+      '<div><label class="lbl">&nbsp;</label><label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#F0F0F5;cursor:pointer;padding:9px 0"><input type="checkbox" id="grav-dv" style="width:auto;padding:0" onchange="atualizarPreviewGravacao()"> Dados variáveis (nome/número) +R$ 2,50/pç</label></div>'+
+    '</div>'+
+    '<div id="grav-dims" style="display:none" class="g2 mt">'+
+      '<div><label class="lbl">Comprimento (cm)</label><input type="number" id="grav-comp" min="0" step="0.1" oninput="atualizarPreviewGravacao()"></div>'+
+      '<div><label class="lbl">Altura (cm)</label><input type="number" id="grav-alt" min="0" step="0.1" oninput="atualizarPreviewGravacao()"></div>'+
+    '</div>'+
+    '<div id="grav-preview" style="margin-top:16px"></div>'+
+    '<div style="display:flex;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid var(--dark-border2)">'+
+      '<button class="btn btn-brand" onclick="aplicarGravacao()">✅ Usar este valor no custo do processo</button>'+
+      '<button class="btn btn-out" onclick="fecharModalGenerico()">Cancelar</button>'+
+    '</div>'+
+  '</div>';
+  abrirModalGenerico('Calcular gravação pela tabela',html);
+  setTimeout(atualizarPreviewGravacao,50);
+}
+
+function atualizarPreviewGravacao(){
+  var catId=val('grav-categoria');
+  var qtd=parseFloat(val('grav-qtd'))||0;
+  var dv=ge('grav-dv')&&ge('grav-dv').checked;
+  var cat=TABELA_GRAVACAO.categorias.find(function(c){return c.id===catId;});
+  // Mostra exemplo e campos de dimensão conforme a categoria
+  if(ge('grav-exemplo'))ge('grav-exemplo').textContent=cat?('Ex: '+cat.exemplo):'';
+  if(ge('grav-dims'))ge('grav-dims').style.display=(cat&&cat.tipo==='formula')?'grid':'none';
+
+  var dims={comprimento:parseFloat(val('grav-comp'))||0,altura:parseFloat(val('grav-alt'))||0};
+  var r=calcularGravacao(catId,qtd,dims,dv);
+  var el=ge('grav-preview');if(!el)return;
+  if(!r||!qtd){el.innerHTML='<div style="color:rgba(255,255,255,.4);font-size:12px;text-align:center;padding:12px">Informe a quantidade para calcular.</div>';return;}
+
+  var avisoMin=!r.atingeMinimo?'<div style="font-size:11px;color:var(--yellow);margin-top:8px">⚠️ O total ('+fmt(r.total)+') está abaixo do faturamento mínimo do fornecedor ('+fmt(TABELA_GRAVACAO.faturamentoMinimo)+'). Ele provavelmente cobrará o mínimo.</div>':'';
+  el.innerHTML='<div style="background:rgba(255,255,255,.04);border:1px solid var(--dark-border2);border-radius:10px;padding:14px">'+
+    '<div style="display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,.6);margin-bottom:6px"><span>Preço base por peça</span><span>'+fmt(r.precoBase)+'</span></div>'+
+    (r.dadosVariaveis>0?'<div style="display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,.6);margin-bottom:6px"><span>Dados variáveis</span><span>+'+fmt(r.dadosVariaveis)+'</span></div>':'')+
+    '<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800;color:var(--brand);padding-top:8px;border-top:1px solid var(--dark-border2)"><span>Custo da gravação por peça</span><span>'+fmt(r.porPeca)+'</span></div>'+
+    '<div style="display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,.5);margin-top:6px"><span>Total da gravação ('+qtd+' peças)</span><span>'+fmt(r.total)+'</span></div>'+
+    avisoMin+
+  '</div>';
+  window._gravacaoCalculada=r;
+}
+
+function aplicarGravacao(){
+  var r=window._gravacaoCalculada;
+  if(!r){alert('Calcule a gravação primeiro.');return;}
+  setVal('ct-custo-processo',r.porPeca.toFixed(2));
+  // Se a quantidade do calculador é diferente da do orçamento, oferece sincronizar
+  var qtdGrav=parseFloat(val('grav-qtd'))||0;
+  var qtdOrc=parseFloat(val('ct-qtd'))||0;
+  if(qtdGrav&&qtdGrav!==qtdOrc){setVal('ct-qtd',qtdGrav);}
+  fecharModalGenerico();
+  if(typeof calcularTecidos==='function')calcularTecidos();
+}
+
 function renderModuloInsumos(tipo){
   var el=ge('ct-modulo-insumos');if(!el)return;
   function gv(id){return val(id)||'';}
@@ -4565,7 +4685,10 @@ function renderModuloInsumos(tipo){
   }else{
     el.innerHTML='<div class="card"><div class="card-title">2. Processo de Produção</div>'+
       '<div><label class="lbl">Custo do processo por peça (R$) <span class="lbl-hint">— gravação, corte, impressão, acabamento...</span></label>'+
-      '<input type="number" id="ct-custo-processo" value="'+(gv('ct-custo-processo')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div>'+
+      '<div style="display:flex;gap:8px;align-items:center">'+
+        '<input type="number" id="ct-custo-processo" value="'+(gv('ct-custo-processo')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()" style="flex:1">'+
+        '<button class="btn btn-out btn-sm" style="white-space:nowrap" onclick="abrirCalculadorGravacao()" title="Calcular pela tabela do fornecedor">🖨️ Tabela do fornecedor</button>'+
+      '</div></div>'+
       '<div class="mt"><label class="lbl">Frete / outros custos rateados (R$)</label>'+
       '<input type="number" id="ct-frete" value="'+(gv('ct-frete')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div></div>';
   }
@@ -4666,10 +4789,12 @@ function calcularTecidos(){
   }
 
   // Custos Diretos
-  var custosExtrasUnidade=getTotalCustosExtrasAtivos();
+  var custosExtrasUnidade=getTotalCustosExtrasAtivos();// por peça (embalagem, etiqueta...)
+  var custosPedido=getTotalCustosPedidoAtivos();// do pedido inteiro (frete interno)
+  var custosPedidoPorUnidade=qtd>0?custosPedido/qtd:0;// rateado entre as peças
 
-  // Custo unitário final
-  var custoUnitario=valorPeca+custoInsumoEspecifico+custoMaoObraUnitario+custoIndiretoUnitario+custosExtrasUnidade;
+  // Custo unitário final — o frete entra rateado, não cheio em cada peça
+  var custoUnitario=valorPeca+custoInsumoEspecifico+custoMaoObraUnitario+custoIndiretoUnitario+custosExtrasUnidade+custosPedidoPorUnidade;
   var custoTotalPedido=custoUnitario*qtd;
 
   // Preços
@@ -4688,6 +4813,7 @@ function calcularTecidos(){
     custoInsumoEspecifico:custoInsumoEspecifico,
     tempoTotalMin:tempoTotalMin,custoMaoObraTotal:custoMaoObraTotal,custoMaoObraUnitario:custoMaoObraUnitario,
     custoIndiretoUnitario:custoIndiretoUnitario,custosExtrasUnidade:custosExtrasUnidade,
+    custosPedido:custosPedido,custosPedidoPorUnidade:custosPedidoPorUnidade,
     valorPeca:valorPeca,custoUnitario:custoUnitario,custoTotalPedido:custoTotalPedido,
     precoMinimo:precoMinimo,precoRecomendado:precoRecomendado,precoPremium:precoPremium,
     lucroUnitario:lucroUnitario,lucroTotal:lucroTotal,margemReal:margemReal,markup:markup
@@ -4756,7 +4882,8 @@ function renderResumoFinanceiroTecidos(r){
     ctLinha(labelInsumo,fmt(r.custoInsumoEspecifico))+
     ctLinha('Custo mão de obra',fmt(r.custoMaoObraUnitario))+
     ctLinha('Custos indiretos',fmt(r.custoIndiretoUnitario))+
-    ctLinha('Custos diretos (embalagem etc.)',fmt(r.custosExtrasUnidade))+
+    ctLinha('Custos diretos por peça (embalagem etc.)',fmt(r.custosExtrasUnidade))+
+    (r.custosPedido>0?ctLinha('Frete do pedido rateado ('+fmt(r.custosPedido)+' ÷ '+r.qtd+')',fmt(r.custosPedidoPorUnidade)):'')+
     ctLinha('Custo final por unidade',fmt(r.custoUnitario),'var(--brand)',true)+
     ctLinha('Custo total do pedido',fmt(r.custoTotalPedido),'rgba(255,255,255,.7)',true);
 
