@@ -1842,11 +1842,19 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
       <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:8px;line-height:1.5">💡 Os NCMs sugeridos são os mais comuns para cada tipo, mas o material muda o código. Confirme uma vez com seu contador ou pelo 0800 570 0800 do Sebrae (gratuito) — depois fica salvo para sempre. CFOP 5102 é o mais comum para venda de mercadoria dentro do seu estado.</div>
     </div>
 
-    <div class="mt" style="background:rgba(255,255,255,.03);border:1px solid var(--dark-border2);border-radius:10px;padding:12px 14px">
-      <label class="lbl" style="margin-bottom:8px;display:block">🎨 Variações <span class="lbl-hint">— use o Nome de cima genérico (ex: "Camiseta Premium") e cadastre cada cor/tamanho aqui, não repita no nome</span></label>
-      <div id="prod-variacoes-lista" style="display:flex;flex-direction:column;gap:8px"></div>
-      <button type="button" class="add-row" style="margin-top:8px" onclick="addProdVariacao()">＋ Adicionar variação</button>
-      <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:6px">Deixe o preço de uma variação em branco para usar o preço base do produto (Varejo/Atacado abaixo).</div>
+    <div class="mt" style="background:rgba(255,255,255,.03);border:1px solid var(--dark-border2);border-radius:10px;padding:14px">
+      <label class="lbl" style="margin-bottom:4px;display:block">🎨 Este produto tem variações? <span class="lbl-hint">— cores, tamanhos, modelos</span></label>
+      <div style="font-size:11px;color:rgba(255,255,255,.45);margin-bottom:12px;line-height:1.5">Defina as opções (ex: Cor e Tamanho) e o sistema cria todas as combinações sozinho — você não digita uma por uma. Ideal para camisetas.</div>
+
+      <!-- Definição de opções (estilo Shopify) -->
+      <div id="prod-opcoes-def"></div>
+      <button type="button" class="add-row" style="margin-top:4px" onclick="addOpcaoProduto()">＋ Adicionar opção (Cor, Tamanho...)</button>
+
+      <!-- Grade de combinações gerada automaticamente -->
+      <div id="prod-variacoes-grade" style="margin-top:14px"></div>
+
+      <!-- Mantém compatibilidade com a lista antiga (oculta) -->
+      <div id="prod-variacoes-lista" style="display:none"></div>
     </div>
     <datalist id="prod-cores-list"></datalist>
     <datalist id="prod-tamanhos-list"></datalist>
@@ -3034,7 +3042,7 @@ function openProdModal(id){
       setVal('prod-nome',p.nome);setVal('prod-cat',p.cat);setVal('prod-unit',p.unit);setVal('prod-sku',p.sku);setVal('prod-ncm',p.ncm||'');setVal('prod-cfop',p.cfop||'');setVal('prod-custo',p.custo||'');setVal('prod-varejo',p.varejo);setVal('prod-atacado',p.atacado);setVal('prod-min',p.minAtacado);setVal('prod-desc',p.desc);
       // Carrega variações: usa o array novo 'variacoes' se existir, senão retrocompatibilidade com o campo antigo 'variacao' (objeto único)
       var variacoesExistentes=p.variacoes&&p.variacoes.length?p.variacoes:(p.variacao&&(p.variacao.cor||p.variacao.tamanho||p.variacao.modelo)?[p.variacao]:[]);
-      variacoesExistentes.forEach(function(v){addProdVariacao(v);});
+      reconstruirOpcoesDeVariacoes(variacoesExistentes);
       // Carrega as fotos: usa o array novo 'fotos' se existir, senão retrocompatibilidade com o campo antigo 'foto'
       var fotosExistentes=p.fotos&&p.fotos.length?p.fotos:(p.foto?[p.foto]:[]);
       prodFotosTemp=[fotosExistentes[0]||'',fotosExistentes[1]||'',fotosExistentes[2]||''];
@@ -3089,6 +3097,142 @@ function atualizarDatalistsVariacao(){
 }
 
 // ── Linhas dinâmicas de variação no modal de produto ──
+// ═══════════════════════════════════════════════════
+// VARIAÇÕES ESTILO SHOPIFY: opções → grade de combinações
+// Você define "Cor: Branco, Preto" e "Tamanho: P, M, G" e o sistema
+// gera as 6 combinações automaticamente. Cada uma com seu estoque/preço.
+// ═══════════════════════════════════════════════════
+var _prodOpcoes=[];// ex: [{nome:'Cor', valores:['Branco','Preto']}, {nome:'Tamanho', valores:['P','M','G']}]
+var _prodVariacoesGrade=[];// combinações geradas, com estoque/preço de cada
+
+function addOpcaoProduto(nome,valores){
+  if(_prodOpcoes.length>=3){alert('Máximo de 3 opções (ex: Cor, Tamanho, Modelo).');return;}
+  _prodOpcoes.push({nome:nome||'',valores:valores||[]});
+  renderOpcoesProduto();
+}
+function removerOpcaoProduto(i){_prodOpcoes.splice(i,1);gerarGradeVariacoes();renderOpcoesProduto();}
+
+function renderOpcoesProduto(){
+  var el=ge('prod-opcoes-def');if(!el)return;
+  el.innerHTML=_prodOpcoes.map(function(op,i){
+    var sugestoesNome=['Cor','Tamanho','Modelo','Material','Estampa'];
+    return'<div style="background:rgba(255,255,255,.03);border:1px solid var(--dark-border2);border-radius:8px;padding:10px;margin-bottom:8px">'+
+      '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">'+
+        '<input placeholder="Nome da opção (ex: Cor)" value="'+(op.nome||'')+'" list="opcao-nomes-list" style="flex:1;font-size:13px;padding:7px 10px" oninput="atualizarNomeOpcao('+i+',this.value)">'+
+        '<button type="button" class="del-btn" style="width:28px;height:28px" onclick="removerOpcaoProduto('+i+')" title="Remover opção">×</button>'+
+      '</div>'+
+      '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">'+
+        op.valores.map(function(v,vi){
+          return'<span style="display:inline-flex;align-items:center;gap:5px;background:var(--brand-glow);color:var(--brand-l);font-size:12px;font-weight:600;padding:4px 10px;border-radius:14px">'+v+'<span style="cursor:pointer;font-weight:700" onclick="removerValorOpcao('+i+','+vi+')">×</span></span>';
+        }).join('')+
+        '<input placeholder="+ valor (ex: Branco) e Enter" style="font-size:12px;padding:5px 8px;width:130px;border:1px dashed var(--dark-border2)" onkeydown="if(event.key===\'Enter\'){event.preventDefault();adicionarValorOpcao('+i+',this.value);this.value=\'\';}">'+
+      '</div>'+
+    '</div>';
+  }).join('')+
+  '<datalist id="opcao-nomes-list"><option value="Cor"><option value="Tamanho"><option value="Modelo"><option value="Material"><option value="Estampa"></datalist>';
+}
+function atualizarNomeOpcao(i,nome){if(_prodOpcoes[i]){_prodOpcoes[i].nome=nome;gerarGradeVariacoes();}}
+function adicionarValorOpcao(i,valor){
+  valor=(valor||'').trim();if(!valor||!_prodOpcoes[i])return;
+  if(_prodOpcoes[i].valores.indexOf(valor)<0)_prodOpcoes[i].valores.push(valor);
+  renderOpcoesProduto();gerarGradeVariacoes();
+}
+function removerValorOpcao(i,vi){if(_prodOpcoes[i]){_prodOpcoes[i].valores.splice(vi,1);renderOpcoesProduto();gerarGradeVariacoes();}}
+
+// Gera o produto cartesiano das opções: todas as combinações possíveis
+function gerarGradeVariacoes(){
+  var opcoesValidas=_prodOpcoes.filter(function(o){return o.nome&&o.valores.length;});
+  if(!opcoesValidas.length){_prodVariacoesGrade=[];renderGradeVariacoes();return;}
+
+  // Produto cartesiano
+  var combinacoes=[[]];
+  opcoesValidas.forEach(function(op){
+    var novo=[];
+    combinacoes.forEach(function(combo){
+      op.valores.forEach(function(val){
+        novo.push(combo.concat([{opcao:op.nome,valor:val}]));
+      });
+    });
+    combinacoes=novo;
+  });
+
+  // Preserva estoque/preço já digitados (por chave da combinação)
+  var anteriores={};
+  _prodVariacoesGrade.forEach(function(v){anteriores[v._chave]=v;});
+
+  _prodVariacoesGrade=combinacoes.map(function(combo){
+    var chave=combo.map(function(c){return c.valor;}).join(' / ');
+    var ant=anteriores[chave]||{};
+    var v={_chave:chave,estoqueQtd:ant.estoqueQtd||0,varejo:ant.varejo!=null?ant.varejo:null,atacado:ant.atacado!=null?ant.atacado:null};
+    // mapeia para os campos antigos (cor/tamanho/modelo) para compatibilidade
+    combo.forEach(function(c){
+      var n=c.opcao.toLowerCase();
+      if(n.indexOf('cor')>=0)v.cor=c.valor;
+      else if(n.indexOf('tam')>=0)v.tamanho=c.valor;
+      else if(n.indexOf('mod')>=0)v.modelo=c.valor;
+      else{v.cor=v.cor||c.valor;}// fallback
+    });
+    v._combo=combo;
+    return v;
+  });
+  renderGradeVariacoes();
+}
+
+function renderGradeVariacoes(){
+  var el=ge('prod-variacoes-grade');if(!el)return;
+  if(!_prodVariacoesGrade.length){el.innerHTML='';return;}
+  var el2=ge('prod-controla-estoque');
+  var linhas=_prodVariacoesGrade.map(function(v,i){
+    return'<tr style="border-bottom:1px solid var(--dark-border2)">'+
+      '<td style="padding:7px 8px;font-size:12px;font-weight:600;color:#F0F0F5">'+v._chave+'</td>'+
+      '<td style="padding:5px 6px"><input type="number" value="'+(v.estoqueQtd||0)+'" min="0" step="1" style="width:70px;font-size:12px;padding:5px 7px" oninput="atualizarVarGrade('+i+',\'estoqueQtd\',this.value)"></td>'+
+      '<td style="padding:5px 6px"><input type="number" value="'+(v.varejo!=null?v.varejo:'')+'" placeholder="base" min="0" step="0.01" style="width:80px;font-size:12px;padding:5px 7px" oninput="atualizarVarGrade('+i+',\'varejo\',this.value)"></td>'+
+    '</tr>';
+  }).join('');
+  el.innerHTML='<div style="font-size:12px;font-weight:700;color:var(--brand);margin-bottom:8px">✨ '+_prodVariacoesGrade.length+' combinaç'+(_prodVariacoesGrade.length>1?'ões':'ão')+' gerada'+(_prodVariacoesGrade.length>1?'s':'')+' automaticamente</div>'+
+    '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">'+
+    '<thead><tr style="border-bottom:2px solid var(--dark-border2)">'+
+      '<th style="text-align:left;padding:6px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,.4)">Variação</th>'+
+      '<th style="text-align:left;padding:6px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,.4)">Estoque</th>'+
+      '<th style="text-align:left;padding:6px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,.4)">Preço varejo</th>'+
+    '</tr></thead><tbody>'+linhas+'</tbody></table></div>'+
+    '<div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:6px">Deixe o preço em branco para usar o preço base do produto. O estoque de cada variação é somado no total.</div>';
+}
+function atualizarVarGrade(i,campo,valor){
+  if(!_prodVariacoesGrade[i])return;
+  if(campo==='estoqueQtd')_prodVariacoesGrade[i].estoqueQtd=parseFloat(valor)||0;
+  else _prodVariacoesGrade[i][campo]=valor!==''?parseFloat(valor):null;
+}
+
+// Converte a grade nova para o formato salvo (compatível com o resto do sistema)
+function getVariacoesShopify(){
+  return _prodVariacoesGrade.map(function(v){
+    return{cor:v.cor||'',tamanho:v.tamanho||'',modelo:v.modelo||'',varejo:v.varejo,atacado:v.atacado,estoqueQtd:v.estoqueQtd||0,_chave:v._chave};
+  });
+}
+// Reconstrói as opções a partir de variações salvas (ao editar um produto)
+function reconstruirOpcoesDeVariacoes(variacoes){
+  _prodOpcoes=[];_prodVariacoesGrade=[];
+  if(!variacoes||!variacoes.length){renderOpcoesProduto();renderGradeVariacoes();return;}
+  var cores=[],tamanhos=[],modelos=[];
+  variacoes.forEach(function(v){
+    if(v.cor&&cores.indexOf(v.cor)<0)cores.push(v.cor);
+    if(v.tamanho&&tamanhos.indexOf(v.tamanho)<0)tamanhos.push(v.tamanho);
+    if(v.modelo&&modelos.indexOf(v.modelo)<0)modelos.push(v.modelo);
+  });
+  if(cores.length)_prodOpcoes.push({nome:'Cor',valores:cores});
+  if(tamanhos.length)_prodOpcoes.push({nome:'Tamanho',valores:tamanhos});
+  if(modelos.length)_prodOpcoes.push({nome:'Modelo',valores:modelos});
+  gerarGradeVariacoes();
+  // Restaura estoque/preço de cada combinação salva
+  variacoes.forEach(function(v){
+    var chave=[v.cor,v.tamanho,v.modelo].filter(function(x){return x;}).join(' / ');
+    var alvo=_prodVariacoesGrade.find(function(g){return g._chave===chave;});
+    if(alvo){alvo.estoqueQtd=v.estoqueQtd||0;alvo.varejo=v.varejo;alvo.atacado=v.atacado;}
+  });
+  renderOpcoesProduto();renderGradeVariacoes();
+}
+
 var prodVarIid=0;
 function addProdVariacao(v){
   var id=++prodVarIid;
@@ -3113,7 +3257,7 @@ function addProdVariacao(v){
   checarNomeDuplicaVariacao();
 }
 function removeProdVariacao(id){var r=ge('pv'+id);if(r)r.remove();toggleEstoqueGeralVisibilidade();checarNomeDuplicaVariacao();}
-function limparProdVariacoes(){ge('prod-variacoes-lista').innerHTML='';prodVarIid=0;toggleEstoqueGeralVisibilidade();}
+function limparProdVariacoes(){ge('prod-variacoes-lista').innerHTML='';prodVarIid=0;_prodOpcoes=[];_prodVariacoesGrade=[];if(typeof renderOpcoesProduto==='function')renderOpcoesProduto();if(typeof renderGradeVariacoes==='function')renderGradeVariacoes();toggleEstoqueGeralVisibilidade();}
 function getProdVariacoes(){
   return Array.from(document.querySelectorAll('#prod-variacoes-lista > div')).map(function(row){
     function g(f){var e=row.querySelector('[data-f="'+f+'"]');return e?e.value:'';}
@@ -3161,7 +3305,8 @@ function duplicarProduto(){
 
 function saveProd(){
   var nome=val('prod-nome');if(!nome){alert('Informe o nome.');return;}
-  var variacoes=getProdVariacoes();
+  // Prioriza a grade nova (Shopify); se estiver vazia, usa a lista antiga (compatibilidade)
+  var variacoes=(_prodVariacoesGrade&&_prodVariacoesGrade.length)?getVariacoesShopify():getProdVariacoes();
   var varejo=parseFloat(val('prod-varejo'))||0,atacado=parseFloat(val('prod-atacado'))||0,custo=parseFloat(val('prod-custo'))||0;
   // Se não há variações, o preço base é obrigatório. Se há variações, cada uma pode ter o seu próprio (ou herdar o base).
   if(!variacoes.length&&!varejo&&!atacado){alert('Informe ao menos um preço, ou adicione uma variação com preço próprio.');return;}
@@ -4204,9 +4349,11 @@ function toggleEstoqueFields(){
 }
 
 function toggleEstoqueGeralVisibilidade(){
-  var temVariacoes=ge('prod-variacoes-lista').children.length>0;
-  ge('prod-estoque-geral-wrap').style.display=temVariacoes?'none':'block';
-  ge('prod-estoque-substituido-aviso').style.display=temVariacoes?'block':'none';
+  // Considera tanto a grade nova (Shopify) quanto a lista antiga
+  var temVariacoes=(typeof _prodVariacoesGrade!=='undefined'&&_prodVariacoesGrade.length>0)||ge('prod-variacoes-lista').children.length>0;
+  var wrap=ge('prod-estoque-geral-wrap'),aviso=ge('prod-estoque-substituido-aviso');
+  if(wrap)wrap.style.display=temVariacoes?'none':'block';
+  if(aviso)aviso.style.display=temVariacoes?'block':'none';
 }
 
 function checarNomeDuplicaVariacao(){
