@@ -929,7 +929,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
       <div class="card">
         <div class="card-title">Produtos <span id="cat-count" style="margin-left:6px;font-size:12px;color:var(--brand);font-weight:700"></span></div>
         <div style="display:flex;gap:7px;margin-bottom:11px;flex-wrap:wrap;align-items:center">
-          <input id="cat-search" placeholder="🔍 Buscar..." style="max-width:200px" oninput="renderCat()">
+          <input id="cat-search" type="search" name="cat-search-orcpro" placeholder="🔍 Buscar..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="max-width:200px" oninput="renderCat()">
           <label style="font-size:12px;color:rgba(255,255,255,.55);font-weight:400;display:flex;align-items:center;gap:5px;cursor:pointer">
             <input type="checkbox" id="cat-filtro-estoque-baixo" onchange="renderCat()" style="width:auto;padding:0"> Só estoque baixo
           </label>
