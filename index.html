@@ -1824,6 +1824,16 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
           <option value="">— escolher para preencher o NCM —</option>
           <option value="6109.10.00">Camiseta / vestuário de algodão</option>
           <option value="6109.90.00">Camiseta / vestuário de poliéster (dry-fit, sublimação)</option>
+          <option value="camiseta_penteada_adulto">Camiseta 100% Algodão Penteada</option>
+          <option value="camiseta_penteada_infantil">Camiseta 100% Algodão Penteada Infantil</option>
+          <option value="camiseta_polo_masc">Camiseta Polo Masculina</option>
+          <option value="camiseta_polo_fem">Camiseta Polo Feminina</option>
+          <option value="camiseta_babylook_fem">Camiseta Baby Look Feminina</option>
+          <option value="camiseta_dryfit">Camiseta Dry Fit</option>
+          <option value="camiseta_oversized">Camiseta Oversized</option>
+          <option value="camiseta_poliester">Camiseta Poliéster</option>
+          <option value="camiseta_poliester_golav">Camiseta Poliéster Gola V</option>
+          <option value="camiseta_poliester_infantil">Camiseta Poliéster Infantil</option>
           <option value="6912.00.00">Caneca / xícara de cerâmica</option>
           <option value="3924.10.00">Caneca / copo de plástico</option>
           <option value="7013.37.00">Caneca / copo de vidro</option>
@@ -1840,6 +1850,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
         <div><label class="lbl" style="font-size:11px">CFOP <span class="lbl-hint">— venda dentro do estado: 5102</span></label><input id="prod-cfop" placeholder="5102" maxlength="4"></div>
       </div>
       <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:8px;line-height:1.5">💡 Os NCMs sugeridos são os mais comuns para cada tipo, mas o material muda o código. Confirme uma vez com seu contador ou pelo 0800 570 0800 do Sebrae (gratuito) — depois fica salvo para sempre. CFOP 5102 é o mais comum para venda de mercadoria dentro do seu estado.</div>
+      <div id="prod-tipo-aviso" style="display:none;margin-top:8px"></div>
     </div>
 
     <div class="mt" style="background:rgba(255,255,255,.03);border:1px solid var(--dark-border2);border-radius:10px;padding:14px">
@@ -3029,19 +3040,66 @@ function exportarCatalogoPDF(){
   w.document.close();
 }
 
-// Ao escolher o tipo de produto, preenche o NCM automaticamente (e CFOP padrão se vazio)
+// Tipos de produto detalhados (hoje focado em camisetas) — cada um com o NCM sugerido e,
+// quando faz sentido, um nome/cores/tamanhos padrão pra acelerar o cadastro com variações.
+// Chave = value do <option> correspondente em #prod-tipo-fiscal.
+var TIPOS_PRODUTO_CONFIG={
+  camiseta_penteada_adulto:{ncm:'6109.10.00',nomeBase:'Camiseta 100% Algodão Penteada',cores:['Preta','Branca','Vermelha'],tamanhos:['P','M','G','GG','EXG','G1','G2','G3']},
+  camiseta_penteada_infantil:{ncm:'6109.10.00',nomeBase:'Camiseta 100% Algodão Penteada Infantil',cores:['Preta'],tamanhos:['2','4','6','8','10','12','14','16']},
+  camiseta_polo_masc:{ncm:'6109.10.00',nomeBase:'Camiseta Polo Masculina',cores:['Preta','Branca','Cinza'],tamanhos:['P','M','G','GG','EXG','G1','G2','G3'],aviso:'confirme com seu contador, polo pode ter NCM diferente de camiseta comum'},
+  camiseta_polo_fem:{ncm:'6109.10.00',nomeBase:'Camiseta Polo Feminina',cores:['Preta','Branca','Cinza'],tamanhos:['P','M','G','GG','EXG','G1','G2','G3'],aviso:'confirme com seu contador, polo pode ter NCM diferente de camiseta comum'},
+  camiseta_babylook_fem:{ncm:'6109.10.00',nomeBase:'Camiseta Baby Look Feminina',cores:['Preta','Branca'],tamanhos:['P','M','G','GG','EXG','G1','G2','G3']},
+  camiseta_dryfit:{ncm:'6109.90.00',nomeBase:'Camiseta Dry Fit',cores:['Preta'],tamanhos:['P','M','G','GG','EXG','G1','G2','G3']},
+  camiseta_oversized:{ncm:'6109.10.00',nomeBase:'Camiseta Oversized',cores:['Preta','Cinza','Bege','Marrom'],tamanhos:['P','M','G','GG']},
+  camiseta_poliester:{ncm:'6109.90.00',nomeBase:'Camiseta Poliéster',cores:['Branca','Preta','Cinza','Azul Claro','Amarelo Claro','Amarelo Ouro'],tamanhos:['P','M','G','GG','EXG']},
+  camiseta_poliester_golav:{ncm:'6109.90.00',nomeBase:'Camiseta Poliéster Gola V',cores:['Branca'],tamanhos:['P','M','G','GG']},
+  camiseta_poliester_infantil:{ncm:'6109.90.00',nomeBase:'Camiseta Poliéster Infantil',cores:['Azul','Amarelo','Cinza','Rosa'],tamanhos:['2','4','6','8']}
+};
+
+// Preenche nome sugerido + opções de Cor/Tamanho sugeridas para o tipo escolhido.
+// Não sobrescreve o nome se o usuário já digitou algo, nem opções que já tenham sido
+// começadas a montar manualmente. Retorna true se preencheu algo (pro aviso visual).
+function aplicarConfigTipoProduto(cfg){
+  var preencheuAlgo=false;
+  if(!val('prod-nome')){setVal('prod-nome',cfg.nomeBase);preencheuAlgo=true;}
+  if(!_prodOpcoes.length){
+    addOpcaoProduto('Cor',cfg.cores.slice());
+    addOpcaoProduto('Tamanho',cfg.tamanhos.slice());
+    gerarGradeVariacoes();
+    preencheuAlgo=true;
+  }
+  return preencheuAlgo;
+}
+
+// Ao escolher o tipo de produto, preenche o NCM automaticamente (e CFOP padrão se vazio).
+// Para os tipos de camiseta detalhados (ver TIPOS_PRODUTO_CONFIG) também sugere nome e
+// variações de Cor/Tamanho, e mostra um aviso quando algo assim é preenchido sozinho.
 function aplicarNcmPorTipo(){
   var tipo=val('prod-tipo-fiscal');
-  if(!tipo)return;
+  var avisoEl=ge('prod-tipo-aviso');
+  if(!tipo){if(avisoEl){avisoEl.style.display='none';avisoEl.innerHTML='';}return;}
   if(tipo==='__manual'){
     // libera o campo para digitação manual, não sobrescreve
     var campo=ge('prod-ncm');if(campo){campo.focus();}
+    if(avisoEl){avisoEl.style.display='none';avisoEl.innerHTML='';}
     return;
   }
-  // O value do option JÁ é o NCM
-  setVal('prod-ncm',tipo);
+  var cfg=TIPOS_PRODUTO_CONFIG[tipo];
+  // O value do option já é o NCM (comportamento original), exceto nos tipos de camiseta
+  // detalhados, cujo value é uma chave própria — o NCM deles vem de dentro da config.
+  setVal('prod-ncm',cfg?cfg.ncm:tipo);
   // CFOP padrão de venda de mercadoria dentro do estado, se ainda não preenchido
   if(!val('prod-cfop'))setVal('prod-cfop','5102');
+
+  var avisos=[];
+  if(cfg&&cfg.aviso)avisos.push('⚠️ '+cfg.aviso);
+  if(cfg&&aplicarConfigTipoProduto(cfg))avisos.push('✨ Nome, cores e tamanhos preenchidos automaticamente para este tipo — ajuste o que precisar');
+  if(avisoEl){
+    if(avisos.length){
+      avisoEl.innerHTML=avisos.map(function(a){return'<div class="warn-box" style="margin:0 0 6px;padding:8px 12px;font-size:12px">'+a+'</div>';}).join('');
+      avisoEl.style.display='block';
+    }else{avisoEl.style.display='none';avisoEl.innerHTML='';}
+  }
 }
 
 function openProdModal(id){
