@@ -5116,11 +5116,15 @@ function renderResumoFinanceiroTecidos(r){
     ctLinha('Preço premium',fmt(r.precoPremium),'var(--brand-l)')+
     ctLinha('Valor total (recomendado × qtd)',fmt(r.precoRecomendado*r.qtd),'rgba(255,255,255,.7)',true);
 
+  var lucroMin=r.precoMinimo-r.custoUnitario,margemMin=r.precoMinimo>0?(lucroMin/r.precoMinimo*100):0;
+  var lucroRec=r.precoRecomendado-r.custoUnitario,margemRec=r.precoRecomendado>0?(lucroRec/r.precoRecomendado*100):0;
+  var lucroPrem=r.precoPremium-r.custoUnitario,margemPrem=r.precoPremium>0?(lucroPrem/r.precoPremium*100):0;
   elL.innerHTML=
-    ctLinha('Lucro bruto por unidade',fmt(r.lucroUnitario),r.lucroUnitario>0?'var(--green)':'var(--red)')+
-    ctLinha('Lucro bruto do pedido',fmt(r.lucroTotal),r.lucroTotal>0?'var(--green)':'var(--red)',true)+
-    ctLinha('Margem',r.margemReal.toFixed(1)+'%',r.margemReal>=40?'var(--green)':r.margemReal>=20?'var(--yellow)':'var(--red)')+
-    ctLinha('Markup',r.markup.toFixed(0)+'%');
+    ctLinha('Lucro no mínimo',fmt(lucroMin)+' · '+margemMin.toFixed(1)+'%',lucroMin>0?'var(--green)':'var(--red)')+
+    ctLinha('Lucro no recomendado',fmt(lucroRec)+' · '+margemRec.toFixed(1)+'%',lucroRec>0?'var(--green)':'var(--red)',true)+
+    ctLinha('Lucro no premium',fmt(lucroPrem)+' · '+margemPrem.toFixed(1)+'%',lucroPrem>0?'var(--green)':'var(--red)')+
+    ctLinha('Lucro do pedido (no recomendado)',fmt(r.lucroTotal),r.lucroTotal>0?'var(--green)':'var(--red)',true)+
+    ctLinha('Markup (no recomendado)',r.markup.toFixed(0)+'%');
 }
 
 // ── Simulador de Negociação ──
