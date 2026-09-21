@@ -8815,33 +8815,62 @@ function sincronizarGoogleDriveAgora(){
   });
 }
 
+// Procura no appDataFolder do Drive um backup já existente (orcamentopro_backup.json) para
+// recuperar o fileId quando o ponteiro local (orcpro_google_status) foi perdido — ex.: o
+// usuário limpou os dados do navegador, mas o arquivo continua salvo no Drive da conta dele.
+function buscarBackupExistenteNoDrive(callback){
+  obterTokenGoogleValido(function(){
+    fetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name%3D%27orcamentopro_backup.json%27&fields=files(id,modifiedTime)',{
+      headers:{'Authorization':'Bearer '+googleAccessToken}
+    }).then(function(r){return r.json();})
+      .then(function(data){
+        if(data.files&&data.files.length>0){
+          saveGoogleDriveStatus({conectado:true,fileId:data.files[0].id,ultimaSincronizacao:new Date().toISOString()});
+          callback(true);
+        }else{
+          callback(false);
+        }
+      }).catch(function(){callback(false);});
+  });
+}
+
 function restaurarDoGoogleDrive(){
   if(!confirm('🔄 RECUPERAR dados do Google Drive.\n\nIsto vai JUNTAR (fundir) o backup do Drive com o que já está aqui — sem apagar nada. Orçamentos que sumiram localmente mas estão no Drive serão recuperados.\n\nContinuar?'))return;
   obterTokenGoogleValido(function(){
     var status=getGoogleDriveStatus();
-    if(!status.fileId){alert('Nenhum backup encontrado no Drive ainda.');return;}
-    fetch('https://www.googleapis.com/drive/v3/files/'+status.fileId+'?alt=media',{
-      headers:{'Authorization':'Bearer '+googleAccessToken}
-    }).then(function(r){return r.json();})
-      .then(function(dados){
-        var antesHist=getHist().length,antesProd=getProdutos().length,antesCli=getClientes().length;
-        aplicarBackupComMerge(dados);
-        var depoisHist=getHist().length,depoisProd=getProdutos().length,depoisCli=getClientes().length;
-        var recHist=depoisHist-antesHist,recProd=depoisProd-antesProd,recCli=depoisCli-antesCli;
-        var msg='✅ Recuperação concluída!\n\n';
-        if(recHist>0||recProd>0||recCli>0){
-          msg+='Recuperados do Drive:\n';
-          if(recHist>0)msg+='• '+recHist+' orçamento(s)\n';
-          if(recProd>0)msg+='• '+recProd+' produto(s)\n';
-          if(recCli>0)msg+='• '+recCli+' cliente(s)\n';
-          msg+='\nTotal agora: '+depoisHist+' orçamentos.';
-        }else{
-          msg+='Nenhum dado adicional no Drive — tudo que estava lá você já tinha aqui.\nTotal: '+depoisHist+' orçamentos.';
-        }
-        alert(msg);
-        // Sobe a versão fundida de volta ao Drive
-        setTimeout(function(){sincronizarGoogleDriveSilencioso(function(){location.reload();});},1000);
-      }).catch(function(err){alert('Erro ao recuperar: '+err.message);});
+    function prosseguirRestauracao(){
+      var statusAtual=getGoogleDriveStatus();
+      fetch('https://www.googleapis.com/drive/v3/files/'+statusAtual.fileId+'?alt=media',{
+        headers:{'Authorization':'Bearer '+googleAccessToken}
+      }).then(function(r){return r.json();})
+        .then(function(dados){
+          var antesHist=getHist().length,antesProd=getProdutos().length,antesCli=getClientes().length;
+          aplicarBackupComMerge(dados);
+          var depoisHist=getHist().length,depoisProd=getProdutos().length,depoisCli=getClientes().length;
+          var recHist=depoisHist-antesHist,recProd=depoisProd-antesProd,recCli=depoisCli-antesCli;
+          var msg='✅ Recuperação concluída!\n\n';
+          if(recHist>0||recProd>0||recCli>0){
+            msg+='Recuperados do Drive:\n';
+            if(recHist>0)msg+='• '+recHist+' orçamento(s)\n';
+            if(recProd>0)msg+='• '+recProd+' produto(s)\n';
+            if(recCli>0)msg+='• '+recCli+' cliente(s)\n';
+            msg+='\nTotal agora: '+depoisHist+' orçamentos.';
+          }else{
+            msg+='Nenhum dado adicional no Drive — tudo que estava lá você já tinha aqui.\nTotal: '+depoisHist+' orçamentos.';
+          }
+          alert(msg);
+          // Sobe a versão fundida de volta ao Drive
+          setTimeout(function(){sincronizarGoogleDriveSilencioso(function(){location.reload();});},1000);
+        }).catch(function(err){alert('Erro ao recuperar: '+err.message);});
+    }
+    if(!status.fileId){
+      buscarBackupExistenteNoDrive(function(encontrado){
+        if(!encontrado){alert('Nenhum backup encontrado no Drive ainda.');return;}
+        prosseguirRestauracao();
+      });
+      return;
+    }
+    prosseguirRestauracao();
   });
 }
 
