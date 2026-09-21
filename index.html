@@ -1879,6 +1879,21 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
       <div><label class="lbl">Varejo (R$) *<span id="prod-varejo-base-hint" class="lbl-hint" style="display:none">— preço base</span></label><input type="number" id="prod-varejo" placeholder="0,00" min="0" step="0.01"></div>
       <div><label class="lbl">Atacado (R$)<span id="prod-atacado-base-hint" class="lbl-hint" style="display:none">— preço base</span></label><input type="number" id="prod-atacado" placeholder="0,00" min="0" step="0.01"></div>
     </div>
+    <div class="mt" style="background:rgba(255,255,255,.03);border:1px solid var(--dark-border2);border-radius:10px;padding:12px 14px">
+      <label class="lbl" style="margin-bottom:8px;display:block">📉 Desconto por quantidade (opcional) <span class="lbl-hint">— o Orçamento aplica sozinho pela quantidade do item</span></label>
+      <div class="g2" style="margin-bottom:6px">
+        <div><label class="lbl" style="font-size:11px">A partir de (un)</label><input type="number" id="prod-atc-qtd-1" min="1" step="1" placeholder="Ex: 12"></div>
+        <div><label class="lbl" style="font-size:11px">Desconto (%)</label><input type="number" id="prod-atc-desc-1" min="0" max="100" step="0.1" placeholder="Ex: 5"></div>
+      </div>
+      <div class="g2" style="margin-bottom:6px">
+        <div><label class="lbl" style="font-size:11px">A partir de (un)</label><input type="number" id="prod-atc-qtd-2" min="1" step="1" placeholder="Ex: 24"></div>
+        <div><label class="lbl" style="font-size:11px">Desconto (%)</label><input type="number" id="prod-atc-desc-2" min="0" max="100" step="0.1" placeholder="Ex: 10"></div>
+      </div>
+      <div class="g2">
+        <div><label class="lbl" style="font-size:11px">A partir de (un)</label><input type="number" id="prod-atc-qtd-3" min="1" step="1" placeholder="Ex: 36"></div>
+        <div><label class="lbl" style="font-size:11px">Desconto (%)</label><input type="number" id="prod-atc-desc-3" min="0" max="100" step="0.1" placeholder="Ex: 15"></div>
+      </div>
+    </div>
     <div class="mt"><button type="button" class="btn btn-out btn-sm" onclick="openPrecificadorModal(true)">🧮 Calcular preço sugerido a partir do custo</button> <span style="font-size:11px;color:rgba(255,255,255,.4)" id="prod-composicao-hint"></span></div>
     <div class="mt"><label class="lbl">Qtd mínima atacado</label><input type="number" id="prod-min" value="10" min="1"></div>
 
@@ -2642,10 +2657,10 @@ function addItem(desc,qty,unit,price,di,prazoItem,cat,custo){
   var catOpts='<option value="">—</option>'+cats.map(function(c){return'<option'+(c===cat?' selected':'')+'>'+c+'</option>';}).join('');
   tr.innerHTML=
     '<td><select data-f="cat" style="font-size:11px;padding:4px 5px" onchange="recalc()">'+catOpts+'</select></td>'+
-    '<td><input placeholder="Descrição" oninput="recalc()" data-f="desc" value="'+(desc||'')+'"></td>'+
-    '<td><input type="number" value="'+(qty||1)+'" min="0" step="1" style="text-align:right" oninput="recalc()" data-f="qty"></td>'+
+    '<td><input placeholder="Descrição" oninput="autoPrecoItem('+id+');recalc()" data-f="desc" value="'+(desc||'')+'"></td>'+
+    '<td><input type="number" value="'+(qty||1)+'" min="0" step="1" style="text-align:right" oninput="autoPrecoItem('+id+');recalc()" data-f="qty"></td>'+
     '<td><input value="'+(unit||'un')+'" oninput="recalc()" data-f="unit"></td>'+
-    '<td><input type="number" value="'+pv+'" min="0" step="0.01" placeholder="0,00" style="text-align:right" oninput="recalc()" data-f="price"></td>'+
+    '<td><input type="number" value="'+pv+'" min="0" step="0.01" placeholder="0,00" style="text-align:right" oninput="this.setAttribute(\'data-price-auto\',\'0\');recalc()" data-f="price" data-price-auto="1"></td>'+
     '<td><input type="number" value="'+(di||0)+'" min="0" max="100" step="0.1" style="text-align:right" oninput="recalc()" data-f="di" placeholder="0"></td>'+
     '<td><input placeholder="Ex: 3d" oninput="recalc()" data-f="prazo" value="'+(prazoItem||'')+'"></td>'+
     '<td class="sub-cell" id="sc'+id+'">R$\u00a00,00</td>'+
@@ -2653,6 +2668,29 @@ function addItem(desc,qty,unit,price,di,prazoItem,cat,custo){
   tbody.appendChild(tr);
   if(custo)tr.setAttribute('data-custo',custo);
   recalc();
+}
+// Calcula o preço de venda de um produto para uma quantidade, aplicando o maior nível de
+// desconto por quantidade (atacadoNiveis) cuja qtd mínima seja <= à quantidade informada.
+function calcularPrecoComAtacado(produto,quantidade){
+  var base=(produto&&produto.varejo)||0;
+  if(!produto||!produto.atacadoNiveis||!produto.atacadoNiveis.length)return base;
+  var niveis=produto.atacadoNiveis.slice().sort(function(a,b){return a.qtd-b.qtd;});
+  var nivelAplicavel=null;
+  niveis.forEach(function(n){if(n.qtd<=quantidade)nivelAplicavel=n;});
+  if(!nivelAplicavel)return base;
+  return base*(1-nivelAplicavel.desconto/100);
+}
+// Preenche o Preço automaticamente pelo desconto por quantidade quando a Descrição bate com
+// um produto cadastrado (nome exato) — só enquanto o campo Preço não tiver sido editado à mão.
+function autoPrecoItem(id){
+  var tr=ge('r'+id);if(!tr)return;
+  var precoInput=tr.querySelector('[data-f="price"]');
+  if(!precoInput||precoInput.getAttribute('data-price-auto')!=='1')return;
+  var desc=tr.querySelector('[data-f="desc"]').value;
+  var prod=getProdutos().find(function(p){return p.nome===desc;});
+  if(!prod)return;
+  var qty=parseFloat(tr.querySelector('[data-f="qty"]').value)||0;
+  precoInput.value=calcularPrecoComAtacado(prod,qty).toFixed(2);
 }
 function removeItem(id){var r=ge('r'+id);if(r)r.remove();recalc();}
 function getItems(){
@@ -3076,6 +3114,22 @@ function aplicarConfigTipoProduto(cfg){
   return preencheuAlgo;
 }
 
+// NCMs de "Tipo de produto" que representam canecas — usados para sugerir o desconto
+// por quantidade padrão (o select #prod-tipo-fiscal não tem uma chave única "canecas",
+// então qualquer um destes NCMs de caneca conta).
+var NCMS_CANECA=['6912.00.00','3924.10.00','7013.37.00'];
+
+// Preenche os 3 níveis de desconto por quantidade com os valores padrão de caneca, só se
+// os 3 estiverem vazios (mesma regra de "não sobrescreve o que já foi digitado").
+function aplicarDescontoQtdCaneca(){
+  var jaTemAlgo=val('prod-atc-qtd-1')||val('prod-atc-desc-1')||val('prod-atc-qtd-2')||val('prod-atc-desc-2')||val('prod-atc-qtd-3')||val('prod-atc-desc-3');
+  if(jaTemAlgo)return false;
+  setVal('prod-atc-qtd-1',12);setVal('prod-atc-desc-1',5);
+  setVal('prod-atc-qtd-2',24);setVal('prod-atc-desc-2',10);
+  setVal('prod-atc-qtd-3',36);setVal('prod-atc-desc-3',15);
+  return true;
+}
+
 // Ao escolher o tipo de produto, preenche o NCM automaticamente (e CFOP padrão se vazio).
 // Para os tipos de camiseta detalhados (ver TIPOS_PRODUTO_CONFIG) também sugere nome e
 // variações de Cor/Tamanho, e mostra um aviso quando algo assim é preenchido sozinho.
@@ -3099,6 +3153,7 @@ function aplicarNcmPorTipo(){
   var avisos=[];
   if(cfg&&cfg.aviso)avisos.push('⚠️ '+cfg.aviso);
   if(cfg&&aplicarConfigTipoProduto(cfg))avisos.push('✨ Nome, cores e tamanhos preenchidos automaticamente para este tipo — ajuste o que precisar');
+  if(NCMS_CANECA.indexOf(tipo)>=0&&aplicarDescontoQtdCaneca())avisos.push('✨ Desconto por quantidade sugerido para canecas (12/24/36 un) — ajuste se quiser');
   if(avisoEl){
     if(avisos.length){
       avisoEl.innerHTML=avisos.map(function(a){return'<div class="warn-box" style="margin:0 0 6px;padding:8px 12px;font-size:12px">'+a+'</div>';}).join('');
@@ -3121,6 +3176,8 @@ function openProdModal(id){
     var p=getProdutos().find(function(x){return x.id===id;});
     if(p){
       setVal('prod-nome',p.nome);setVal('prod-cat',p.cat);setVal('prod-unit',p.unit);setVal('prod-sku',p.sku);setVal('prod-ncm',p.ncm||'');setVal('prod-cfop',p.cfop||'');setVal('prod-custo',p.custo||'');setVal('prod-varejo',p.varejo);setVal('prod-atacado',p.atacado);setVal('prod-min',p.minAtacado);setVal('prod-desc',p.desc);
+      var niveisExistentes=p.atacadoNiveis||[];
+      for(var ni=0;ni<3;ni++){setVal('prod-atc-qtd-'+(ni+1),niveisExistentes[ni]?niveisExistentes[ni].qtd:'');setVal('prod-atc-desc-'+(ni+1),niveisExistentes[ni]?niveisExistentes[ni].desconto:'');}
       // Carrega variações: usa o array novo 'variacoes' se existir, senão retrocompatibilidade com o campo antigo 'variacao' (objeto único)
       var variacoesExistentes=p.variacoes&&p.variacoes.length?p.variacoes:(p.variacao&&(p.variacao.cor||p.variacao.tamanho||p.variacao.modelo)?[p.variacao]:[]);
       reconstruirOpcoesDeVariacoes(variacoesExistentes);
@@ -3146,7 +3203,7 @@ function openProdModal(id){
     }
   }
   else{
-    ['prod-nome','prod-cat','prod-sku','prod-ncm','prod-cfop','prod-custo','prod-varejo','prod-atacado','prod-desc','prod-foto-data'].forEach(function(i){setVal(i,'');});
+    ['prod-nome','prod-cat','prod-sku','prod-ncm','prod-cfop','prod-custo','prod-varejo','prod-atacado','prod-desc','prod-foto-data','prod-atc-qtd-1','prod-atc-desc-1','prod-atc-qtd-2','prod-atc-desc-2','prod-atc-qtd-3','prod-atc-desc-3'].forEach(function(i){setVal(i,'');});
     setVal('prod-tipo-fiscal','');
     setVal('prod-unit','un');setVal('prod-min','10');
     for(var fi=0;fi<3;fi++){ge('prod-foto-file-'+fi).value='';}
@@ -3420,7 +3477,13 @@ function saveProd(){
 
   var fotosFinais=prodFotosTemp.filter(function(f){return f;});// remove vazios, mantém ordem
   var controlaEstoque=ge('prod-controla-estoque').checked;
-  var prod={id:editId||'p'+Date.now(),nome:nome,cat:val('prod-cat'),unit:val('prod-unit'),sku:val('prod-sku'),ncm:val('prod-ncm'),cfop:val('prod-cfop'),custo:custo,varejo:varejo,atacado:atacado||varejo,minAtacado:parseInt(val('prod-min'))||10,desc:val('prod-desc'),foto:fotosFinais[0]||'',fotos:fotosFinais,controlaEstoque:controlaEstoque,estoqueQtd:controlaEstoque?(parseFloat(val('prod-estoque-qtd'))||0):0,estoqueMin:controlaEstoque?(parseFloat(val('prod-estoque-min'))||0):0,composicaoCusto:composicaoCusto,exibirCatalogo:ge('prod-exibir-catalogo').checked,variacoes:variacoes};
+  // Desconto por quantidade: só entram as linhas com os dois campos preenchidos
+  var atacadoNiveis=[];
+  for(var ni=1;ni<=3;ni++){
+    var nq=parseFloat(val('prod-atc-qtd-'+ni)),nd=parseFloat(val('prod-atc-desc-'+ni));
+    if(!isNaN(nq)&&!isNaN(nd))atacadoNiveis.push({qtd:nq,desconto:nd});
+  }
+  var prod={id:editId||'p'+Date.now(),nome:nome,cat:val('prod-cat'),unit:val('prod-unit'),sku:val('prod-sku'),ncm:val('prod-ncm'),cfop:val('prod-cfop'),custo:custo,varejo:varejo,atacado:atacado||varejo,minAtacado:parseInt(val('prod-min'))||10,desc:val('prod-desc'),foto:fotosFinais[0]||'',fotos:fotosFinais,controlaEstoque:controlaEstoque,estoqueQtd:controlaEstoque?(parseFloat(val('prod-estoque-qtd'))||0):0,estoqueMin:controlaEstoque?(parseFloat(val('prod-estoque-min'))||0):0,composicaoCusto:composicaoCusto,exibirCatalogo:ge('prod-exibir-catalogo').checked,variacoes:variacoes,atacadoNiveis:atacadoNiveis};
   if(editId){var idx=prods.findIndex(function(x){return x.id===editId;});if(idx>=0)prods[idx]=prod;else prods.push(prod);}
   else prods.push(prod);
   saveProdutos(prods);closeProdModal();renderCat();
