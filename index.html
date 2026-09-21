@@ -8818,9 +8818,11 @@ function sincronizarGoogleDriveAgora(){
 // Procura no appDataFolder do Drive um backup já existente (orcamentopro_backup.json) para
 // recuperar o fileId quando o ponteiro local (orcpro_google_status) foi perdido — ex.: o
 // usuário limpou os dados do navegador, mas o arquivo continua salvo no Drive da conta dele.
+var _backupsDuplicadosNoDrive=[];// arquivos mais antigos encontrados na última busca (candidatos a exclusão)
 function buscarBackupExistenteNoDrive(callback){
+  _backupsDuplicadosNoDrive=[];
   obterTokenGoogleValido(function(){
-    fetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name%3D%27orcamentopro_backup.json%27&fields=files(id,modifiedTime)',{
+    fetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name%3D%27orcamentopro_backup.json%27&orderBy=modifiedTime%20desc&fields=files(id,modifiedTime,size)',{
       headers:{'Authorization':'Bearer '+googleAccessToken}
     }).then(function(r){return r.json();})
       .then(function(data){
@@ -8829,6 +8831,9 @@ function buscarBackupExistenteNoDrive(callback){
           callback(false);return;
         }
         if(data.files&&data.files.length>0){
+          // Ordenado do mais recente para o mais antigo: usa o primeiro, guarda os demais
+          _backupsDuplicadosNoDrive=data.files.slice(1);
+          console.log('Backups encontrados no Drive:',data.files);
           saveGoogleDriveStatus({conectado:true,fileId:data.files[0].id,ultimaSincronizacao:new Date().toISOString()});
           callback(true);
         }else{
@@ -8865,8 +8870,21 @@ function restaurarDoGoogleDrive(){
             msg+='Nenhum dado adicional no Drive — tudo que estava lá você já tinha aqui.\nTotal: '+depoisHist+' orçamentos.';
           }
           alert(msg);
-          // Sobe a versão fundida de volta ao Drive
-          setTimeout(function(){sincronizarGoogleDriveSilencioso(function(){location.reload();});},1000);
+          function finalizar(){
+            // Sobe a versão fundida de volta ao Drive
+            setTimeout(function(){sincronizarGoogleDriveSilencioso(function(){location.reload();});},1000);
+          }
+          var duplicados=_backupsDuplicadosNoDrive.slice();
+          _backupsDuplicadosNoDrive=[];
+          if(!duplicados.length){finalizar();return;}
+          // Só exclui duplicados depois da restauração concluída E com confirmação explícita
+          var lista=duplicados.map(function(f){return '• '+new Date(f.modifiedTime).toLocaleString('pt-BR')+' ('+(f.size||'?')+' bytes)';}).join('\n');
+          if(!confirm('Foram encontrados '+duplicados.length+' backup(s) duplicado(s) mais antigo(s) no Drive:\n\n'+lista+'\n\nOs dados recuperados acima estão corretos? Se sim, clique OK para EXCLUIR esses duplicados do Drive (não pode ser desfeito). Se tiver qualquer dúvida, clique Cancelar.')){finalizar();return;}
+          Promise.all(duplicados.map(function(f){
+            return fetch('https://www.googleapis.com/drive/v3/files/'+f.id,{method:'DELETE',headers:{'Authorization':'Bearer '+googleAccessToken}})
+              .then(function(r){if(!r.ok&&r.status!==404)throw new Error('HTTP '+r.status);});
+          })).then(function(){alert('✅ '+duplicados.length+' backup(s) duplicado(s) excluído(s) do Drive.');finalizar();})
+            .catch(function(err){alert('Erro ao excluir duplicados: '+err.message);finalizar();});
         }).catch(function(err){alert('Erro ao recuperar: '+err.message);});
     }
     if(!status.fileId){
