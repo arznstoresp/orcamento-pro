@@ -2444,7 +2444,8 @@ function saveConfig(){
     pfxServico:val('cfg-pfx-servico')||'',
     autoOS:ge('cfg-auto-os')&&ge('cfg-auto-os').checked,
     autoPrecoAtacado:ge('cfg-auto-preco-atacado')&&ge('cfg-auto-preco-atacado').checked,
-    relatorioSemanal:ge('cfg-relatorio-semanal')&&ge('cfg-relatorio-semanal').checked
+    relatorioSemanal:ge('cfg-relatorio-semanal')&&ge('cfg-relatorio-semanal').checked,
+    atualizadoEm:Date.now()
   };
   if(!gravarSeguro('orcpro_emp',JSON.stringify(cfg),'configuração da empresa'))return;
   updateMiniPreview();showSaved();
@@ -8877,9 +8878,20 @@ function aplicarBackupComMerge(d){
   var locCT=getHistTecidos(),remCT=parse(d.histTecidos,[]);
   gravarSeguro('orcpro_ct_hist',JSON.stringify(fundirRegistros(locCT,remCT,'id')),'calculadora');
 
-  // Dados de configuração únicos: só adota o remoto se o local estiver vazio
-  if(d.empresa&&(!getCfg()||!getCfg().nome))localStorage.setItem('orcpro_emp',JSON.stringify(parse(d.empresa,{})));
+  // Dados de configuração únicos: decide por timestamp qual versão é mais recente
+  if(d.empresa){
+    var locCfg=getCfg(),remCfg=parse(d.empresa,{});
+    if(deveAdotarRemoto(locCfg,remCfg))localStorage.setItem('orcpro_emp',JSON.stringify(remCfg));
+  }
   if(d.logo&&!localStorage.getItem('orcpro_logo'))localStorage.setItem('orcpro_logo',d.logo);
+}
+
+// Compara local x remoto por atualizadoEm para decidir merge de configs únicas (ex.: "Minha Empresa")
+function deveAdotarRemoto(loc,rem){
+  if(!loc||(!loc.atualizadoEm&&!loc.nome))return true; // primeira sincronização: local vazio
+  if(!rem||!rem.atualizadoEm)return false; // backup remoto antigo, sem timestamp: não sobrescreve
+  if(!loc.atualizadoEm)return false; // local sem timestamp mas já tem nome: presumido mais recente
+  return rem.atualizadoEm>loc.atualizadoEm;
 }
 
 function autoBaixarDoDriveAoAbrir(){
