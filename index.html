@@ -1643,6 +1643,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
       <select id="canal-tipo-taxa" onchange="toggleTipoTaxaCanal()">
         <option value="simples">Taxa fixa simples (% + valor fixo)</option>
         <option value="tabela_ml">Tabela progressiva do Mercado Livre (tarifa varia por faixa de preço)</option>
+        <option value="tabela_shopee">Tabela progressiva da Shopee (tarifa varia por faixa de preço)</option>
       </select>
     </div>
     <div class="g2 mt" id="canal-taxa-simples-wrap">
@@ -1653,6 +1654,9 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
       <label class="lbl">Taxa percentual da categoria (%) <span class="lbl-hint">— varia por categoria no Mercado Livre, ajuste se souber a sua</span></label>
       <input type="number" id="canal-taxa-pct-ml" placeholder="Ex: 19" min="0" max="100" step="0.1" style="max-width:140px">
       <div class="info-box mt" style="margin-bottom:0;font-size:11px">📊 A tarifa fixa é calculada automaticamente por faixa de preço: até R$ 12,50 → 50% do preço · R$ 12,50–29 → R$ 6,25 · R$ 29–50 → R$ 6,50 · R$ 50–79 → R$ 6,75 · acima de R$ 79 → sem tarifa fixa.</div>
+    </div>
+    <div class="mt" id="canal-taxa-shopee-wrap" style="display:none">
+      <div class="info-box" style="margin-bottom:0;font-size:11px">📊 Taxa progressiva oficial da Shopee — calculada automaticamente por faixa de preço, sem campos pra preencher: até R$ 8 → 70% (equivalente à comissão mínima por item) · R$ 8–80 → 20% + R$ 4,00 · R$ 80–100 → 14% + R$ 16,00 · R$ 100–200 → 14% + R$ 20,00 · acima de R$ 200 → 14% + R$ 26,00.</div>
     </div>
     <div class="info-box mt" style="margin-bottom:0" id="canal-info-padrao">💡 Shopee costuma cobrar ~20% + taxa fixa. WhatsApp/Instagram direto geralmente é 0%.</div>
     <div class="modal-footer">
@@ -6318,7 +6322,7 @@ function getCanaisVenda(){
         {id:'cv_facebook',nome:'Facebook',taxaPct:0,taxaFixa:0,tipoTaxa:'simples'},
         {id:'cv_instagram',nome:'Instagram',taxaPct:0,taxaFixa:0,tipoTaxa:'simples'},
         {id:'cv_mercadolivre',nome:'Mercado Livre',taxaPct:19,taxaFixa:0,tipoTaxa:'tabela_ml'},
-        {id:'cv_shopee',nome:'Shopee',taxaPct:20,taxaFixa:4,tipoTaxa:'simples'},
+        {id:'cv_shopee',nome:'Shopee',taxaPct:20,taxaFixa:4,tipoTaxa:'tabela_shopee'},
         {id:'cv_whatsapp',nome:'WhatsApp',taxaPct:0,taxaFixa:0,tipoTaxa:'simples'}
       ];
       saveCanaisVenda(canais);
@@ -6338,13 +6342,24 @@ function calcularTaxaFixaMercadoLivre(precoVenda){
   return 6.75;// de 50 a 79
 }
 
+// Tabela de taxa por faixa de preço — regra oficial da Shopee (vendedor CNPJ).
+// Diferente do Mercado Livre, aqui tanto o percentual quanto o valor fixo mudam por faixa.
+function calcularTaxaShopee(precoVenda){
+  if(precoVenda<8)return{taxaPct:70,taxaFixa:0};
+  if(precoVenda<80)return{taxaPct:20,taxaFixa:4};
+  if(precoVenda<100)return{taxaPct:14,taxaFixa:16};
+  if(precoVenda<200)return{taxaPct:14,taxaFixa:20};
+  return{taxaPct:14,taxaFixa:26};
+}
+
 // Calcula a taxa total (percentual + fixa) de um canal para um preço de venda específico,
-// já considerando regras especiais como a tabela progressiva do Mercado Livre.
+// já considerando regras especiais como a tabela progressiva do Mercado Livre e da Shopee.
 function calcularTaxaCanal(canal,precoVenda){
   if(!canal)return{taxaPct:0,taxaFixa:0};
   if(canal.tipoTaxa==='tabela_ml'){
     return{taxaPct:canal.taxaPct,taxaFixa:calcularTaxaFixaMercadoLivre(precoVenda||0)};
   }
+  if(canal.tipoTaxa==='tabela_shopee')return calcularTaxaShopee(precoVenda||0);
   return{taxaPct:canal.taxaPct,taxaFixa:canal.taxaFixa};
 }
 
@@ -6352,6 +6367,7 @@ function toggleTipoTaxaCanal(){
   var tipo=val('canal-tipo-taxa');
   ge('canal-taxa-simples-wrap').style.display=tipo==='simples'?'flex':'none';
   ge('canal-taxa-ml-wrap').style.display=tipo==='tabela_ml'?'block':'none';
+  ge('canal-taxa-shopee-wrap').style.display=tipo==='tabela_shopee'?'block':'none';
   ge('canal-info-padrao').style.display=tipo==='simples'?'block':'none';
 }
 function openCanalModal(id){
