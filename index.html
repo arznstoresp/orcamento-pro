@@ -9020,6 +9020,10 @@ function aplicarBackupComMerge(d){
 
 // Compara local x remoto por atualizadoEm para decidir merge de configs únicas (ex.: "Minha Empresa")
 function deveAdotarRemoto(loc,rem){
+  var locVazio=!loc||!loc.nome,remVazio=!rem||!rem.nome;
+  // Config em branco nunca vence uma preenchida, mesmo com timestamp mais recente
+  if(locVazio&&!remVazio)return true;
+  if(remVazio&&!locVazio)return false;
   if(!loc||(!loc.atualizadoEm&&!loc.nome))return true; // primeira sincronização: local vazio
   if(!rem||!rem.atualizadoEm)return false; // backup remoto antigo, sem timestamp: não sobrescreve
   if(!loc.atualizadoEm)return false; // local sem timestamp mas já tem nome: presumido mais recente
