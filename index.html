@@ -520,7 +520,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
     </div>
     <div class="tb-actions" id="tb-actions"></div>
     <div style="position:relative;margin-left:auto">
-      <input id="busca-global" type="search" name="busca-global-orcpro" placeholder="🔍 Buscar tudo..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="buscarGlobal()" onblur="setTimeout(function(){var r=ge('busca-global-resultados');if(r)r.style.display='none';},200)" onfocus="if(val('busca-global'))buscarGlobal()" style="width:180px;font-size:13px;padding:8px 12px">
+      <input id="busca-global" type="search" name="busca-global-orcpro" data-protegido-autofill="1" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="buscarGlobal()" onblur="setTimeout(function(){var r=ge('busca-global-resultados');if(r)r.style.display='none';},200)" onfocus="if(val('busca-global'))buscarGlobal()" style="width:180px;font-size:13px;padding:8px 12px">
       <div id="busca-global-resultados" style="display:none;position:absolute;top:100%;right:0;margin-top:6px;width:340px;max-width:88vw;max-height:60vh;overflow-y:auto;background:var(--dark-surface);border:1px solid var(--dark-border2);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:200"></div>
     </div>
     <span id="sync-indicator" style="display:none;font-size:11px;font-weight:600;margin-left:8px;white-space:nowrap"></span>
@@ -736,7 +736,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
           <label class="lbl">CEP <span class="lbl-hint">— preenchimento automático</span></label>
           <div class="field-row"><input id="cli-cep" placeholder="00000-000" oninput="maskCep(this)" maxlength="9" style="max-width:130px"><button type="button" class="btn btn-out btn-sm" onclick="buscaCep()">🔍 Buscar</button></div>
         </div>
-        <div class="mt"><label class="lbl">Endereço</label><input id="cli-end" placeholder="Rua, número, bairro, cidade — UF"></div>
+        <div class="mt"><label class="lbl">Endereço</label><input id="cli-end" data-permite-autofill="1" placeholder="Rua, número, bairro, cidade — UF"></div>
       </div>
 
       <div class="card">
@@ -929,7 +929,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
       <div class="card">
         <div class="card-title">Produtos <span id="cat-count" style="margin-left:6px;font-size:12px;color:var(--brand);font-weight:700"></span></div>
         <div style="display:flex;gap:7px;margin-bottom:11px;flex-wrap:wrap;align-items:center">
-          <input id="cat-search" type="search" name="cat-search-orcpro" placeholder="🔍 Buscar..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="max-width:200px" oninput="renderCat()">
+          <input id="cat-search" type="search" name="cat-search-orcpro" data-protegido-autofill="1" placeholder="🔍 Buscar..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="max-width:200px" oninput="renderCat()">
           <label style="font-size:12px;color:rgba(255,255,255,.55);font-weight:400;display:flex;align-items:center;gap:5px;cursor:pointer">
             <input type="checkbox" id="cat-filtro-estoque-baixo" onchange="renderCat()" style="width:auto;padding:0"> Só estoque baixo
           </label>
@@ -9220,6 +9220,8 @@ function showView(name){
     if(!ge('ct-qtd').value||document.querySelectorAll('#ct-artes-lista > div').length===0)limparTecidos();
     renderHistTecidos();
   }
+  // Tela nova pode ter campos que ainda não existiam quando a proteção rodou da 1ª vez
+  aplicarProtecaoAutofill();
 }
 
 // ═══════════════════════════════════════════════════
@@ -9616,10 +9618,54 @@ document.addEventListener('change',function(e){
   }
 });
 
+// ═══════════════════════════════════════════════════
+// PROTEÇÃO GENÉRICA CONTRA AUTOFILL DO NAVEGADOR
+// ═══════════════════════════════════════════════════
+// Corrigir campo por campo (ex: só o cat-search) não é suficiente: o navegador
+// reaplica o autofill em qualquer campo de texto/número parecido assim que ele
+// aparece na tela (ex: "Parcelas"). Por isso a proteção é aplicada de forma
+// ampla a TODOS os inputs de texto/número/busca da página, e reaplicada sempre
+// que showView() troca de tela e sempre que conteúdo novo é inserido no DOM
+// (modais que montam HTML dinamicamente, linhas de item do orçamento, listas
+// re-renderizadas), via um MutationObserver — assim nenhum campo novo fica
+// desprotegido sem precisar lembrar de chamar a função manualmente em cada
+// lugar que cria inputs.
+//
+// Exceções: readonly/disabled (nada a proteger), data-permite-autofill="1"
+// (opt-out manual, ex: campo de endereço preenchido pelo autocomplete do CEP)
+// e campos de senha/PIN (type="password", já fora do seletor abaixo).
+function aplicarProtecaoAutofill(){
+  var campos=document.querySelectorAll('input[type="text"], input[type="number"], input[type="search"], input:not([type])');
+  campos.forEach(function(el){
+    if(el.readOnly||el.disabled)return;
+    if(el.getAttribute('data-permite-autofill')==='1')return;
+    if(el.hasAttribute('data-protegido-autofill'))return;
+    el.setAttribute('readonly','');
+    el.addEventListener('focus',function(){this.removeAttribute('readonly');});
+    el.setAttribute('autocomplete','off');
+    el.setAttribute('autocorrect','off');
+    el.setAttribute('autocapitalize','off');
+    el.setAttribute('spellcheck','false');
+    el.setAttribute('data-protegido-autofill','1');
+  });
+}
+// Reaplica a proteção quando novos elementos entram no DOM (modais montados via
+// innerHTML, linhas de item, re-renders de listas). Observa só childList/subtree
+// (não attributes) para não reagir aos próprios setAttribute acima.
+(function(){
+  var pendente=null;
+  var observer=new MutationObserver(function(){
+    if(pendente)clearTimeout(pendente);
+    pendente=setTimeout(aplicarProtecaoAutofill,50);
+  });
+  observer.observe(document.body,{childList:true,subtree:true});
+})();
+
 window.onload=function(){
   if(checkLinkPublico())return;
   initPIN();
   desregistrarServiceWorkerAntigo();
+  aplicarProtecaoAutofill();
   // Garante que o campo de busca começa sempre vazio, mesmo se o navegador tentar preencher (autofill)
   var bg=ge('busca-global');
   if(bg){bg.value='';setTimeout(function(){bg.value='';},300);setTimeout(function(){bg.value='';},1000);}
