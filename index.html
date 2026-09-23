@@ -5764,10 +5764,12 @@ function gerarContasReceber(h){
     }
   }else{
     // À vista ou pagamento único: uma conta só, vencimento na data do orçamento
+    // À vista/PIX já é recebido no ato — registra como paga (igual à Venda Rápida)
+    var jaRecebido=PGTOS_A_VISTA.indexOf(h.pgto)>=0;
     contas.push({
       id:'rec'+Date.now(),orcId:h.id,orcNum:h.num,clienteNome:h.cliente.nome||'—',clienteWpp:h.cliente.wpp||'',
       parcela:'1/1',valor:total,vencimento:h.data,
-      status:'pendente',dataPgto:'',formaPgto:'',obs:''
+      status:jaRecebido?'pago':'pendente',dataPgto:jaRecebido?h.data:'',formaPgto:jaRecebido?h.pgto:'',obs:''
     });
   }
   saveContasReceber(contas);
