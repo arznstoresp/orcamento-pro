@@ -658,13 +658,14 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
             <div><label class="lbl">Valor da entrada</label><input type="text" id="vr-entrada-valor" readonly style="background:rgba(255,255,255,.05)"></div>
             <div><label class="lbl">Valor do restante</label><input type="text" id="vr-restante-valor" readonly style="background:rgba(255,255,255,.05)"></div>
           </div>
-          <div class="g2 mt">
+          <div class="g3 mt">
             <div><label class="lbl">Entrada já foi paga?</label>
               <select id="vr-entrada-ja-paga">
                 <option value="sim">Sim, já recebi a entrada</option>
                 <option value="nao">Não, ainda vou receber</option>
               </select>
             </div>
+            <div><label class="lbl">Vencimento da entrada</label><input type="date" id="vr-entrada-vencimento"></div>
             <div><label class="lbl">Data prevista de entrega <span class="lbl-hint">— vencimento do restante</span></label><input type="date" id="vr-entrega-data"></div>
           </div>
         </div>
@@ -676,7 +677,8 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
             <div><label class="lbl">Valor de cada parcela</label><input type="text" id="vr-parc-valor" readonly style="background:rgba(255,255,255,.05)"></div>
             <div><label class="lbl">1º vencimento</label><input type="date" id="vr-parc-primeira-data" onchange="calcularParcelasVendaRapida()"></div>
           </div>
-          <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px">As parcelas seguintes vencem mensalmente a partir da primeira data informada.</div>
+          <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px">As parcelas seguintes vencem mensalmente a partir da primeira data informada. Se precisar, ajuste o vencimento de cada parcela abaixo.</div>
+          <div id="vr-parc-datas" class="mt"></div>
         </div>
 
         <div class="mt"><label class="lbl">Observações</label><textarea id="vr-obs" style="min-height:44px" placeholder="Opcional..."></textarea></div>
@@ -743,7 +745,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
         <div class="card-title">Dados do Orçamento</div>
         <div class="g4">
           <div><label class="lbl">Número</label><input id="orc-num" readonly style="background:rgba(255,255,255,.04);color:rgba(255,255,255,.4)"></div>
-          <div><label class="lbl">Data</label><input type="date" id="orc-data"></div>
+          <div><label class="lbl">Data</label><input type="date" id="orc-data" onchange="if(val('num-parcelas'))calcParcelas()"></div>
           <div><label class="lbl">Validade (dias)</label><input type="number" id="orc-val" value="3" min="1"></div>
           <div><label class="lbl">Status</label>
             <select id="orc-status"><option>Aguardando aprovação</option><option>Aprovado</option><option>Recusado</option><option>Em revisão</option></select>
@@ -2621,16 +2623,35 @@ function onPgtoChange(){
   if(aVista){setVal('num-parcelas','');ge('parcelas-preview').style.display='none';localStorage.removeItem('orcpro_parcelas_tmp');}
   else if(val('num-parcelas'))calcParcelas();
 }
+// Soma m meses a uma data 'AAAA-MM-DD' — mesmo cálculo usado em gerarContasReceber
+function somarMesesISO(iso,m){var d=new Date(iso+'T12:00');d.setMonth(d.getMonth()+m);return d.toISOString().substring(0,10);}
 function calcParcelas(){
   if(PGTOS_A_VISTA.indexOf(val('pgto'))>=0)return;
   var n=parseInt(val('num-parcelas'));if(!n||n<2){ge('parcelas-preview').style.display='none';localStorage.removeItem('orcpro_parcelas_tmp');return;}
   var t=calcTotaisFull().total;if(!t)return;
-  var vp=t/n,rows='',dataBase=new Date();
-  for(var i=1;i<=n;i++){var d=new Date(dataBase);d.setMonth(d.getMonth()+i);rows+='<tr><td style="padding:4px 6px;border-bottom:1px solid var(--dark-border)">'+i+'ª</td><td style="padding:4px 6px;border-bottom:1px solid var(--dark-border)">'+d.toLocaleDateString('pt-BR')+'</td><td style="padding:4px 6px;border-bottom:1px solid var(--dark-border);font-weight:600;color:var(--brand)">'+fmt(vp)+'</td></tr>';}
+  // Base = data do orçamento (a mesma que gerarContasReceber usa). Datas editadas à mão são mantidas.
+  var vp=t/n,rows='',base=val('orc-data')||hoje(),ant=null;
+  try{ant=JSON.parse(localStorage.getItem('orcpro_parcelas_tmp')||'null');}catch(e){}
+  var antParc=(ant&&ant.parcelas)||[],parcelas=[];
+  for(var i=1;i<=n;i++){
+    var a=antParc[i-1];
+    var p=a&&a.editada?{num:i,data:a.data,valor:vp,editada:true}:{num:i,data:somarMesesISO(base,i),valor:vp};
+    parcelas.push(p);
+    rows+='<tr><td style="padding:4px 6px;border-bottom:1px solid var(--dark-border)">'+i+'ª</td><td style="padding:4px 6px;border-bottom:1px solid var(--dark-border)"><input type="date" value="'+p.data+'" onchange="editarDataParcela('+(i-1)+',this.value)" style="padding:3px 6px;font-size:13px;width:auto"></td><td style="padding:4px 6px;border-bottom:1px solid var(--dark-border);font-weight:600;color:var(--brand)">'+fmt(vp)+'</td></tr>';
+  }
   var wrap=ge('parcelas-preview');
   wrap.innerHTML='<table class="parcelas-table" style="width:100%;font-size:13px;border-collapse:collapse;color:#E8E8EE"><thead><tr><th style="padding:4px 6px;border-bottom:1px solid var(--dark-border2);color:rgba(255,255,255,.5);text-align:left">Parcela</th><th style="padding:4px 6px;border-bottom:1px solid var(--dark-border2);color:rgba(255,255,255,.5);text-align:left">Vencimento</th><th style="padding:4px 6px;border-bottom:1px solid var(--dark-border2);color:rgba(255,255,255,.5);text-align:left">Valor</th></tr></thead><tbody>'+rows+'</tbody></table>';
   wrap.style.display='block';
-  localStorage.setItem('orcpro_parcelas_tmp',JSON.stringify({n:n,vp:vp,total:t}));
+  localStorage.setItem('orcpro_parcelas_tmp',JSON.stringify({n:n,total:t,parcelas:parcelas}));
+}
+// Vencimento de uma parcela alterado à mão na tabela; data apagada volta ao cálculo automático
+function editarDataParcela(idx,data){
+  var tmp=null;try{tmp=JSON.parse(localStorage.getItem('orcpro_parcelas_tmp')||'null');}catch(e){}
+  if(!tmp||!tmp.parcelas||!tmp.parcelas[idx])return;
+  if(data){tmp.parcelas[idx].data=data;tmp.parcelas[idx].editada=true;}
+  else delete tmp.parcelas[idx].editada;
+  localStorage.setItem('orcpro_parcelas_tmp',JSON.stringify(tmp));
+  if(!data)calcParcelas();
 }
 
 // ═══════════════════════════════════════════════════
@@ -5753,12 +5774,14 @@ function gerarContasReceber(h){
   var parc=h.parcelas;
 
   if(parc&&parc.n>1){
-    // Parcelado: gera N parcelas mensais a partir da data do orçamento
+    // Parcelado: usa as datas salvas no orçamento (podem ter sido editadas à mão);
+    // orçamentos antigos, sem o array de parcelas, geram N parcelas mensais a partir da data do orçamento
     for(var i=1;i<=parc.n;i++){
+      var p=parc.parcelas&&parc.parcelas[i-1];
       var dVenc=new Date(dataBase);dVenc.setMonth(dVenc.getMonth()+i);
       contas.push({
         id:'rec'+Date.now()+'_'+i,orcId:h.id,orcNum:h.num,clienteNome:h.cliente.nome||'—',clienteWpp:h.cliente.wpp||'',
-        parcela:i+'/'+parc.n,valor:parc.vp,vencimento:dVenc.toISOString().substring(0,10),
+        parcela:i+'/'+parc.n,valor:p?p.valor:parc.vp,vencimento:p&&p.data?p.data:dVenc.toISOString().substring(0,10),
         status:'pendente',dataPgto:'',formaPgto:'',obs:''
       });
     }
@@ -5866,11 +5889,31 @@ function calcularEntradaRestante(){
   setVal('vr-restante-valor',fmt(restante));
 }
 
+// Vencimentos editados à mão nas parcelas da Venda Rápida (índice → 'AAAA-MM-DD')
+var vrParcDatasEditadas={};
+// Datas de todas as parcelas: mensais a partir do 1º vencimento, exceto as editadas à mão
+function getDatasParcelasVendaRapida(){
+  var n=parseInt(val('vr-parc-num'))||2;
+  var primeira=val('vr-parc-primeira-data')||val('vr-data')||hoje();
+  var datas=[];
+  for(var i=0;i<n;i++)datas.push(vrParcDatasEditadas[i]||somarMesesISO(primeira,i));
+  return datas;
+}
 function calcularParcelasVendaRapida(){
   var total=getVendaRapidaTotal();
   var n=parseInt(val('vr-parc-num'))||2;
   var valorParcela=n>0?total/n:0;
   setVal('vr-parc-valor',fmt(valorParcela)+' x '+n);
+  var wrap=ge('vr-parc-datas');if(!wrap)return;
+  var rows=getDatasParcelasVendaRapida().map(function(d,i){
+    return'<tr><td style="padding:4px 6px;border-bottom:1px solid var(--dark-border)">'+(i+1)+'ª</td><td style="padding:4px 6px;border-bottom:1px solid var(--dark-border)"><input type="date" value="'+d+'" onchange="editarDataParcelaVendaRapida('+i+',this.value)" style="padding:3px 6px;font-size:13px;width:auto"></td><td style="padding:4px 6px;border-bottom:1px solid var(--dark-border);font-weight:600;color:var(--brand)">'+fmt(valorParcela)+'</td></tr>';
+  }).join('');
+  wrap.innerHTML='<table class="parcelas-table" style="width:100%;font-size:13px;border-collapse:collapse;color:#E8E8EE"><thead><tr><th style="padding:4px 6px;border-bottom:1px solid var(--dark-border2);color:rgba(255,255,255,.5);text-align:left">Parcela</th><th style="padding:4px 6px;border-bottom:1px solid var(--dark-border2);color:rgba(255,255,255,.5);text-align:left">Vencimento</th><th style="padding:4px 6px;border-bottom:1px solid var(--dark-border2);color:rgba(255,255,255,.5);text-align:left">Valor</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+// Data apagada volta ao cálculo automático
+function editarDataParcelaVendaRapida(idx,data){
+  if(data)vrParcDatasEditadas[idx]=data;
+  else{delete vrParcDatasEditadas[idx];calcularParcelasVendaRapida();}
 }
 
 function atualizarSelectCanalVendaRapida(){
@@ -5893,8 +5936,8 @@ function limparVendaRapida(){
   setVal('vr-desconto','0');setVal('vr-frete','0');setVal('vr-obs','');
   setVal('vr-forma-pgto','avista');setVal('vr-meio-pgto','PIX');
   setVal('vr-avista-vencimento',hoje());
-  setVal('vr-entrada-pct','50');setVal('vr-entrada-ja-paga','sim');setVal('vr-entrega-data','');
-  setVal('vr-parc-num','2');setVal('vr-parc-primeira-data',hoje());
+  setVal('vr-entrada-pct','50');setVal('vr-entrada-ja-paga','sim');setVal('vr-entrada-vencimento',hoje());setVal('vr-entrega-data','');
+  setVal('vr-parc-num','2');setVal('vr-parc-primeira-data',hoje());vrParcDatasEditadas={};
   toggleFormaPgtoVendaRapida();
   ge('vr-itens-body').innerHTML='';vrIid=0;
   addVendaRapidaItem();
@@ -5919,7 +5962,7 @@ function gerarContasReceberVendaRapida(venda,totalVenda){
     var entradaJaPaga=val('vr-entrada-ja-paga')==='sim';
     var dataEntrega=val('vr-entrega-data')||venda.data;
     contas.push(Object.assign({},baseConta,{
-      id:'rec'+Date.now()+'_1',parcela:'Entrada',valor:valorEntrada,vencimento:venda.data,
+      id:'rec'+Date.now()+'_1',parcela:'Entrada',valor:valorEntrada,vencimento:val('vr-entrada-vencimento')||venda.data,
       status:entradaJaPaga?'pago':'pendente',dataPgto:entradaJaPaga?venda.data:'',formaPgto:entradaJaPaga?'Não informado':'',obs:'Entrada ('+pct+'%)'
     }));
     contas.push(Object.assign({},baseConta,{
@@ -5928,14 +5971,12 @@ function gerarContasReceberVendaRapida(venda,totalVenda){
     }));
   }
   else if(forma==='parcelado'){
-    var n=parseInt(val('vr-parc-num'))||2;
+    // Datas salvas na venda: mensais a partir do 1º vencimento, com as editadas à mão
+    var n=venda.parcelas.n;
     var valorParcela=totalVenda/n;
-    var primeiraData=val('vr-parc-primeira-data')||venda.data;
-    var dataBase=new Date(primeiraData+'T12:00');
     for(var i=0;i<n;i++){
-      var dVenc=new Date(dataBase);dVenc.setMonth(dVenc.getMonth()+i);
       contas.push(Object.assign({},baseConta,{
-        id:'rec'+Date.now()+'_'+i,parcela:(i+1)+'/'+n,valor:valorParcela,vencimento:dVenc.toISOString().substring(0,10),
+        id:'rec'+Date.now()+'_'+i,parcela:(i+1)+'/'+n,valor:valorParcela,vencimento:venda.parcelas.parcelas[i].data,
         status:'pendente',dataPgto:'',formaPgto:'',obs:'Parcelado'
       }));
     }
@@ -5975,7 +6016,12 @@ function salvarVendaRapida(){
     prazo:'',entrega:val('vr-entrega-data')||'',obs:val('vr-obs'),termos:'',
     vendedor:val('vr-vendedor'),modoOpcoes:'simples',
     descGeral:val('vr-desconto'),frete:val('vr-frete'),
-    parcelas:forma==='parcelado'?{n:parseInt(val('vr-parc-num'))||2,vp:totalVenda/(parseInt(val('vr-parc-num'))||2),total:totalVenda}:null,
+    parcelas:forma==='parcelado'?(function(){
+      var datas=getDatasParcelasVendaRapida(),vp=totalVenda/datas.length;
+      return{n:datas.length,total:totalVenda,parcelas:datas.map(function(d,i){
+        var p={num:i+1,data:d,valor:vp};if(vrParcDatasEditadas[i])p.editada=true;return p;
+      })};
+    })():null,
     custoCalc:custoTotal,
     cliente:{nome:val('vr-cliente')||'Cliente não identificado',doc:'',wpp:'',email:'',cep:'',end:''},
     items:itens,savedAt:new Date().toLocaleString('pt-BR'),
@@ -8178,7 +8224,11 @@ function buildPreview(){
   var parcelasHtml='';
   if(parc&&parc.n>1&&PGTOS_A_VISTA.indexOf(val('pgto'))<0){
     var itens='';var dataBase=new Date();
-    for(var i=1;i<=parc.n;i++){var d=new Date(dataBase);d.setMonth(d.getMonth()+i);itens+='<div class="pv-parcela-item"><div class="pv-parcela-n">'+i+'ª · '+d.toLocaleDateString('pt-BR')+'</div><div class="pv-parcela-v">'+fmt(parc.vp)+'</div></div>';}
+    for(var i=1;i<=parc.n;i++){
+      var p=parc.parcelas&&parc.parcelas[i-1];// formato antigo (sem array): calcula a partir de hoje, como antes
+      var d=new Date(dataBase);d.setMonth(d.getMonth()+i);
+      itens+='<div class="pv-parcela-item"><div class="pv-parcela-n">'+i+'ª · '+(p?fmtDt(p.data):d.toLocaleDateString('pt-BR'))+'</div><div class="pv-parcela-v">'+fmt(p?p.valor:parc.vp)+'</div></div>';
+    }
     parcelasHtml='<div style="margin-top:12px"><div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--brand);margin-bottom:5px">Parcelas</div><div class="pv-parcelas-grid">'+itens+'</div></div>';
   }
 
