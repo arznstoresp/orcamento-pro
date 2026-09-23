@@ -73,6 +73,13 @@ body{font-family:'Inter',Segoe UI,sans-serif;background:var(--dark-bg);color:var
 .card{background:var(--dark-card);border:1px solid var(--dark-border);border-radius:var(--radius);padding:16px 18px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.3)}
 .card-title{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .card-title::before{content:'';width:3px;height:12px;border-radius:2px;background:var(--brand);flex-shrink:0}
+/* Seções que abrem/fecham (Calculadora de Precificação) */
+details.ct-sec>summary{list-style:none;cursor:pointer;user-select:none;margin-bottom:0}
+details.ct-sec>summary::-webkit-details-marker{display:none}
+details.ct-sec>summary::after{content:'▸';margin-left:auto;font-size:13px;color:rgba(255,255,255,.4);transition:transform .15s}
+details.ct-sec[open]>summary{margin-bottom:14px}
+details.ct-sec[open]>summary::after{transform:rotate(90deg)}
+.ct-sub-titulo{font-size:12px;font-weight:700;color:var(--brand);margin-bottom:10px}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
 .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:11px}
 .g4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:11px}
@@ -997,8 +1004,8 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
           <input type="hidden" id="ct-edit-id">
 
           <!-- ETAPA 1: PEDIDO -->
-          <div class="card">
-            <div class="card-title">1. Pedido</div>
+          <details class="card ct-sec" id="ct-sec-produto" open ontoggle="salvarEstadoSecaoCalc(this)">
+            <summary class="card-title">1. Produto e Quantidade</summary>
             <div class="g2">
               <div><label class="lbl">Produto</label><input id="ct-produto" placeholder="Ex: Camiseta Dry Fit" oninput="calcularTecidos()"></div>
               <div><label class="lbl" id="ct-lbl-tipo-tecido">Variação / Especificação</label><input id="ct-tipo-tecido" placeholder="Ex: Algodão, 325ml, A4..."></div>
@@ -1012,20 +1019,15 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
               <div><label class="lbl">Fornecedor <span class="lbl-hint">— opcional</span></label><input id="ct-fornecedor" placeholder="Opcional"></div>
             </div>
             <div class="mt"><label class="lbl">Observações</label><textarea id="ct-obs" style="min-height:40px" placeholder="Opcional..."></textarea></div>
-          </div>
+          </details>
 
           <!-- MÓDULO DE INSUMOS — muda conforme o tipo de produto -->
-          <div id="ct-modulo-insumos"></div>
-
-          <!-- ETAPA 4: CUSTOS DIRETOS -->
-          <div class="card">
-            <div class="card-title">4. Custos Diretos <span style="margin-left:6px;font-size:11px;color:rgba(255,255,255,.4);font-weight:400;text-transform:none;letter-spacing:0">— por unidade</span></div>
-            <div id="ct-custos-extras-lista" style="display:flex;flex-direction:column;gap:8px"></div>
-          </div>
+          <details class="card ct-sec" id="ct-sec-producao" open ontoggle="salvarEstadoSecaoCalc(this)"><summary class="card-title">2. Produção</summary><div id="ct-modulo-insumos"></div></details>
+          <details class="card ct-sec" id="ct-sec-maquinas" style="display:none" ontoggle="salvarEstadoSecaoCalc(this)"><summary class="card-title">3. Máquinas</summary><div id="ct-maquinas-lista"></div></details>
 
           <!-- ETAPA 5: MÃO DE OBRA -->
-          <div class="card">
-            <div class="card-title">5. Mão de Obra</div>
+          <details class="card ct-sec" id="ct-sec-maoobra" ontoggle="salvarEstadoSecaoCalc(this)">
+            <summary class="card-title">4. Mão de Obra</summary>
             <div><label class="lbl">Valor da hora de trabalho (R$/h)</label><input type="number" id="ct-valor-hora" value="0" min="0" step="0.01" oninput="calcularTecidos()"></div>
             <div class="mt" style="background:rgba(255,255,255,.03);border-radius:8px;padding:10px 12px">
               <label class="lbl" style="margin-bottom:8px;display:block">Tempos de produção <span class="lbl-hint">— por pedido completo, em minutos</span></label>
@@ -1038,11 +1040,40 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
               </div>
             </div>
             <div id="ct-mao-obra-breakdown" style="display:none;margin-top:10px;background:rgba(255,107,0,.06);border-radius:8px;padding:9px 12px;font-size:11px"></div>
-          </div>
+          </details>
+
+          <!-- CANAL DE VENDA E TAXAS -->
+          <details class="card ct-sec" id="ct-sec-canal" ontoggle="salvarEstadoSecaoCalc(this)">
+            <summary class="card-title">5. Canal de Venda e Taxas</summary>
+            <div class="g2">
+              <div><label class="lbl">Canal de venda</label><select id="ct-canal" onchange="calcularTecidos()"></select></div>
+              <div><label class="lbl">Imposto sobre a venda (%) <span class="lbl-hint">— MEI normalmente 0</span></label><input type="number" id="ct-imposto-pct" value="0" min="0" max="50" step="0.1" oninput="calcularTecidos()"></div>
+            </div>
+            <div class="mt"><label class="lbl">Margem líquida desejada (%) <span class="lbl-hint">— o que sobra depois da taxa do canal e do imposto</span></label><input type="number" id="ct-margem-alvo" value="30" min="0" max="95" step="1" oninput="calcularTecidos()"></div>
+            <div id="ct-canal-info" style="display:none;margin-top:10px;background:rgba(255,255,255,.03);border-radius:8px;padding:9px 12px;font-size:11px;color:rgba(255,255,255,.55)"></div>
+          </details>
+
+          <!-- ATACADO -->
+          <details class="card ct-sec" id="ct-sec-atacado" ontoggle="salvarEstadoSecaoCalc(this)">
+            <summary class="card-title">6. Atacado</summary>
+            <label class="lbl">Níveis de atacado <span class="lbl-hint">— quantidade mínima de cada nível; pedido a partir do menor é venda de atacado</span></label>
+            <div class="g3">
+              <div><input type="number" id="ct-atacado-n1" value="12" min="0" step="1" oninput="calcularTecidos()"></div>
+              <div><input type="number" id="ct-atacado-n2" value="24" min="0" step="1" oninput="calcularTecidos()"></div>
+              <div><input type="number" id="ct-atacado-n3" value="36" min="0" step="1" oninput="calcularTecidos()"></div>
+            </div>
+            <div id="ct-atacado-info" style="font-size:11px;color:rgba(255,255,255,.5);margin-top:8px"></div>
+          </details>
+
+          <!-- ETAPA 4: CUSTOS DIRETOS -->
+          <details class="card ct-sec" id="ct-sec-diretos" ontoggle="salvarEstadoSecaoCalc(this)">
+            <summary class="card-title">7. Custos Diretos <span style="margin-left:6px;font-size:11px;color:rgba(255,255,255,.4);font-weight:400;text-transform:none;letter-spacing:0">— por unidade</span></summary>
+            <div id="ct-custos-extras-lista" style="display:flex;flex-direction:column;gap:8px"></div>
+          </details>
 
           <!-- ETAPA 6: CUSTOS INDIRETOS -->
-          <div class="card">
-            <div class="card-title">6. Custos Indiretos</div>
+          <details class="card ct-sec" id="ct-sec-indiretos" ontoggle="salvarEstadoSecaoCalc(this)">
+            <summary class="card-title">8. Custos Indiretos</summary>
             <div id="ct-custos-indiretos-mei" style="font-size:12px;color:rgba(255,255,255,.5);margin-bottom:10px"></div>
             <div class="g2">
               <div>
@@ -1054,11 +1085,11 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
                 <div id="ct-indireto-total-display" style="font-size:16px;font-weight:800;color:var(--brand);padding:10px 0">R$ 0,00</div>
               </div>
             </div>
-          </div>
+          </details>
 
           <!-- ETAPA 7: MARGEM -->
-          <div class="card">
-            <div class="card-title">7. Margem</div>
+          <details class="card ct-sec" id="ct-sec-margem" open ontoggle="salvarEstadoSecaoCalc(this)">
+            <summary class="card-title">9. Margem</summary>
             <label class="lbl">Margem desejada (%)</label>
             <input type="number" id="ct-margem" value="45" min="0" max="95" step="1" oninput="calcularTecidos()">
             <div class="mt" style="display:flex;gap:6px;flex-wrap:wrap">
@@ -1069,7 +1100,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
               <button type="button" class="btn btn-out btn-sm" onclick="setMargemTecidos(55)">55%</button>
               <button type="button" class="btn btn-out btn-sm" onclick="setMargemTecidos(60)">60%</button>
             </div>
-          </div>
+          </details>
         </div>
 
         <!-- COLUNA DIREITA: Artes (só aparece quando relevante) + Resumo -->
@@ -1077,7 +1108,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
           <!-- ETAPA 3: ARTES (Tecidos e Adesivos) -->
           <div id="ct-card-artes" class="card">
             <div class="card-title">
-              3. Artes
+              🎨 Artes
               <span style="margin-left:auto"><button class="btn btn-brand btn-sm" onclick="addArteTecido()">＋ Adicionar arte</button></span>
             </div>
             <div id="ct-artes-lista" style="display:flex;flex-direction:column;gap:8px"></div>
@@ -1111,6 +1142,12 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
               </div>
               <div id="ct-simulador-resultado" style="display:none"></div>
             </div>
+          </div>
+
+          <!-- COMPARAR CANAIS -->
+          <div class="card">
+            <div class="card-title">⚖️ Comparar canais</div>
+            <div id="ct-comparar-canais" style="font-size:12px;color:rgba(255,255,255,.5)">Informe os custos para comparar.</div>
           </div>
 
           <!-- Botões -->
@@ -4904,6 +4941,94 @@ function atualizarExibicaoCustosIndiretosMEI(){
 
 function setMargemTecidos(pct){setVal('ct-margem',pct);calcularTecidos();}
 
+// ── Seções que abrem/fecham: lembra o estado de cada uma entre visitas (preferência só deste navegador) ──
+function getEstadoSecoesCalc(){try{return JSON.parse(localStorage.getItem('orcpro_ct_secoes')||'{}');}catch(e){return{};}}
+function salvarEstadoSecaoCalc(det){
+  var estado=getEstadoSecoesCalc();estado[det.id]=det.open;
+  try{localStorage.setItem('orcpro_ct_secoes',JSON.stringify(estado));}catch(e){}
+}
+function aplicarEstadoSecoesCalc(){
+  var estado=getEstadoSecoesCalc();
+  document.querySelectorAll('#view-calctecidos details.ct-sec').forEach(function(d){
+    if(estado.hasOwnProperty(d.id))d.open=!!estado[d.id];
+  });
+}
+
+// ── Níveis de atacado da Calculadora ──
+var CT_ATACADO_PADRAO=[12,24,36];
+function getNiveisAtacadoCalc(){
+  return['ct-atacado-n1','ct-atacado-n2','ct-atacado-n3'].map(function(id){return parseInt(val(id))||0;});
+}
+function setNiveisAtacadoCalc(niveis){
+  niveis=niveis||CT_ATACADO_PADRAO;
+  ['ct-atacado-n1','ct-atacado-n2','ct-atacado-n3'].forEach(function(id,i){setVal(id,niveis[i]!=null?niveis[i]:'');});
+}
+// Maior nível de atacado que a quantidade atinge (null = venda de varejo)
+function getNivelAtacadoCalc(qtd){
+  var atingidos=getNiveisAtacadoCalc().filter(function(n){return n>0&&qtd>=n;});
+  return atingidos.length?Math.max.apply(null,atingidos):null;
+}
+function renderInfoAtacadoCalc(qtd){
+  var el=ge('ct-atacado-info');if(!el)return;
+  var nivel=getNivelAtacadoCalc(qtd);
+  el.innerHTML=nivel!==null?'📦 Pedido de <strong>'+qtd+' un.</strong> → <strong style="color:var(--brand)">atacado</strong> (nível de '+nivel+' un.)':'Pedido de '+qtd+' un. → varejo';
+}
+
+// ── Canal de venda na Calculadora ──
+function getCanalCalc(){
+  var id=val('ct-canal');
+  return(id&&getCanaisVenda().find(function(c){return c.id===id;}))||CANAL_VENDA_DIRETA;
+}
+function atualizarSelectCanalCalc(){
+  var sel=ge('ct-canal');if(!sel)return;
+  var atual=sel.value;
+  var canais=getCanaisVenda().slice().sort(function(a,b){return a.nome.localeCompare(b.nome,'pt-BR');});
+  sel.innerHTML='<option value="">Venda direta (sem taxa)</option>'+canais.map(function(c){return'<option value="'+c.id+'">'+c.nome+'</option>';}).join('');
+  sel.value=canais.some(function(c){return c.id===atual;})?atual:'';
+}
+// Mesmo custo e mesmo preço recomendado em todos os canais (Venda direta + cadastrados), só trocando
+// o canal: taxa, lucro e margem líquida nesse preço, mais o preço que cada canal precisa pra margem-alvo
+function renderCompararCanais(r){
+  var el=ge('ct-comparar-canais');if(!el)return;
+  if(!r||!(r.custoUnitario>0)||!(r.precoRecomendado>0)){el.innerHTML='Informe os custos para comparar.';return;}
+  var canais=[CANAL_VENDA_DIRETA].concat(getCanaisVenda().slice().sort(function(a,b){return a.nome.localeCompare(b.nome,'pt-BR');}));
+  var linhas=canais.map(function(c){
+    var taxa=valorTaxaCanal(c,r.precoRecomendado);
+    var lucro=lucroLiquidoCanal(c,r.precoRecomendado,r.custoUnitario,r.impostoPct);
+    return{canal:c,taxa:taxa,lucro:lucro,margem:lucro/r.precoRecomendado*100,
+      precoMeta:resolverPrecoPorMargem(c,r.custoUnitario,r.margemAlvo/100,r.impostoPct)};
+  });
+  var maiorLucro=Math.max.apply(null,linhas.map(function(l){return l.lucro;}));
+  var td='padding:6px 6px;border-bottom:1px solid var(--dark-border);text-align:right';
+  var th='padding:5px 6px;border-bottom:1px solid var(--dark-border2);color:rgba(255,255,255,.45);font-size:10px;text-transform:uppercase;letter-spacing:.5px;text-align:right';
+  el.innerHTML='<div style="margin-bottom:8px">Mesmo custo ('+fmt(r.custoUnitario)+') e mesmo preço recomendado ('+fmt(r.precoRecomendado)+') em todos os canais'+(r.impostoPct>0?', com imposto de '+r.impostoPct+'%':'')+'.</div>'+
+    '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;color:#E8E8EE">'+
+    '<thead><tr><th style="'+th+';text-align:left">Canal</th><th style="'+th+'">Preço p/ '+r.margemAlvo+'% líq.</th><th style="'+th+'">Taxa</th><th style="'+th+'">Lucro líquido</th><th style="'+th+'">Margem líq.</th></tr></thead><tbody>'+
+    linhas.map(function(l){
+      var melhor=l.lucro===maiorLucro,atual=l.canal.id===r.canal.id;
+      var cor=l.lucro<0?'var(--red)':melhor?'var(--green)':'#E8E8EE';
+      return'<tr'+(atual?' style="background:rgba(255,107,0,.08)"':'')+'>'+
+        '<td style="'+td+';text-align:left;font-weight:'+(atual?'700':'400')+'">'+l.canal.nome+(atual?' <span style="color:var(--brand)">●</span>':'')+'</td>'+
+        '<td style="'+td+'">'+(l.precoMeta!=null?fmt(l.precoMeta):'—')+'</td>'+
+        '<td style="'+td+'">'+fmt(l.taxa)+'</td>'+
+        '<td style="'+td+';font-weight:700;color:'+cor+'">'+fmt(l.lucro)+'</td>'+
+        '<td style="'+td+';color:'+cor+'">'+l.margem.toFixed(1)+'%</td>'+
+      '</tr>';
+    }).join('')+'</tbody></table></div>'+
+    '<div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:6px">● canal escolhido · em verde, o que rende mais nesse preço · "—" = o canal não alcança a margem-alvo</div>';
+}
+// Resumo da taxa, imposto e lucro líquido no preço recomendado, embaixo dos campos do canal
+function renderInfoCanalCalc(r){
+  var el=ge('ct-canal-info');if(!el)return;
+  if(!r||!(r.precoRecomendado>0)){el.style.display='none';return;}
+  var imposto=r.precoRecomendado*r.impostoPct/100;
+  var margemLiq=r.lucroLiquidoRecomendado/r.precoRecomendado*100;
+  el.style.display='block';
+  el.innerHTML='No preço recomendado ('+fmt(r.precoRecomendado)+'): taxa '+r.canal.nome+' <strong>'+fmt(r.taxaCanalRecomendado)+'</strong>'+
+    (r.impostoPct>0?' &nbsp;|&nbsp; imposto <strong>'+fmt(imposto)+'</strong>':'')+
+    ' &nbsp;|&nbsp; lucro líquido <strong style="color:'+(r.lucroLiquidoRecomendado>=0?'var(--green)':'var(--red)')+'">'+fmt(r.lucroLiquidoRecomendado)+' ('+margemLiq.toFixed(1)+'%)</strong>';
+}
+
 // ── Seletor e módulos de insumos por tipo de produto ──
 var CT_TIPOS={
   tecidos:{label:'🧵 Tecidos (DTF)',usaArtes:true},
@@ -5052,9 +5177,13 @@ function aplicarGravacao(){
 
 function renderModuloInsumos(tipo){
   var el=ge('ct-modulo-insumos');if(!el)return;
+  // Seção "3. Máquinas": só nos tipos que usam máquinas cadastradas (hoje, Canecas)
+  var secMaq=ge('ct-sec-maquinas'),listaMaq=ge('ct-maquinas-lista');
+  if(secMaq)secMaq.style.display=tipo==='canecas'?'':'none';
+  if(listaMaq&&tipo==='canecas')listaMaq.innerHTML='<label class="lbl">Máquinas usadas <span class="lbl-hint">— desgaste por peça</span></label>'+htmlMaquinasCanecas();
   function gv(id){return val(id)||'';}
   if(tipo==='tecidos'){
-    el.innerHTML='<div class="card"><div class="card-title">2. Impressão DTF</div>'+
+    el.innerHTML='<div><div class="ct-sub-titulo">Impressão DTF</div>'+
       '<div class="g2"><div><label class="lbl">Valor do metro DTF (R$)</label><input type="number" id="ct-valor-metro" value="'+(gv('ct-valor-metro')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div>'+
       '<div><label class="lbl">Valor do frete (R$)</label><input type="number" id="ct-frete" value="'+(gv('ct-frete')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div></div>'+
       '<div class="g2 mt"><div><label class="lbl">Largura do rolo (cm)</label><input type="number" id="ct-largura-rolo" value="'+(gv('ct-largura-rolo')||'57')+'" min="1" step="1" oninput="calcularTecidos()"></div>'+
@@ -5062,31 +5191,36 @@ function renderModuloInsumos(tipo){
       '<div class="mt"><label class="lbl">Perda técnica (%) <span class="lbl-hint">— padrão 15%</span></label><input type="number" id="ct-perda" value="'+(gv('ct-perda')||'15')+'" min="0" max="100" step="1" oninput="calcularTecidos()"></div>'+
       '<div id="ct-dtf-breakdown" style="display:none;margin-top:10px;background:rgba(255,255,255,.03);border-radius:8px;padding:9px 12px;font-size:11px;color:rgba(255,255,255,.55)"></div></div>';
   }else if(tipo==='canecas'){
-    el.innerHTML='<div class="card"><div class="card-title">2. Sublimação</div>'+
+    el.innerHTML='<div><div class="ct-sub-titulo">Sublimação</div>'+
       '<div class="g2"><div><label class="lbl">Produto (caneca em branco) R$</label><input type="number" id="ct-custo-produto" value="'+(gv('ct-custo-produto')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div>'+
       '<div><label class="lbl">Papel sublimático (R$)</label><input type="number" id="ct-custo-papel" value="'+(gv('ct-custo-papel')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div></div>'+
       '<div class="g2 mt"><div><label class="lbl">Tinta sublimática (R$)</label><input type="number" id="ct-custo-tinta" value="'+(gv('ct-custo-tinta')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div>'+
       '<div><label class="lbl">Fita térmica (R$)</label><input type="number" id="ct-custo-fita" value="'+(gv('ct-custo-fita')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div></div>'+
       '<div class="g2 mt"><div><label class="lbl">Perda/refugo (%) <span class="lbl-hint">— peças estragadas, pagas pelas boas</span></label><input type="number" id="ct-perda-canecas" value="'+(gv('ct-perda-canecas')||'5')+'" min="0" max="100" step="1" oninput="calcularTecidos()"></div>'+
       '<div><label class="lbl">Frete do lote (R$) <span class="lbl-hint">— dividido entre as peças</span></label><input type="number" id="ct-frete" value="'+(gv('ct-frete')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div></div>'+
-      '<div class="mt"><label class="lbl">Máquinas usadas <span class="lbl-hint">— desgaste por peça</span></label>'+htmlMaquinasCanecas()+'</div>'+
+      '<div class="mt"><label class="lbl">Embalagem (R$) <span class="lbl-hint">— por peça</span></label>'+
+        '<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">'+
+          '<input type="number" id="ct-custo-embalagem" value="'+(gv('ct-custo-embalagem')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()" style="max-width:140px">'+
+          '<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(255,255,255,.7);cursor:pointer"><input type="checkbox" id="ct-embalagem-sem-atacado" style="width:auto;padding:0"'+
+            ((ge('ct-embalagem-sem-atacado')?ge('ct-embalagem-sem-atacado').checked:true)?' checked':'')+' onchange="calcularTecidos()"> Não incluir esse custo em vendas de atacado</label>'+
+        '</div></div>'+
       '<div id="ct-canecas-breakdown" style="display:none;margin-top:10px;background:rgba(255,255,255,.03);border-radius:8px;padding:9px 12px;font-size:11px;color:rgba(255,255,255,.55)"></div></div>';
   }else if(tipo==='adesivos'){
-    el.innerHTML='<div class="card"><div class="card-title">2. Vinil / Adesivo</div>'+
+    el.innerHTML='<div><div class="ct-sub-titulo">Vinil / Adesivo</div>'+
       '<div class="g2"><div><label class="lbl">Custo do vinil (R$/m²)</label><input type="number" id="ct-custo-vinil-m2" value="'+(gv('ct-custo-vinil-m2')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div>'+
       '<div><label class="lbl">Perda técnica (%) <span class="lbl-hint">— padrão 10%</span></label><input type="number" id="ct-perda" value="'+(gv('ct-perda')||'10')+'" min="0" max="100" step="1" oninput="calcularTecidos()"></div></div>'+
       '<div class="g2 mt"><div><label class="lbl">Custo de plotagem/corte por peça (R$)</label><input type="number" id="ct-custo-plotagem" value="'+(gv('ct-custo-plotagem')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div>'+
       '<div><label class="lbl">Laminação por peça (R$) <span class="lbl-hint">— opcional</span></label><input type="number" id="ct-custo-laminacao" value="'+(gv('ct-custo-laminacao')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div></div>'+
       '<div id="ct-dtf-breakdown" style="display:none;margin-top:10px;background:rgba(255,255,255,.03);border-radius:8px;padding:9px 12px;font-size:11px;color:rgba(255,255,255,.55)"></div></div>';
   }else if(tipo==='impressao3d'){
-    el.innerHTML='<div class="card"><div class="card-title">2. Impressão 3D</div>'+
+    el.innerHTML='<div><div class="ct-sub-titulo">Impressão 3D</div>'+
       '<div class="g2"><div><label class="lbl">Custo do filamento (R$/g)</label><input type="number" id="ct-custo-filamento-g" value="'+(gv('ct-custo-filamento-g')||'0')+'" min="0" step="0.001" oninput="calcularTecidos()"></div>'+
       '<div><label class="lbl">Peso da peça (g)</label><input type="number" id="ct-peso-peca-g" value="'+(gv('ct-peso-peca-g')||'0')+'" min="0" step="1" oninput="calcularTecidos()"></div></div>'+
       '<div class="g2 mt"><div><label class="lbl">Tempo de impressão por peça (min)</label><input type="number" id="ct-tempo-impressao-3d" value="'+(gv('ct-tempo-impressao-3d')||'0')+'" min="0" step="1" oninput="calcularTecidos()"></div>'+
       '<div><label class="lbl">Custo hora/máquina (R$/h) <span class="lbl-hint">— energia + desgaste</span></label><input type="number" id="ct-custo-hora-maquina" value="'+(gv('ct-custo-hora-maquina')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div></div>'+
       '<div id="ct-dtf-breakdown" style="display:none;margin-top:10px;background:rgba(255,255,255,.03);border-radius:8px;padding:9px 12px;font-size:11px;color:rgba(255,255,255,.55)"></div></div>';
   }else{
-    el.innerHTML='<div class="card"><div class="card-title">2. Processo de Produção</div>'+
+    el.innerHTML='<div><div class="ct-sub-titulo">Processo de Produção</div>'+
       '<div><label class="lbl">Custo do processo por peça (R$) <span class="lbl-hint">— gravação, corte, impressão, acabamento...</span></label>'+
       '<div style="display:flex;gap:8px;align-items:center">'+
         '<input type="number" id="ct-custo-processo" value="'+(gv('ct-custo-processo')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()" style="flex:1">'+
@@ -5115,7 +5249,7 @@ function htmlMaquinasCanecas(){
 }
 // Ids das máquinas marcadas no modo Canecas
 function getMaquinasMarcadasCanecas(){
-  return Array.prototype.slice.call(document.querySelectorAll('#ct-modulo-insumos input[data-maquina-id]'))
+  return Array.prototype.slice.call(document.querySelectorAll('#ct-maquinas-lista input[data-maquina-id]'))
     .filter(function(cb){return cb.checked;}).map(function(cb){return cb.getAttribute('data-maquina-id');});
 }
 
@@ -5135,12 +5269,20 @@ function getCustoInsumoEspecifico(){
       .reduce(function(a,m){return a+custoPorPecaMaquina(m);},0);
     var frete=parseFloat(val('ct-frete'))||0;
     var freteUn=qtd>0?frete/qtd:0;
-    result.custoProcesso=comPerda+custoMaquinas+freteUn;
+    // Embalagem individual: fica de fora em pedido de atacado se o usuário marcou essa opção
+    var embalagem=parseFloat(val('ct-custo-embalagem'))||0;
+    var nivelAtacado=getNivelAtacadoCalc(qtd);
+    var semEmbalagem=embalagem>0&&nivelAtacado!==null&&ge('ct-embalagem-sem-atacado')&&ge('ct-embalagem-sem-atacado').checked;
+    var embalagemAplicada=semEmbalagem?0:embalagem;
+    result.custoProcesso=comPerda+custoMaquinas+freteUn+embalagemAplicada;
+    var embDiretos=(getCustosExtrasTecido()||[]).find(function(c){return c.id==='embalagem'&&c.ativo&&c.valor>0;});
     result.breakdown='🧾 Consumíveis: <strong>'+fmt(somaConsumiveis)+'</strong> &nbsp;|&nbsp; '+
       '♻️ Perda ('+perdaCanecas+'%): <strong>+'+fmt(comPerda-somaConsumiveis)+'</strong> &nbsp;|&nbsp; '+
       '🛠️ Máquinas: <strong>'+fmt(custoMaquinas)+'</strong>'+
       (freteUn>0?' &nbsp;|&nbsp; 🚚 Frete: <strong>'+fmt(freteUn)+'</strong>':'')+
-      '<br>💰 Total por peça: <strong style="color:var(--brand)">'+fmt(result.custoProcesso)+'</strong>';
+      (embalagem>0?' &nbsp;|&nbsp; 📦 Embalagem: '+(semEmbalagem?'<strong>não incluída</strong> (atacado a partir de '+nivelAtacado+' un.)':'<strong>'+fmt(embalagem)+'</strong>'):'')+
+      '<br>💰 Total por peça: <strong style="color:var(--brand)">'+fmt(result.custoProcesso)+'</strong>'+
+      (embalagem>0&&embDiretos?'<br><span style="color:var(--yellow)">⚠️ "Embalagem" também está preenchida em Custos Diretos — confira para não contar duas vezes.</span>':'');
     var cbk=ge('ct-canecas-breakdown');if(cbk){cbk.style.display='block';cbk.innerHTML=result.breakdown;}
   }else if(tipo==='adesivos'){
     var artes=getArtesTecido();
@@ -5243,6 +5385,15 @@ function calcularTecidos(){
   var margemReal=precoRecomendado>0?(lucroUnitario/precoRecomendado)*100:0;
   var markup=custoUnitario>0?(precoRecomendado/custoUnitario)*100:0;
 
+  // Canal de venda: taxa + imposto no preço recomendado e preço pela margem líquida desejada
+  var canal=getCanalCalc();
+  var impostoPct=parseFloat(val('ct-imposto-pct'))||0;
+  var margemAlvo=parseFloat(val('ct-margem-alvo'))||0;
+  var precoMargemAlvo=custoUnitario>0?resolverPrecoPorMargem(canal,custoUnitario,margemAlvo/100,impostoPct):null;
+  var taxaCanalRecomendado=precoRecomendado>0?valorTaxaCanal(canal,precoRecomendado):0;
+  var lucroLiquidoRecomendado=precoRecomendado>0?lucroLiquidoCanal(canal,precoRecomendado,custoUnitario,impostoPct):0;
+  var degrau=precoRecomendado>0?detectarDegrauPreco(canal,precoRecomendado,custoUnitario,impostoPct):null;
+
   window._ctResultado={
     tipo:tipo,qtd:qtd,areaTotalPorPeca:areaTotalPorPeca,areaUtilMetro:areaUtilMetro,
     metrosNecessarios:metrosNecessarios,metrosComPerda:metrosComPerda,
@@ -5253,8 +5404,13 @@ function calcularTecidos(){
     custosPedido:custosPedido,custosPedidoPorUnidade:custosPedidoPorUnidade,
     valorPeca:valorPeca,custoUnitario:custoUnitario,custoTotalPedido:custoTotalPedido,
     precoMinimo:precoMinimo,precoRecomendado:precoRecomendado,precoPremium:precoPremium,
-    lucroUnitario:lucroUnitario,lucroTotal:lucroTotal,margemReal:margemReal,markup:markup
+    lucroUnitario:lucroUnitario,lucroTotal:lucroTotal,margemReal:margemReal,markup:markup,
+    canal:canal,impostoPct:impostoPct,margemAlvo:margemAlvo,precoMargemAlvo:precoMargemAlvo,
+    taxaCanalRecomendado:taxaCanalRecomendado,lucroLiquidoRecomendado:lucroLiquidoRecomendado,degrau:degrau
   };
+  renderInfoCanalCalc(window._ctResultado);
+  renderCompararCanais(window._ctResultado);
+  renderInfoAtacadoCalc(qtd);
 
   renderResumoFinanceiroTecidos(window._ctResultado);
   renderBreakdownsDTF(window._ctResultado,artes);
@@ -5328,6 +5484,8 @@ function renderResumoFinanceiroTecidos(r){
     ctLinha('Preço mínimo',fmt(r.precoMinimo),'rgba(255,255,255,.5)')+
     ctLinha('Preço recomendado',fmt(r.precoRecomendado),'var(--brand)',true)+
     ctLinha('Preço premium',fmt(r.precoPremium),'var(--brand-l)')+
+    ctLinha('💡 Preço sugerido pra essa margem ('+r.margemAlvo+'% líquida · '+r.canal.nome+')',
+      r.precoMargemAlvo!=null?fmt(r.precoMargemAlvo):'não alcança neste canal','var(--green)')+
     ctLinha('Valor total (recomendado × qtd)',fmt(r.precoRecomendado*r.qtd),'rgba(255,255,255,.7)',true);
 
   var lucroMin=r.precoMinimo-r.custoUnitario,margemMin=r.precoMinimo>0?(lucroMin/r.precoMinimo*100):0;
@@ -5386,6 +5544,7 @@ function renderAlertasTecidos(r){
   else if(r.margemReal>=25)alertas.push({emoji:'🟡',texto:'Margem aceitável ('+r.margemReal.toFixed(0)+'%) — verifique se cobre todos os seus custos.',cor:'rgba(234,179,8,.08)',border:'rgba(234,179,8,.3)'});
   else if(r.margemReal>0)alertas.push({emoji:'🟠',texto:'Lucro baixo ('+r.margemReal.toFixed(0)+'%) — avalie se vale a pena.',cor:'rgba(251,146,60,.1)',border:'rgba(251,146,60,.35)'});
   else alertas.push({emoji:'🔴',texto:'Venda com prejuízo! O preço recomendado está abaixo do custo de produção.',cor:'rgba(220,38,38,.15)',border:'rgba(220,38,38,.4)'});
+  if(r.degrau)alertas.push({emoji:'⚠️',texto:'Vendendo a '+fmt(r.degrau.preco)+' você ganha mais líquido do que no preço atual ('+fmt(r.degrau.ganho)+' a mais de lucro).',cor:'rgba(234,179,8,.08)',border:'rgba(234,179,8,.3)'});
 
   el.style.display='block';
   el.innerHTML=alertas.map(function(a){
@@ -5405,6 +5564,11 @@ function limparTecidos(){
   setVal('ct-tempo-acabamento','0');setVal('ct-tempo-embalagem','0');
   setVal('ct-custo-indireto-extra',cfg.custoIndiretoExtra||'0');
   setVal('ct-preco-negociado','');
+  atualizarSelectCanalCalc();
+  setVal('ct-canal',cfg.canalId||'');if(ge('ct-canal')&&ge('ct-canal').selectedIndex<0)setVal('ct-canal','');
+  setVal('ct-imposto-pct',cfg.impostoPct!=null?cfg.impostoPct:0);
+  setVal('ct-margem-alvo',cfg.margemAlvo!=null?cfg.margemAlvo:30);
+  setNiveisAtacadoCalc(cfg.atacadoNiveis);
   setTipoProduto(tipo);// renderiza o módulo de insumos correto e os botões
   limparArtesTecido();
   renderCustosExtrasTecido(cfg.custosExtras);
@@ -5448,6 +5612,8 @@ function salvarOrcamentoTecidos(){
     valorHora:parseFloat(val('ct-valor-hora'))||0,
     tempos:{arte:parseFloat(val('ct-tempo-arte'))||0,impressao:parseFloat(val('ct-tempo-impressao'))||0,prensagem:parseFloat(val('ct-tempo-prensagem'))||0,acabamento:parseFloat(val('ct-tempo-acabamento'))||0,embalagem:parseFloat(val('ct-tempo-embalagem'))||0},
     custoIndiretoExtra:parseFloat(val('ct-custo-indireto-extra'))||0,
+    canalId:val('ct-canal'),impostoPct:parseFloat(val('ct-imposto-pct'))||0,margemAlvo:parseFloat(val('ct-margem-alvo'))||0,
+    atacadoNiveis:getNiveisAtacadoCalc(),
     // campos específicos por tipo (salvos como campos extras para restauração)
     valorMetro:parseFloat(val('ct-valor-metro'))||0,frete:parseFloat(val('ct-frete'))||0,
     larguraRolo:parseFloat(val('ct-largura-rolo'))||57,alturaMetro:parseFloat(val('ct-altura-metro'))||100,
@@ -5455,6 +5621,7 @@ function salvarOrcamentoTecidos(){
     custoProduto:parseFloat(val('ct-custo-produto'))||0,custoPapel:parseFloat(val('ct-custo-papel'))||0,
     custoTinta:parseFloat(val('ct-custo-tinta'))||0,custoFita:parseFloat(val('ct-custo-fita'))||0,
     perdaCanecas:parseFloat(val('ct-perda-canecas'))||0,maquinas:getMaquinasMarcadasCanecas(),
+    custoEmbalagem:parseFloat(val('ct-custo-embalagem'))||0,embalagemSemAtacado:!ge('ct-embalagem-sem-atacado')||ge('ct-embalagem-sem-atacado').checked,
     custoVinilM2:parseFloat(val('ct-custo-vinil-m2'))||0,custoPlotagem:parseFloat(val('ct-custo-plotagem'))||0,custoLaminacao:parseFloat(val('ct-custo-laminacao'))||0,
     custoFilamentoG:parseFloat(val('ct-custo-filamento-g'))||0,pesoPecaG:parseFloat(val('ct-peso-peca-g'))||0,tempoImpressao3d:parseFloat(val('ct-tempo-impressao-3d'))||0,custoHoraMaquina:parseFloat(val('ct-custo-hora-maquina'))||0,
     custoProcesso:parseFloat(val('ct-custo-processo'))||0,
@@ -5464,7 +5631,8 @@ function salvarOrcamentoTecidos(){
   if(editId){var idx=hist.findIndex(function(h){return h.id===editId;});if(idx>=0)hist[idx]=orcamento;else hist.unshift(orcamento);}
   else hist.unshift(orcamento);
   if(!saveHistTecidos(hist))return;// se a gravação falhar, não finge sucesso
-  saveConfigTecidos({tipoProduto:orcamento.tipo,margem:orcamento.margem,valorHora:orcamento.valorHora,custoIndiretoExtra:orcamento.custoIndiretoExtra,custosExtras:orcamento.custosExtras});
+  saveConfigTecidos({tipoProduto:orcamento.tipo,margem:orcamento.margem,valorHora:orcamento.valorHora,custoIndiretoExtra:orcamento.custoIndiretoExtra,custosExtras:orcamento.custosExtras,
+    canalId:orcamento.canalId,impostoPct:orcamento.impostoPct,margemAlvo:orcamento.margemAlvo,atacadoNiveis:orcamento.atacadoNiveis});
   var nomeCliente=val('ct-cliente');
   if(nomeCliente){
     var clientes=getClientes();
@@ -5501,6 +5669,12 @@ function carregarOrcamentoTecidos(id){
   if(h.tempos){setVal('ct-tempo-arte',h.tempos.arte||0);setVal('ct-tempo-impressao',h.tempos.impressao||0);setVal('ct-tempo-prensagem',h.tempos.prensagem||0);setVal('ct-tempo-acabamento',h.tempos.acabamento||0);setVal('ct-tempo-embalagem',h.tempos.embalagem||0);}
   setVal('ct-custo-indireto-extra',h.custoIndiretoExtra||'0');
   setVal('ct-preco-negociado','');
+  // Canal e imposto (cálculos salvos antes disso ficam em Venda direta, 0% e margem 30%)
+  atualizarSelectCanalCalc();
+  setVal('ct-canal',h.canalId||'');if(ge('ct-canal')&&ge('ct-canal').selectedIndex<0)setVal('ct-canal','');
+  setVal('ct-imposto-pct',h.impostoPct!=null?h.impostoPct:0);
+  setVal('ct-margem-alvo',h.margemAlvo!=null?h.margemAlvo:30);
+  setNiveisAtacadoCalc(h.atacadoNiveis);
   // Restaura campos específicos do tipo (renderModuloInsumos já criou os elementos com setTipoProduto acima)
   if(tipo==='tecidos'){setVal('ct-valor-metro',h.valorMetro||0);setVal('ct-frete',h.frete||0);setVal('ct-largura-rolo',h.larguraRolo||57);setVal('ct-altura-metro',h.alturaMetro||100);setVal('ct-perda',h.perda||15);}
   else if(tipo==='canecas'){
@@ -5513,8 +5687,10 @@ function carregarOrcamentoTecidos(id){
     setVal('ct-custo-tinta',cn.custoTinta||0);setVal('ct-custo-fita',cn.custoFita||0);
     setVal('ct-perda-canecas',cn.perdaCanecas!=null?cn.perdaCanecas:5);
     setVal('ct-valor-peca','0');setVal('ct-frete',h.frete||0);
+    setVal('ct-custo-embalagem',h.custoEmbalagem||0);
+    if(ge('ct-embalagem-sem-atacado'))ge('ct-embalagem-sem-atacado').checked=h.embalagemSemAtacado!==false;
     var maqs=cn.maquinas||[];
-    Array.prototype.slice.call(document.querySelectorAll('#ct-modulo-insumos input[data-maquina-id]')).forEach(function(cb){
+    Array.prototype.slice.call(document.querySelectorAll('#ct-maquinas-lista input[data-maquina-id]')).forEach(function(cb){
       cb.checked=maqs.indexOf(cb.getAttribute('data-maquina-id'))>=0;
     });
   }
@@ -6680,6 +6856,68 @@ function calcularTaxaCanal(canal,precoVenda){
   }
   if(canal.tipoTaxa==='tabela_shopee')return calcularTaxaShopee(precoVenda||0);
   return{taxaPct:canal.taxaPct,taxaFixa:canal.taxaFixa};
+}
+
+// ── Preço por faixa de taxa (genérico para qualquer canal) ──
+// "Venda direta": sem canal escolhido, sem taxa
+var CANAL_VENDA_DIRETA={id:'',nome:'Venda direta',taxaPct:0,taxaFixa:0,tipoTaxa:'simples'};
+// Pontos onde a tarifa do canal muda (mesmos cortes de calcularTaxaFixaMercadoLivre/calcularTaxaShopee)
+function getCortesTaxaCanal(canal){
+  if(canal&&canal.tipoTaxa==='tabela_ml')return[0,12.50,29,50,79];
+  if(canal&&canal.tipoTaxa==='tabela_shopee')return[0,8,80,100,200];
+  return[0];
+}
+// Taxa total em R$ do canal num preço (percentual + fixa)
+function valorTaxaCanal(canal,preco){var t=calcularTaxaCanal(canal,preco);return preco*(t.taxaPct/100)+t.taxaFixa;}
+// Faixas [inicio,fim) do canal. Dentro de cada faixa a taxa é linear: taxa = pct*preço + fixa.
+// pct e fixa são medidos com calcularTaxaCanal em dois preços da faixa — assim cobre até a faixa
+// do Mercado Livre abaixo de R$ 12,50, onde a "tarifa fixa" é 50% do preço.
+function getFaixasTaxaCanal(canal){
+  var cortes=getCortesTaxaCanal(canal);
+  return cortes.map(function(inicio,i){
+    var fim=i+1<cortes.length?cortes[i+1]:Infinity;
+    var p1=fim===Infinity?inicio+1:inicio+(fim-inicio)*0.25,p2=fim===Infinity?inicio+2:inicio+(fim-inicio)*0.75;
+    var t1=valorTaxaCanal(canal,p1),t2=valorTaxaCanal(canal,p2);
+    var pct=(t2-t1)/(p2-p1);
+    return{inicio:inicio,fim:fim,taxaPct:pct*100,taxaFixa:t1-pct*p1};
+  });
+}
+// Lucro líquido por peça num preço: tira custo, taxa do canal e imposto sobre a venda
+function lucroLiquidoCanal(canal,preco,custoUnitario,impostoPct){
+  return preco-custoUnitario-valorTaxaCanal(canal,preco)-preco*((impostoPct||0)/100);
+}
+// Menor preço que atinge a margem líquida desejada no canal (null se nenhuma faixa alcança).
+// impostoPct é opcional; sem ele usa o campo de imposto da Calculadora.
+function resolverPrecoPorMargem(canal,custoUnitario,margemAlvoDecimal,impostoPct){
+  if(impostoPct==null)impostoPct=parseFloat(val('ct-imposto-pct'))||0;
+  var melhor=null;
+  getFaixasTaxaCanal(canal||CANAL_VENDA_DIRETA).forEach(function(f){
+    var denominador=1-(f.taxaPct+impostoPct)/100-margemAlvoDecimal;
+    if(denominador<=0)return;
+    var preco=Math.ceil(((custoUnitario+f.taxaFixa)/denominador)*100-1e-7)/100;
+    if(preco<f.inicio)preco=f.inicio;// no começo da faixa a margem já passa da meta
+    if(preco>=f.fim)return;// essa faixa não alcança a meta
+    if(melhor===null||preco<melhor)melhor=preco;
+  });
+  return melhor;
+}
+
+// Degrau de preço: em canais com tarifa por faixa, cobrar R$ 0,01 abaixo do início de uma faixa
+// pode render MAIS lucro líquido que o preço atual (a tarifa da faixa de cima come a diferença).
+// Retorna o melhor preço mais baixo {preco,lucro,ganho} ou null se não houver.
+function detectarDegrauPreco(canal,preco,custoUnitario,impostoPct){
+  if(impostoPct==null)impostoPct=parseFloat(val('ct-imposto-pct'))||0;
+  canal=canal||CANAL_VENDA_DIRETA;
+  var lucroAtual=lucroLiquidoCanal(canal,preco,custoUnitario,impostoPct);
+  var melhor=null;
+  getFaixasTaxaCanal(canal).forEach(function(f){
+    if(!(f.inicio>0)||f.inicio>preco)return;
+    var precoBaixo=Math.round((f.inicio-0.01)*100)/100;
+    var lucroBaixo=lucroLiquidoCanal(canal,precoBaixo,custoUnitario,impostoPct);
+    if(lucroBaixo>lucroAtual&&(melhor===null||lucroBaixo>melhor.lucro))
+      melhor={preco:precoBaixo,lucro:lucroBaixo,ganho:lucroBaixo-lucroAtual};
+  });
+  return melhor;
 }
 
 function toggleTipoTaxaCanal(){
@@ -9503,6 +9741,8 @@ function showView(name){
   }
   if(name==='catalogo')renderCatalogoProfissional();
   if(name==='calctecidos'){
+    aplicarEstadoSecoesCalc();
+    atualizarSelectCanalCalc();
     atualizarDatalistClientesTecidos();
     atualizarExibicaoCustosIndiretosMEI();
     if(!ge('ct-qtd').value||document.querySelectorAll('#ct-artes-lista > div').length===0)limparTecidos();
