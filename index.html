@@ -5198,12 +5198,14 @@ function renderModuloInsumos(tipo){
       '<div><label class="lbl">Fita térmica (R$)</label><input type="number" id="ct-custo-fita" value="'+(gv('ct-custo-fita')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div></div>'+
       '<div class="g2 mt"><div><label class="lbl">Perda/refugo (%) <span class="lbl-hint">— peças estragadas, pagas pelas boas</span></label><input type="number" id="ct-perda-canecas" value="'+(gv('ct-perda-canecas')||'5')+'" min="0" max="100" step="1" oninput="calcularTecidos()"></div>'+
       '<div><label class="lbl">Frete do lote (R$) <span class="lbl-hint">— dividido entre as peças</span></label><input type="number" id="ct-frete" value="'+(gv('ct-frete')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div></div>'+
-      '<div class="mt"><label class="lbl">Embalagem (R$) <span class="lbl-hint">— por peça</span></label>'+
-        '<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">'+
-          '<input type="number" id="ct-custo-embalagem" value="'+(gv('ct-custo-embalagem')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()" style="max-width:140px">'+
-          '<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(255,255,255,.7);cursor:pointer"><input type="checkbox" id="ct-embalagem-sem-atacado" style="width:auto;padding:0"'+
-            ((ge('ct-embalagem-sem-atacado')?ge('ct-embalagem-sem-atacado').checked:true)?' checked':'')+' onchange="calcularTecidos()"> Não incluir esse custo em vendas de atacado</label>'+
-        '</div></div>'+
+      '<div class="mt"><label class="lbl">Embalagem <span class="lbl-hint">— por peça</span></label>'+
+        '<div class="g2"><div><label class="lbl">Caixinha (R$)</label><input type="number" id="ct-emb-caixinha" value="'+(gv('ct-emb-caixinha')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div>'+
+        '<div><label class="lbl">Plástico bolha / papel colmeia (R$)</label><input type="number" id="ct-emb-protecao" value="'+(gv('ct-emb-protecao')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div></div>'+
+        '<div class="g2 mt"><div><label class="lbl">Cartão de visita (R$)</label><input type="number" id="ct-emb-cartao" value="'+(gv('ct-emb-cartao')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div>'+
+        '<div><label class="lbl">Brinde (R$)</label><input type="number" id="ct-emb-brinde" value="'+(gv('ct-emb-brinde')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div></div>'+
+        '<label class="mt" style="display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(255,255,255,.7);cursor:pointer"><input type="checkbox" id="ct-embalagem-sem-atacado" style="width:auto;padding:0"'+
+          ((ge('ct-embalagem-sem-atacado')?ge('ct-embalagem-sem-atacado').checked:true)?' checked':'')+' onchange="calcularTecidos()"> Não incluir esse custo em vendas de atacado</label>'+
+      '</div>'+
       '<div id="ct-canecas-breakdown" style="display:none;margin-top:10px;background:rgba(255,255,255,.03);border-radius:8px;padding:9px 12px;font-size:11px;color:rgba(255,255,255,.55)"></div></div>';
   }else if(tipo==='adesivos'){
     el.innerHTML='<div><div class="ct-sub-titulo">Vinil / Adesivo</div>'+
@@ -5247,6 +5249,11 @@ function htmlMaquinasCanecas(){
     '</label>';
   }).join('')+'</div>';
 }
+// Embalagem do modo Canecas: soma dos 4 itens (caixinha, proteção, cartão de visita, brinde)
+function getCustoEmbalagemCanecas(){
+  return['ct-emb-caixinha','ct-emb-protecao','ct-emb-cartao','ct-emb-brinde']
+    .reduce(function(a,id){return a+(parseFloat(val(id))||0);},0);
+}
 // Ids das máquinas marcadas no modo Canecas
 function getMaquinasMarcadasCanecas(){
   return Array.prototype.slice.call(document.querySelectorAll('#ct-maquinas-lista input[data-maquina-id]'))
@@ -5270,7 +5277,7 @@ function getCustoInsumoEspecifico(){
     var frete=parseFloat(val('ct-frete'))||0;
     var freteUn=qtd>0?frete/qtd:0;
     // Embalagem individual: fica de fora em pedido de atacado se o usuário marcou essa opção
-    var embalagem=parseFloat(val('ct-custo-embalagem'))||0;
+    var embalagem=getCustoEmbalagemCanecas();
     var nivelAtacado=getNivelAtacadoCalc(qtd);
     var semEmbalagem=embalagem>0&&nivelAtacado!==null&&ge('ct-embalagem-sem-atacado')&&ge('ct-embalagem-sem-atacado').checked;
     var embalagemAplicada=semEmbalagem?0:embalagem;
@@ -5621,7 +5628,9 @@ function salvarOrcamentoTecidos(){
     custoProduto:parseFloat(val('ct-custo-produto'))||0,custoPapel:parseFloat(val('ct-custo-papel'))||0,
     custoTinta:parseFloat(val('ct-custo-tinta'))||0,custoFita:parseFloat(val('ct-custo-fita'))||0,
     perdaCanecas:parseFloat(val('ct-perda-canecas'))||0,maquinas:getMaquinasMarcadasCanecas(),
-    custoEmbalagem:parseFloat(val('ct-custo-embalagem'))||0,embalagemSemAtacado:!ge('ct-embalagem-sem-atacado')||ge('ct-embalagem-sem-atacado').checked,
+    embCaixinha:parseFloat(val('ct-emb-caixinha'))||0,embProtecao:parseFloat(val('ct-emb-protecao'))||0,
+    embCartao:parseFloat(val('ct-emb-cartao'))||0,embBrinde:parseFloat(val('ct-emb-brinde'))||0,
+    custoEmbalagem:getCustoEmbalagemCanecas(),embalagemSemAtacado:!ge('ct-embalagem-sem-atacado')||ge('ct-embalagem-sem-atacado').checked,
     custoVinilM2:parseFloat(val('ct-custo-vinil-m2'))||0,custoPlotagem:parseFloat(val('ct-custo-plotagem'))||0,custoLaminacao:parseFloat(val('ct-custo-laminacao'))||0,
     custoFilamentoG:parseFloat(val('ct-custo-filamento-g'))||0,pesoPecaG:parseFloat(val('ct-peso-peca-g'))||0,tempoImpressao3d:parseFloat(val('ct-tempo-impressao-3d'))||0,custoHoraMaquina:parseFloat(val('ct-custo-hora-maquina'))||0,
     custoProcesso:parseFloat(val('ct-custo-processo'))||0,
@@ -5687,7 +5696,12 @@ function carregarOrcamentoTecidos(id){
     setVal('ct-custo-tinta',cn.custoTinta||0);setVal('ct-custo-fita',cn.custoFita||0);
     setVal('ct-perda-canecas',cn.perdaCanecas!=null?cn.perdaCanecas:5);
     setVal('ct-valor-peca','0');setVal('ct-frete',h.frete||0);
-    setVal('ct-custo-embalagem',h.custoEmbalagem||0);
+    // Cálculo salvo antes dos 4 campos (só custoEmbalagem): o valor inteiro vai para "Caixinha"
+    var emb4=h.embCaixinha!==undefined;
+    setVal('ct-emb-caixinha',emb4?h.embCaixinha:(h.custoEmbalagem||0));
+    setVal('ct-emb-protecao',emb4?h.embProtecao||0:0);
+    setVal('ct-emb-cartao',emb4?h.embCartao||0:0);
+    setVal('ct-emb-brinde',emb4?h.embBrinde||0:0);
     if(ge('ct-embalagem-sem-atacado'))ge('ct-embalagem-sem-atacado').checked=h.embalagemSemAtacado!==false;
     var maqs=cn.maquinas||[];
     Array.prototype.slice.call(document.querySelectorAll('#ct-maquinas-lista input[data-maquina-id]')).forEach(function(cb){
