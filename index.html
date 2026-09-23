@@ -496,6 +496,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
     <div class="sb-sec">Estoque</div>
     <button class="nb" id="nb-notas"     onclick="showView('notas')">    🧾 Notas de Compra</button>
     <button class="nb" id="nb-fornec"    onclick="showView('fornec')">   🚚 Fornecedores</button>
+    <button class="nb" id="nb-maquinas"  onclick="showView('maquinas')"> 🛠️ Maquinários</button>
     <div class="sb-sec">CRM</div>
     <button class="nb" id="nb-clientes"  onclick="showView('clientes')"> 👥 Clientes &amp; Follow-up</button>
     <div class="sb-sec">Financeiro</div>
@@ -1177,6 +1178,24 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
           </tr></thead><tbody id="fornec-body"></tbody></table>
         </div>
         <div id="fornec-empty" style="text-align:center;padding:26px;color:rgba(255,255,255,.5);font-size:13px;display:none">Nenhum fornecedor cadastrado.</div>
+      </div>
+    </div>
+
+    <!-- MAQUINÁRIOS -->
+    <div id="view-maquinas" style="display:none;min-height:100%">
+      <div class="info-box">🛠️ Cadastre as máquinas que você usa na produção. O desgaste de cada uma (preço ÷ vida útil) entra no custo por peça na Calculadora de Precificação.</div>
+      <div class="card">
+        <div class="card-title">Maquinários <span id="maquinas-count" style="margin-left:6px;font-size:12px;color:var(--brand);font-weight:700"></span></div>
+        <div style="display:flex;gap:7px;margin-bottom:11px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-brand btn-sm" onclick="openMaquinarioModal()">＋ Nova máquina</button>
+        </div>
+        <div class="items-wrap">
+          <table class="cat"><thead><tr>
+            <th style="width:32%">Nome</th><th style="width:16%">Preço</th>
+            <th style="width:18%">Vida útil (peças)</th><th style="width:16%">Custo por peça</th><th style="width:18%"></th>
+          </tr></thead><tbody id="maquinas-body"></tbody></table>
+        </div>
+        <div id="maquinas-empty" style="text-align:center;padding:26px;color:rgba(255,255,255,.5);font-size:13px;display:none">Nenhuma máquina cadastrada.</div>
       </div>
     </div>
 
@@ -2135,6 +2154,24 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
     <div class="modal-footer">
       <button class="btn btn-out" onclick="closeFornecedorModal()">Cancelar</button>
       <button class="btn btn-brand" onclick="saveFornecedor()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL MAQUINÁRIO -->
+<div class="modal-overlay" id="modal-maquinario">
+  <div class="modal" style="width:420px">
+    <div class="modal-title" id="modal-maquinario-title">Nova Máquina</div>
+    <input type="hidden" id="maquinario-edit-id">
+    <div><label class="lbl">Nome *</label><input id="maq-nome" placeholder="Ex: Impressora Sublimática"></div>
+    <div class="g2 mt">
+      <div><label class="lbl">Preço (R$)</label><input type="number" id="maq-preco" min="0" step="0.01" placeholder="0,00"></div>
+      <div><label class="lbl">Vida útil (peças) *</label><input type="number" id="maq-vida" min="1" step="1" placeholder="Ex: 10000"></div>
+    </div>
+    <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:6px">Quantas peças a máquina produz antes de precisar ser trocada. O custo por peça é o preço dividido por esse número.</div>
+    <div class="modal-footer">
+      <button class="btn btn-out" onclick="closeMaquinarioModal()">Cancelar</button>
+      <button class="btn btn-brand" onclick="salvarMaquinario()">💾 Salvar</button>
     </div>
   </div>
 </div>
@@ -4884,7 +4921,17 @@ function setTipoProduto(tipo){
   });
   var cardArtes=ge('ct-card-artes');
   if(cardArtes)cardArtes.style.display=(CT_TIPOS[tipo]&&CT_TIPOS[tipo].usaArtes)?'block':'none';
+  if(tipo==='canecas')garantirMaquinasPadrao();
+  var valorPecaAnterior=parseFloat(val('ct-valor-peca'))||0;
   renderModuloInsumos(tipo);
+  // Canecas: a caneca em branco entra no campo "Produto" do módulo (com a perda aplicada), então o
+  // insumo principal do passo 1 fica oculto e zerado para não ser contado duas vezes
+  var wrapPeca=ge('ct-valor-peca')&&ge('ct-valor-peca').parentNode;
+  if(wrapPeca)wrapPeca.style.display=tipo==='canecas'?'none':'';
+  if(tipo==='canecas'&&valorPecaAnterior>0){
+    if(!((parseFloat(val('ct-custo-produto'))||0)>0))setVal('ct-custo-produto',valorPecaAnterior);
+    setVal('ct-valor-peca','0');
+  }
   calcularTecidos();
 }
 
@@ -5016,10 +5063,14 @@ function renderModuloInsumos(tipo){
       '<div id="ct-dtf-breakdown" style="display:none;margin-top:10px;background:rgba(255,255,255,.03);border-radius:8px;padding:9px 12px;font-size:11px;color:rgba(255,255,255,.55)"></div></div>';
   }else if(tipo==='canecas'){
     el.innerHTML='<div class="card"><div class="card-title">2. Sublimação</div>'+
-      '<div><label class="lbl">Custo de sublimação por peça (R$) <span class="lbl-hint">— papel + tinta + energia</span></label>'+
-      '<input type="number" id="ct-custo-sublimacao" value="'+(gv('ct-custo-sublimacao')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div>'+
-      '<div class="mt"><label class="lbl">Frete do lote (R$) <span class="lbl-hint">— dividido entre as peças</span></label>'+
-      '<input type="number" id="ct-frete" value="'+(gv('ct-frete')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div></div>';
+      '<div class="g2"><div><label class="lbl">Produto (caneca em branco) R$</label><input type="number" id="ct-custo-produto" value="'+(gv('ct-custo-produto')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div>'+
+      '<div><label class="lbl">Papel sublimático (R$)</label><input type="number" id="ct-custo-papel" value="'+(gv('ct-custo-papel')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div></div>'+
+      '<div class="g2 mt"><div><label class="lbl">Tinta sublimática (R$)</label><input type="number" id="ct-custo-tinta" value="'+(gv('ct-custo-tinta')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div>'+
+      '<div><label class="lbl">Fita térmica (R$)</label><input type="number" id="ct-custo-fita" value="'+(gv('ct-custo-fita')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div></div>'+
+      '<div class="g2 mt"><div><label class="lbl">Perda/refugo (%) <span class="lbl-hint">— peças estragadas, pagas pelas boas</span></label><input type="number" id="ct-perda-canecas" value="'+(gv('ct-perda-canecas')||'5')+'" min="0" max="100" step="1" oninput="calcularTecidos()"></div>'+
+      '<div><label class="lbl">Frete do lote (R$) <span class="lbl-hint">— dividido entre as peças</span></label><input type="number" id="ct-frete" value="'+(gv('ct-frete')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div></div>'+
+      '<div class="mt"><label class="lbl">Máquinas usadas <span class="lbl-hint">— desgaste por peça</span></label>'+htmlMaquinasCanecas()+'</div>'+
+      '<div id="ct-canecas-breakdown" style="display:none;margin-top:10px;background:rgba(255,255,255,.03);border-radius:8px;padding:9px 12px;font-size:11px;color:rgba(255,255,255,.55)"></div></div>';
   }else if(tipo==='adesivos'){
     el.innerHTML='<div class="card"><div class="card-title">2. Vinil / Adesivo</div>'+
       '<div class="g2"><div><label class="lbl">Custo do vinil (R$/m²)</label><input type="number" id="ct-custo-vinil-m2" value="'+(gv('ct-custo-vinil-m2')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div>'+
@@ -5046,6 +5097,28 @@ function renderModuloInsumos(tipo){
   }
 }
 
+// Checkboxes das máquinas cadastradas no modo Canecas. Mantém o que já estava marcado na tela;
+// na 1ª renderização vêm marcadas só as máquinas padrão (impressora + prensa).
+function htmlMaquinasCanecas(){
+  var maquinas=getMaquinarios();
+  if(!maquinas.length)return'<div style="font-size:12px;color:rgba(255,255,255,.4);padding:6px 0">Nenhuma máquina cadastrada. <a href="#" onclick="showView(\'maquinas\');return false" style="color:var(--brand)">Cadastrar em Maquinários</a></div>';
+  var padrao=MAQUINAS_PADRAO.map(function(m){return m.id;});
+  return'<div style="display:flex;flex-direction:column;gap:4px">'+maquinas.map(function(m){
+    var cb=ge('ct-maquina-'+m.id);
+    var marcada=cb?cb.checked:padrao.indexOf(m.id)>=0;
+    return'<label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#F0F0F5;cursor:pointer;padding:4px 0">'+
+      '<input type="checkbox" id="ct-maquina-'+m.id+'" data-maquina-id="'+m.id+'" style="width:auto;padding:0"'+(marcada?' checked':'')+' onchange="calcularTecidos()">'+
+      '<span style="flex:1">'+m.nome+'</span>'+
+      '<span style="font-size:12px;color:rgba(255,255,255,.5)">'+fmt(custoPorPecaMaquina(m))+'/peça</span>'+
+    '</label>';
+  }).join('')+'</div>';
+}
+// Ids das máquinas marcadas no modo Canecas
+function getMaquinasMarcadasCanecas(){
+  return Array.prototype.slice.call(document.querySelectorAll('#ct-modulo-insumos input[data-maquina-id]'))
+    .filter(function(cb){return cb.checked;}).map(function(cb){return cb.getAttribute('data-maquina-id');});
+}
+
 function getCustoInsumoEspecifico(){
   var tipo=val('ct-tipo-produto')||'tecidos';
   var qtd=parseFloat(val('ct-qtd'))||1;
@@ -5053,10 +5126,22 @@ function getCustoInsumoEspecifico(){
   if(tipo==='tecidos'){
     result.custoProcesso=0;// calculado externamente pelo módulo DTF
   }else if(tipo==='canecas'){
-    var sublimacao=parseFloat(val('ct-custo-sublimacao'))||0;
+    var somaConsumiveis=['ct-custo-produto','ct-custo-papel','ct-custo-tinta','ct-custo-fita']
+      .reduce(function(a,id){return a+(parseFloat(val(id))||0);},0);
+    var perdaCanecas=parseFloat(val('ct-perda-canecas'))||0;
+    var comPerda=somaConsumiveis*(1+perdaCanecas/100);
+    var marcadas=getMaquinasMarcadasCanecas();
+    var custoMaquinas=getMaquinarios().filter(function(m){return marcadas.indexOf(m.id)>=0;})
+      .reduce(function(a,m){return a+custoPorPecaMaquina(m);},0);
     var frete=parseFloat(val('ct-frete'))||0;
-    result.custoProcesso=sublimacao+(qtd>0?frete/qtd:0);
-    result.breakdown='Sublimação: '+fmt(sublimacao)+'/un';
+    var freteUn=qtd>0?frete/qtd:0;
+    result.custoProcesso=comPerda+custoMaquinas+freteUn;
+    result.breakdown='🧾 Consumíveis: <strong>'+fmt(somaConsumiveis)+'</strong> &nbsp;|&nbsp; '+
+      '♻️ Perda ('+perdaCanecas+'%): <strong>+'+fmt(comPerda-somaConsumiveis)+'</strong> &nbsp;|&nbsp; '+
+      '🛠️ Máquinas: <strong>'+fmt(custoMaquinas)+'</strong>'+
+      (freteUn>0?' &nbsp;|&nbsp; 🚚 Frete: <strong>'+fmt(freteUn)+'</strong>':'')+
+      '<br>💰 Total por peça: <strong style="color:var(--brand)">'+fmt(result.custoProcesso)+'</strong>';
+    var cbk=ge('ct-canecas-breakdown');if(cbk){cbk.style.display='block';cbk.innerHTML=result.breakdown;}
   }else if(tipo==='adesivos'){
     var artes=getArtesTecido();
     var areaTotalCm2=artes.reduce(function(a,arte){return a+arte.area;},0);
@@ -5228,9 +5313,9 @@ function renderResumoFinanceiroTecidos(r){
   var elC=ge('ct-resumo-custos'),elV=ge('ct-resumo-venda'),elL=ge('ct-resumo-lucro');
   if(!elC||!elV||!elL)return;
 
-  var labelInsumo={tecidos:'Custo do DTF',canecas:'Custo de sublimação',adesivos:'Custo do vinil/processo',impressao3d:'Custo filamento + máquina',generico:'Custo do processo'}[r.tipo||'tecidos']||'Custo do processo';
+  var labelInsumo={tecidos:'Custo do DTF',canecas:'Caneca + sublimação + máquinas',adesivos:'Custo do vinil/processo',impressao3d:'Custo filamento + máquina',generico:'Custo do processo'}[r.tipo||'tecidos']||'Custo do processo';
   elC.innerHTML=
-    ctLinha('Custo do insumo principal',fmt(r.valorPeca))+
+    (r.tipo==='canecas'?'':ctLinha('Custo do insumo principal',fmt(r.valorPeca)))+// em Canecas a caneca já está no custo abaixo
     ctLinha(labelInsumo,fmt(r.custoInsumoEspecifico))+
     ctLinha('Custo mão de obra',fmt(r.custoMaoObraUnitario))+
     ctLinha('Custos indiretos',fmt(r.custoIndiretoUnitario))+
@@ -5367,7 +5452,9 @@ function salvarOrcamentoTecidos(){
     valorMetro:parseFloat(val('ct-valor-metro'))||0,frete:parseFloat(val('ct-frete'))||0,
     larguraRolo:parseFloat(val('ct-largura-rolo'))||57,alturaMetro:parseFloat(val('ct-altura-metro'))||100,
     perda:parseFloat(val('ct-perda'))||0,
-    custoSublimacao:parseFloat(val('ct-custo-sublimacao'))||0,
+    custoProduto:parseFloat(val('ct-custo-produto'))||0,custoPapel:parseFloat(val('ct-custo-papel'))||0,
+    custoTinta:parseFloat(val('ct-custo-tinta'))||0,custoFita:parseFloat(val('ct-custo-fita'))||0,
+    perdaCanecas:parseFloat(val('ct-perda-canecas'))||0,maquinas:getMaquinasMarcadasCanecas(),
     custoVinilM2:parseFloat(val('ct-custo-vinil-m2'))||0,custoPlotagem:parseFloat(val('ct-custo-plotagem'))||0,custoLaminacao:parseFloat(val('ct-custo-laminacao'))||0,
     custoFilamentoG:parseFloat(val('ct-custo-filamento-g'))||0,pesoPecaG:parseFloat(val('ct-peso-peca-g'))||0,tempoImpressao3d:parseFloat(val('ct-tempo-impressao-3d'))||0,custoHoraMaquina:parseFloat(val('ct-custo-hora-maquina'))||0,
     custoProcesso:parseFloat(val('ct-custo-processo'))||0,
@@ -5416,7 +5503,21 @@ function carregarOrcamentoTecidos(id){
   setVal('ct-preco-negociado','');
   // Restaura campos específicos do tipo (renderModuloInsumos já criou os elementos com setTipoProduto acima)
   if(tipo==='tecidos'){setVal('ct-valor-metro',h.valorMetro||0);setVal('ct-frete',h.frete||0);setVal('ct-largura-rolo',h.larguraRolo||57);setVal('ct-altura-metro',h.alturaMetro||100);setVal('ct-perda',h.perda||15);}
-  else if(tipo==='canecas'){setVal('ct-custo-sublimacao',h.custoSublimacao||0);setVal('ct-frete',h.frete||0);}
+  else if(tipo==='canecas'){
+    var cn=h.custoProduto!==undefined?h:{
+      // Cálculo salvo antes dos campos separados: caneca e sublimação vão para Produto e Papel,
+      // sem perda e sem máquinas, reproduzindo exatamente o custo que foi salvo
+      custoProduto:h.valorPeca||0,custoPapel:h.custoSublimacao||0,custoTinta:0,custoFita:0,perdaCanecas:0,maquinas:[]
+    };
+    setVal('ct-custo-produto',cn.custoProduto||0);setVal('ct-custo-papel',cn.custoPapel||0);
+    setVal('ct-custo-tinta',cn.custoTinta||0);setVal('ct-custo-fita',cn.custoFita||0);
+    setVal('ct-perda-canecas',cn.perdaCanecas!=null?cn.perdaCanecas:5);
+    setVal('ct-valor-peca','0');setVal('ct-frete',h.frete||0);
+    var maqs=cn.maquinas||[];
+    Array.prototype.slice.call(document.querySelectorAll('#ct-modulo-insumos input[data-maquina-id]')).forEach(function(cb){
+      cb.checked=maqs.indexOf(cb.getAttribute('data-maquina-id'))>=0;
+    });
+  }
   else if(tipo==='adesivos'){setVal('ct-custo-vinil-m2',h.custoVinilM2||0);setVal('ct-perda',h.perda||10);setVal('ct-custo-plotagem',h.custoPlotagem||0);setVal('ct-custo-laminacao',h.custoLaminacao||0);}
   else if(tipo==='impressao3d'){setVal('ct-custo-filamento-g',h.custoFilamentoG||0);setVal('ct-peso-peca-g',h.pesoPecaG||0);setVal('ct-tempo-impressao-3d',h.tempoImpressao3d||0);setVal('ct-custo-hora-maquina',h.custoHoraMaquina||0);}
   else{setVal('ct-custo-processo',h.custoProcesso||0);setVal('ct-frete',h.frete||0);}
@@ -5583,6 +5684,68 @@ function atualizarFornecedoresSelect(){
   var fornecedores=getFornecedores();
   if(!fornecedores.length){sel.innerHTML='<option value="">Cadastre um fornecedor primeiro</option>';return;}
   sel.innerHTML=fornecedores.map(function(f){return'<option value="'+f.id+'">'+f.nome+'</option>';}).join('');
+}
+
+// ═══════════════════════════════════════════════════
+// MAQUINÁRIOS — desgaste por peça usado na Calculadora de Precificação
+// ═══════════════════════════════════════════════════
+function getMaquinarios(){try{return JSON.parse(localStorage.getItem('orcpro_maquinas')||'[]');}catch(e){return[];}}
+function saveMaquinarios(arr){return gravarSeguro('orcpro_maquinas',JSON.stringify(arr),'maquinários');}
+function custoPorPecaMaquina(m){return m.vidaUtilPecas>0?(m.preco||0)/m.vidaUtilPecas:0;}
+
+// Máquinas pré-cadastradas na 1ª vez que o modo Canecas é aberto. IDs fixos para não
+// duplicarem ao fundir backups do Drive entre aparelhos; já vêm marcadas na calculadora.
+var MAQUINAS_PADRAO=[
+  {id:'maq_impressora_sublimatica',nome:'Impressora Sublimática',preco:1200,vidaUtilPecas:10000},
+  {id:'maq_prensa_caneca',nome:'Prensa de Caneca',preco:400,vidaUtilPecas:5000}
+];
+function garantirMaquinasPadrao(){
+  if(localStorage.getItem('orcpro_maquinas_inicializado'))return;
+  if(!getMaquinarios().length)saveMaquinarios(MAQUINAS_PADRAO.map(function(m){return Object.assign({},m);}));
+  try{localStorage.setItem('orcpro_maquinas_inicializado','1');}catch(e){}
+}
+
+function openMaquinarioModal(id){
+  ge('maquinario-edit-id').value=id||'';
+  ge('modal-maquinario-title').textContent=id?'Editar Máquina':'Nova Máquina';
+  if(id){
+    var m=getMaquinarios().find(function(x){return x.id===id;});
+    if(m){setVal('maq-nome',m.nome);setVal('maq-preco',m.preco);setVal('maq-vida',m.vidaUtilPecas);}
+  }else{
+    ['maq-nome','maq-preco','maq-vida'].forEach(function(i){setVal(i,'');});
+  }
+  ge('modal-maquinario').className='modal-overlay open';
+}
+function closeMaquinarioModal(){ge('modal-maquinario').className='modal-overlay';}
+function salvarMaquinario(){
+  var nome=val('maq-nome');if(!nome){alert('Informe o nome da máquina.');return;}
+  var vida=parseInt(val('maq-vida'))||0;if(vida<1){alert('Informe a vida útil em peças (maior que zero).');return;}
+  var maquinas=getMaquinarios(),editId=val('maquinario-edit-id');
+  var m={id:editId||'maq'+Date.now(),nome:nome,preco:parseFloat(val('maq-preco'))||0,vidaUtilPecas:vida};
+  if(editId){var idx=maquinas.findIndex(function(x){return x.id===editId;});if(idx>=0)maquinas[idx]=m;else maquinas.push(m);}
+  else maquinas.push(m);
+  if(!saveMaquinarios(maquinas))return;
+  closeMaquinarioModal();renderMaquinarios();
+}
+function deleteMaquinario(id){
+  if(!confirm('Excluir esta máquina? Cálculos já salvos na calculadora não são alterados.'))return;
+  saveMaquinarios(getMaquinarios().filter(function(m){return m.id!==id;}));renderMaquinarios();
+}
+function renderMaquinarios(){
+  var maquinas=getMaquinarios();
+  var tbody=ge('maquinas-body'),empty=ge('maquinas-empty'),count=ge('maquinas-count');
+  if(count)count.textContent='('+maquinas.length+')';
+  if(!maquinas.length){tbody.innerHTML='';if(empty)empty.style.display='block';return;}
+  if(empty)empty.style.display='none';
+  tbody.innerHTML=maquinas.map(function(m){
+    return'<tr>'+
+      '<td><strong>'+m.nome+'</strong></td>'+
+      '<td>'+fmt(m.preco||0)+'</td>'+
+      '<td>'+(m.vidaUtilPecas||0).toLocaleString('pt-BR')+'</td>'+
+      '<td style="font-weight:700;color:var(--brand)">'+fmt(custoPorPecaMaquina(m))+'</td>'+
+      '<td style="white-space:nowrap"><button class="btn btn-out btn-sm" onclick="openMaquinarioModal(\''+m.id+'\')">✏️</button> <button class="btn btn-danger btn-sm" onclick="deleteMaquinario(\''+m.id+'\')">🗑</button></td>'+
+    '</tr>';
+  }).join('');
 }
 
 // ═══════════════════════════════════════════════════
@@ -7065,7 +7228,7 @@ function aplicarPermissoesUsuario(){
   var logado=getUsuarioLogado();
   if(!logado||logado.perfil==='admin')return;// admin (ou PIN principal) vê tudo
   // Perfil vendedor: esconde itens financeiros/administrativos
-  var idsRestritos=['nb-mei','nb-receber','nb-pagar','nb-dre','nb-usuarios','nb-config','nb-fornec','nb-notas'];
+  var idsRestritos=['nb-mei','nb-receber','nb-pagar','nb-dre','nb-usuarios','nb-config','nb-fornec','nb-maquinas','nb-notas'];
   idsRestritos.forEach(function(id){var el=ge(id);if(el)el.style.display='none';});
 }
 
@@ -8719,11 +8882,12 @@ function otimizarImagensExistentes(){
 }
 
 function montarObjetoBackup(){
-  return{versao:'6.5',exportadoEm:new Date().toISOString(),empresa:getCfg(),produtos:getProdutos(),clientes:getClientes(),historico:getHist(),os:getOS(),templates:getTemplates(),funcionarios:getFuncs(),despesas:getDespesas(),fornecedores:getFornecedores(),notasCompra:getNotasCompra(),movEstoque:getMovEstoque(),custosFixos:getCustos(),rh:getPagamentosRH(),contasReceber:getContasReceber(),usuarios:getUsuarios(),canaisVenda:getCanaisVenda(),histTecidos:getHistTecidos(),configTecidos:getConfigTecidos(),
+  return{versao:'6.5',exportadoEm:new Date().toISOString(),empresa:getCfg(),produtos:getProdutos(),clientes:getClientes(),historico:getHist(),os:getOS(),templates:getTemplates(),funcionarios:getFuncs(),despesas:getDespesas(),fornecedores:getFornecedores(),maquinas:getMaquinarios(),notasCompra:getNotasCompra(),movEstoque:getMovEstoque(),custosFixos:getCustos(),rh:getPagamentosRH(),contasReceber:getContasReceber(),usuarios:getUsuarios(),canaisVenda:getCanaisVenda(),histTecidos:getHistTecidos(),configTecidos:getConfigTecidos(),
     logo:localStorage.getItem('orcpro_logo')||'',
     contasPagas:localStorage.getItem('orcpro_pagar_pagas')||'{}',
     precifModelos:localStorage.getItem('orcpro_precif_modelos')||'[]',
     canaisInicializado:localStorage.getItem('orcpro_canais_inicializado')||'',
+    maquinasInicializado:localStorage.getItem('orcpro_maquinas_inicializado')||'',
     contador:localStorage.getItem('orcpro_cnt')||'0',os_contador:localStorage.getItem('orcpro_os_cnt')||'0',recibo_cnt:localStorage.getItem('orcpro_recibo_cnt')||'0'};
 }
 function aplicarObjetoBackup(d){
@@ -8736,6 +8900,7 @@ function aplicarObjetoBackup(d){
   if(d.funcionarios)localStorage.setItem('orcpro_funcs',JSON.stringify(d.funcionarios));
   if(d.despesas)localStorage.setItem('orcpro_despesas',JSON.stringify(d.despesas));
   if(d.fornecedores)localStorage.setItem('orcpro_fornecedores',JSON.stringify(d.fornecedores));
+  if(d.maquinas)localStorage.setItem('orcpro_maquinas',JSON.stringify(d.maquinas));
   if(d.notasCompra)localStorage.setItem('orcpro_notas',JSON.stringify(d.notasCompra));
   if(d.movEstoque)localStorage.setItem('orcpro_mov_estoque',JSON.stringify(d.movEstoque));
   if(d.custosFixos)localStorage.setItem('orcpro_custos',JSON.stringify(d.custosFixos));
@@ -8750,6 +8915,7 @@ function aplicarObjetoBackup(d){
   if(d.contasPagas)localStorage.setItem('orcpro_pagar_pagas',d.contasPagas);
   if(d.precifModelos)localStorage.setItem('orcpro_precif_modelos',d.precifModelos);
   if(d.canaisInicializado)localStorage.setItem('orcpro_canais_inicializado',d.canaisInicializado);
+  if(d.maquinasInicializado)localStorage.setItem('orcpro_maquinas_inicializado',d.maquinasInicializado);
   if(d.contador)localStorage.setItem('orcpro_cnt',d.contador);
   if(d.os_contador)localStorage.setItem('orcpro_os_cnt',d.os_contador);
   if(d.recibo_cnt)localStorage.setItem('orcpro_recibo_cnt',d.recibo_cnt);
@@ -9127,6 +9293,9 @@ function aplicarBackupComMerge(d){
   var locCT=getHistTecidos(),remCT=parse(d.histTecidos,[]);
   gravarSeguro('orcpro_ct_hist',JSON.stringify(fundirRegistros(locCT,remCT,'id')),'calculadora');
 
+  var locMaq=getMaquinarios(),remMaq=parse(d.maquinas,[]);
+  if(remMaq.length)gravarSeguro('orcpro_maquinas',JSON.stringify(fundirRegistros(locMaq,remMaq,'id')),'maquinários');
+
   // Dados de configuração únicos: decide por timestamp qual versão é mais recente
   if(d.empresa){
     var locCfg=getCfg(),remCfg=parse(d.empresa,{});
@@ -9265,7 +9434,7 @@ function closeMobileSidebarIfOpen(){
 }
 
 function showView(name){
-  var views=['dash','form','preview','hist','os','templates','cat','clientes','config','mei','notas','fornec','receber','pagar','dre','usuarios','venda-rapida','catalogo','calctecidos'];
+  var views=['dash','form','preview','hist','os','templates','cat','clientes','config','mei','notas','fornec','maquinas','receber','pagar','dre','usuarios','venda-rapida','catalogo','calctecidos'];
   views.forEach(function(n){
     var v=ge('view-'+n);if(v)v.style.display=n===name?'block':'none';
     var nb=ge('nb-'+n);if(nb){var badge=nb.querySelector('.nb-badge');nb.className='nb'+(n===name?' active':'');if(badge)nb.appendChild(badge);}
@@ -9287,7 +9456,7 @@ function showView(name){
   if(tbSub)tbSub.style.color='var(--dark-text3)';
   if(tbAccent)tbAccent.style.background='linear-gradient(180deg,var(--brand),transparent)';
 
-  var titles={dash:['Dashboard','Visão geral do negócio'],form:['Novo Orçamento','Preencha os dados abaixo'],preview:['Pré-visualização','Revise e envie ao cliente'],hist:['Histórico','Edite e acompanhe orçamentos'],os:['Ordens de Serviço','Acompanhe a produção'],templates:['Templates','Orçamentos reutilizáveis'],cat:['Catálogo de Produtos','Preços, custos e margens'],clientes:['Clientes & Follow-up','Gerencie relacionamentos'],config:['Minha Empresa','Dados, logotipo e backup'],mei:['Dashboard MEI','Controle financeiro para declaração anual'],notas:['Notas de Compra','Entrada de estoque e despesas automáticas'],fornec:['Fornecedores','Gerencie seus fornecedores'],receber:['Contas a Receber','Controle de pagamentos dos clientes'],pagar:['Contas a Pagar','RH, custos fixos e fornecedores'],dre:['DRE Simplificado','Demonstrativo de resultado mês a mês'],usuarios:['Usuários','Perfis de acesso da equipe'],'venda-rapida':['Registrar Venda','Vendas rápidas de marketplace e balcão'],catalogo:['Catálogo Profissional','Vitrine dos seus produtos, sempre atualizada'],calctecidos:['Calculadora de Precificação','Tecidos, Canecas, Adesivos, 3D e mais']};
+  var titles={dash:['Dashboard','Visão geral do negócio'],form:['Novo Orçamento','Preencha os dados abaixo'],preview:['Pré-visualização','Revise e envie ao cliente'],hist:['Histórico','Edite e acompanhe orçamentos'],os:['Ordens de Serviço','Acompanhe a produção'],templates:['Templates','Orçamentos reutilizáveis'],cat:['Catálogo de Produtos','Preços, custos e margens'],clientes:['Clientes & Follow-up','Gerencie relacionamentos'],config:['Minha Empresa','Dados, logotipo e backup'],mei:['Dashboard MEI','Controle financeiro para declaração anual'],notas:['Notas de Compra','Entrada de estoque e despesas automáticas'],fornec:['Fornecedores','Gerencie seus fornecedores'],maquinas:['Maquinários','Desgaste das máquinas por peça'],receber:['Contas a Receber','Controle de pagamentos dos clientes'],pagar:['Contas a Pagar','RH, custos fixos e fornecedores'],dre:['DRE Simplificado','Demonstrativo de resultado mês a mês'],usuarios:['Usuários','Perfis de acesso da equipe'],'venda-rapida':['Registrar Venda','Vendas rápidas de marketplace e balcão'],catalogo:['Catálogo Profissional','Vitrine dos seus produtos, sempre atualizada'],calctecidos:['Calculadora de Precificação','Tecidos, Canecas, Adesivos, 3D e mais']};
   ge('tb-title').textContent=titles[name][0];ge('tb-sub').textContent=titles[name][1];
   var acts={
     dash:'<button class="btn btn-brand" onclick="showView(\'form\')">✏️ Novo orçamento</button> <button class="btn btn-out" onclick="abrirRelatorioSemanal()">📊 Relatório semanal</button>',
@@ -9301,6 +9470,7 @@ function showView(name){
     mei:'<button class="btn btn-brand" onclick="openDespesaModal()">＋ Nova despesa</button> <button class="btn btn-out" onclick="exportarMEIExcel()">📊 Exportar para contador</button>',
     notas:'<button class="btn btn-brand" onclick="openNotaModal()">＋ Nova nota de compra</button>',
     fornec:'<button class="btn btn-brand" onclick="openFornecedorModal()">＋ Novo fornecedor</button>',
+    maquinas:'<button class="btn btn-brand" onclick="openMaquinarioModal()">＋ Nova máquina</button>',
     receber:'',pagar:'',dre:'<button class="btn btn-out" onclick="exportarDREExcel()">📊 Exportar Excel</button>',
     usuarios:'<button class="btn btn-brand" onclick="openUsuarioModal()">＋ Novo usuário</button>',
     'venda-rapida':'',
@@ -9319,6 +9489,7 @@ function showView(name){
   if(name==='mei')renderMEI();
   if(name==='notas')renderNotas();
   if(name==='fornec')renderFornecedores();
+  if(name==='maquinas')renderMaquinarios();
   if(name==='receber')renderContasReceber();
   if(name==='pagar')renderContasPagar();
   if(name==='dre')renderDRE();
@@ -9704,7 +9875,7 @@ function startApp(){
     showView('config');
     setTimeout(function(){alert('👋 Bem-vindo ao Orçamento Pro v6!\n\nConfigure sua empresa para começar.');},300);
   } else {
-    var validViews=['dash','form','hist','os','templates','cat','clientes','config','mei','notas','fornec','receber','pagar','dre','usuarios','venda-rapida','catalogo','calctecidos'];
+    var validViews=['dash','form','hist','os','templates','cat','clientes','config','mei','notas','fornec','maquinas','receber','pagar','dre','usuarios','venda-rapida','catalogo','calctecidos'];
     var lastView=localStorage.getItem('orcpro_last_view');
     var viewToShow=(lastView&&validViews.indexOf(lastView)>=0)?lastView:'dash';
     showView(viewToShow);
