@@ -3263,6 +3263,7 @@ function atualizarDatalistsVariacao(){
 // ═══════════════════════════════════════════════════
 var _prodOpcoes=[];// ex: [{nome:'Cor', valores:['Branco','Preto']}, {nome:'Tamanho', valores:['P','M','G']}]
 var _prodVariacoesGrade=[];// combinações geradas, com estoque/preço de cada
+var _prodCombosComEstoque={};// chaves de combinações salvas com estoque (mantidas mesmo fora do mapa Tamanho x Modelo)
 
 function addOpcaoProduto(nome,valores){
   if(_prodOpcoes.length>=3){alert('Máximo de 3 opções (ex: Cor, Tamanho, Modelo).');return;}
@@ -3298,6 +3299,29 @@ function adicionarValorOpcao(i,valor){
 }
 function removerValorOpcao(i,vi){if(_prodOpcoes[i]){_prodOpcoes[i].valores.splice(vi,1);renderOpcoesProduto();gerarGradeVariacoes();}}
 
+// Modelo a que cada tamanho pertence — evita combinações como "M / Plus Size" ou "EXG / Adulto".
+// G1/52, G2/54 e G3/56 são a mesma numeração em notações diferentes.
+var TAMANHO_MODELO_MAP={
+  'p':'adulto','m':'adulto','g':'adulto','gg':'adulto',
+  'exg':'plus size','g1':'plus size','g2':'plus size','g3':'plus size','52':'plus size','54':'plus size','56':'plus size',
+  '2':'infantil','4':'infantil','6':'infantil','8':'infantil','10':'infantil','12':'infantil','14':'infantil','16':'infantil'
+};
+// Só descarta quando o tamanho E o modelo são conhecidos pelo mapa e não batem;
+// tamanhos/modelos fora do padrão (Único, PP, Baby Look...) mantêm todas as combinações.
+function combinacaoTamanhoModeloValida(combo){
+  var tam=null,mod=null;
+  combo.forEach(function(c){
+    var n=c.opcao.toLowerCase();
+    if(n.indexOf('tam')>=0)tam=String(c.valor).trim().toLowerCase();
+    else if(n.indexOf('mod')>=0)mod=String(c.valor).trim().toLowerCase();
+  });
+  if(tam===null||mod===null)return true;
+  var esperado=TAMANHO_MODELO_MAP[tam];
+  if(!esperado)return true;
+  var modelosConhecidos=['adulto','plus size','infantil'];
+  if(modelosConhecidos.indexOf(mod)<0)return true;
+  return esperado===mod;
+}
 // Gera o produto cartesiano das opções: todas as combinações possíveis
 function gerarGradeVariacoes(){
   var opcoesValidas=_prodOpcoes.filter(function(o){return o.nome&&o.valores.length;});
@@ -3319,6 +3343,16 @@ function gerarGradeVariacoes(){
   var anteriores={};
   _prodVariacoesGrade.forEach(function(v){anteriores[v._chave]=v;});
 
+  // Remove combinações Tamanho x Modelo inválidas — exceto as que já estavam salvas com estoque,
+  // que ficam na grade até o usuário zerar o estoque (pra não sumir com ele sem aviso)
+  combinacoes=combinacoes.filter(function(combo){
+    if(combinacaoTamanhoModeloValida(combo))return true;
+    var chave=combo.map(function(c){return c.valor;}).join(' / ');
+    if(!_prodCombosComEstoque[chave])return false;
+    var ant=anteriores[chave];
+    return !ant||ant.estoqueQtd>0;
+  });
+
   _prodVariacoesGrade=combinacoes.map(function(combo){
     var chave=combo.map(function(c){return c.valor;}).join(' / ');
     var ant=anteriores[chave]||{};
@@ -3332,6 +3366,7 @@ function gerarGradeVariacoes(){
       else{v.cor=v.cor||c.valor;}// fallback
     });
     v._combo=combo;
+    v._foraDoPadrao=!combinacaoTamanhoModeloValida(combo);
     return v;
   });
   renderGradeVariacoes();
@@ -3343,7 +3378,8 @@ function renderGradeVariacoes(){
   var el2=ge('prod-controla-estoque');
   var linhas=_prodVariacoesGrade.map(function(v,i){
     return'<tr style="border-bottom:1px solid var(--dark-border2)">'+
-      '<td style="padding:7px 8px;font-size:12px;font-weight:600;color:#F0F0F5">'+v._chave+'</td>'+
+      '<td style="padding:7px 8px;font-size:12px;font-weight:600;color:#F0F0F5">'+v._chave+
+        (v._foraDoPadrao?'<div style="font-size:10px;font-weight:400;color:var(--yellow)">⚠️ Tamanho e modelo não combinam — zere o estoque e salve para remover</div>':'')+'</td>'+
       '<td style="padding:5px 6px"><input type="number" value="'+(v.estoqueQtd||0)+'" min="0" step="1" style="width:70px;font-size:12px;padding:5px 7px" oninput="atualizarVarGrade('+i+',\'estoqueQtd\',this.value)"></td>'+
       '<td style="padding:5px 6px"><input type="number" value="'+(v.varejo!=null?v.varejo:'')+'" placeholder="base" min="0" step="0.01" style="width:80px;font-size:12px;padding:5px 7px" oninput="atualizarVarGrade('+i+',\'varejo\',this.value)"></td>'+
     '</tr>';
@@ -3365,14 +3401,18 @@ function atualizarVarGrade(i,campo,valor){
 
 // Converte a grade nova para o formato salvo (compatível com o resto do sistema)
 function getVariacoesShopify(){
-  return _prodVariacoesGrade.map(function(v){
+  // Combinação fora do padrão com estoque zerado é descartada ao salvar
+  return _prodVariacoesGrade.filter(function(v){return !v._foraDoPadrao||v.estoqueQtd>0;}).map(function(v){
     return{cor:v.cor||'',tamanho:v.tamanho||'',modelo:v.modelo||'',varejo:v.varejo,atacado:v.atacado,estoqueQtd:v.estoqueQtd||0,_chave:v._chave};
   });
 }
 // Reconstrói as opções a partir de variações salvas (ao editar um produto)
 function reconstruirOpcoesDeVariacoes(variacoes){
-  _prodOpcoes=[];_prodVariacoesGrade=[];
+  _prodOpcoes=[];_prodVariacoesGrade=[];_prodCombosComEstoque={};
   if(!variacoes||!variacoes.length){renderOpcoesProduto();renderGradeVariacoes();return;}
+  variacoes.forEach(function(v){
+    if((v.estoqueQtd||0)>0)_prodCombosComEstoque[[v.cor,v.tamanho,v.modelo].filter(function(x){return x;}).join(' / ')]=true;
+  });
   var cores=[],tamanhos=[],modelos=[];
   variacoes.forEach(function(v){
     if(v.cor&&cores.indexOf(v.cor)<0)cores.push(v.cor);
@@ -3416,7 +3456,7 @@ function addProdVariacao(v){
   checarNomeDuplicaVariacao();
 }
 function removeProdVariacao(id){var r=ge('pv'+id);if(r)r.remove();toggleEstoqueGeralVisibilidade();checarNomeDuplicaVariacao();}
-function limparProdVariacoes(){ge('prod-variacoes-lista').innerHTML='';prodVarIid=0;_prodOpcoes=[];_prodVariacoesGrade=[];if(typeof renderOpcoesProduto==='function')renderOpcoesProduto();if(typeof renderGradeVariacoes==='function')renderGradeVariacoes();toggleEstoqueGeralVisibilidade();}
+function limparProdVariacoes(){ge('prod-variacoes-lista').innerHTML='';prodVarIid=0;_prodOpcoes=[];_prodVariacoesGrade=[];_prodCombosComEstoque={};if(typeof renderOpcoesProduto==='function')renderOpcoesProduto();if(typeof renderGradeVariacoes==='function')renderGradeVariacoes();toggleEstoqueGeralVisibilidade();}
 function getProdVariacoes(){
   return Array.from(document.querySelectorAll('#prod-variacoes-lista > div')).map(function(row){
     function g(f){var e=row.querySelector('[data-f="'+f+'"]');return e?e.value:'';}
@@ -8621,11 +8661,20 @@ function otimizarImagensExistentes(){
   var el=ge('storage-meter');
   if(el)el.insertAdjacentHTML('afterbegin','<div id="otim-status" style="background:rgba(255,107,0,.1);border:1px solid var(--brand-glow);border-radius:8px;padding:10px;margin-bottom:10px;font-size:12px;color:var(--brand)">🗜️ Otimizando imagens... aguarde.</div>');
 
+  // Tamanho total (em caracteres base64) de todas as imagens processadas, antes e depois
+  var bytesAntes=0,bytesDepois=0;
+  function mb(b){return(b/1048576).toFixed(1).replace('.',',');}
+
   function finalizar(){
     saveProdutos(prods);
     var st=ge('otim-status');if(st)st.remove();
     renderStorageMeter();
-    alert('✅ Imagens otimizadas! Espaço liberado.\n\nSe ainda estiver cheio, considere remover fotos de produtos que você não usa mais.');
+    var economia=bytesAntes?(bytesAntes-bytesDepois)/bytesAntes*100:0;
+    if(economia<5){
+      alert('As imagens já estavam bem otimizadas — não há muito mais espaço pra ganhar sem perder qualidade visível. Considere remover fotos de produtos que você não usa mais.');
+    }else{
+      alert('✅ Imagens otimizadas!\n\nAntes: '+mb(bytesAntes)+' MB\nDepois: '+mb(bytesDepois)+' MB\nEconomia: '+economia.toFixed(0)+'%');
+    }
   }
 
   // Processa cada produto sequencialmente (compressão é assíncrona)
@@ -8635,13 +8684,21 @@ function otimizarImagensExistentes(){
     if(p.fotos)p.fotos.forEach(function(f,fi){fila.push({tipo:'prodFotos',pi:pi,fi:fi});});
   });
   var temLogo=!!localStorage.getItem('orcpro_logo');
+  fila.forEach(function(item){bytesAntes+=(item.tipo==='prodFoto'?prods[item.pi].foto:prods[item.pi].fotos[item.fi]).length;});
+  if(temLogo)bytesAntes+=localStorage.getItem('orcpro_logo').length;
+
+  // Só troca a imagem se a versão comprimida ficou menor — nunca aumenta o tamanho
+  function menor(origem,c){return c&&c.length<origem.length?c:origem;}
 
   function processarProximo(i){
     if(i>=fila.length){
       // Por último, o logo
       if(temLogo){
-        comprimirImagem(localStorage.getItem('orcpro_logo'),400,0.8,function(c){
-          gravarSeguro('orcpro_logo',c,'logo');
+        var logoOrig=localStorage.getItem('orcpro_logo');
+        comprimirImagem(logoOrig,400,0.8,function(c){
+          var logo=menor(logoOrig,c);
+          bytesDepois+=logo.length;
+          if(logo!==logoOrig)gravarSeguro('orcpro_logo',logo,'logo');
           finalizar();
         },true);// preserva transparência do logo
       }else finalizar();
@@ -8649,7 +8706,10 @@ function otimizarImagensExistentes(){
     }
     var item=fila[i];
     var origem=item.tipo==='prodFoto'?prods[item.pi].foto:prods[item.pi].fotos[item.fi];
-    comprimirImagem(origem,800,0.72,function(c){
+    // 640px / qualidade 0.6: mais leve que o upload (800px / 0.72), ainda bom para miniaturas de catálogo
+    comprimirImagem(origem,640,0.6,function(c){
+      c=menor(origem,c);
+      bytesDepois+=c.length;
       if(item.tipo==='prodFoto'){prods[item.pi].foto=c;}
       else{prods[item.pi].fotos[item.fi]=c;}
       processarProximo(i+1);
