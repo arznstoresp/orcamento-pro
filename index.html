@@ -4837,6 +4837,30 @@ function getHistTecidos(){try{return JSON.parse(localStorage.getItem('orcpro_ct_
 function saveHistTecidos(arr){return gravarSeguro('orcpro_ct_hist',JSON.stringify(arr),'orçamentos da calculadora');}
 function getConfigTecidos(){try{return JSON.parse(localStorage.getItem('orcpro_ct_config')||'{}');}catch(e){return{};}}
 function saveConfigTecidos(cfg){return gravarSeguro('orcpro_ct_config',JSON.stringify(cfg),'config da calculadora');}
+// Campos de produção do modo Canecas lembrados na config (chave da config → campo da tela)
+var CT_CAMPOS_CANECAS_CONFIG={
+  custoProdutoCanecas:'ct-custo-produto',custoPapel:'ct-custo-papel',custoTinta:'ct-custo-tinta',custoFita:'ct-custo-fita',
+  perdaCanecas:'ct-perda-canecas',embCaixinha:'ct-emb-caixinha',embProtecao:'ct-emb-protecao',embCartao:'ct-emb-cartao',embBrinde:'ct-emb-brinde'
+};
+// Chamado no oninput desses campos: guarda o valor digitado como padrão para o próximo cálculo.
+// Não roda ao carregar um cálculo do histórico, para não trocar o padrão sem o usuário digitar.
+function lembrarCamposCanecas(){
+  var cfg=getConfigTecidos(),mudou=false;
+  Object.keys(CT_CAMPOS_CANECAS_CONFIG).forEach(function(chave){
+    var el=ge(CT_CAMPOS_CANECAS_CONFIG[chave]);if(!el)return;
+    var v=parseFloat(el.value)||0;
+    if(cfg[chave]!==v){cfg[chave]=v;mudou=true;}
+  });
+  if(mudou)saveConfigTecidos(cfg);
+}
+// Preenche os campos de produção do modo Canecas com os valores lembrados (perda padrão 5%)
+function preencherCamposCanecasLembrados(){
+  var cfg=getConfigTecidos();
+  Object.keys(CT_CAMPOS_CANECAS_CONFIG).forEach(function(chave){
+    var padrao=chave==='perdaCanecas'?5:0;
+    setVal(CT_CAMPOS_CANECAS_CONFIG[chave],cfg[chave]!=null?cfg[chave]:padrao);
+  });
+}
 
 var ctArteIid=0,ctCustoIid=0;
 
@@ -5039,6 +5063,7 @@ var CT_TIPOS={
 };
 
 function setTipoProduto(tipo){
+  var tipoAnterior=val('ct-tipo-produto');
   setVal('ct-tipo-produto',tipo);
   Object.keys(CT_TIPOS).forEach(function(t){
     var btn=ge('ct-tipo-btn-'+t);
@@ -5049,6 +5074,8 @@ function setTipoProduto(tipo){
   if(tipo==='canecas')garantirMaquinasPadrao();
   var valorPecaAnterior=parseFloat(val('ct-valor-peca'))||0;
   renderModuloInsumos(tipo);
+  // Ao entrar no modo Canecas vindo de outro tipo, traz os valores de produção lembrados
+  if(tipo==='canecas'&&tipoAnterior!=='canecas')preencherCamposCanecasLembrados();
   // Canecas: a caneca em branco entra no campo "Produto" do módulo (com a perda aplicada), então o
   // insumo principal do passo 1 fica oculto e zerado para não ser contado duas vezes
   var wrapPeca=ge('ct-valor-peca')&&ge('ct-valor-peca').parentNode;
@@ -5192,17 +5219,17 @@ function renderModuloInsumos(tipo){
       '<div id="ct-dtf-breakdown" style="display:none;margin-top:10px;background:rgba(255,255,255,.03);border-radius:8px;padding:9px 12px;font-size:11px;color:rgba(255,255,255,.55)"></div></div>';
   }else if(tipo==='canecas'){
     el.innerHTML='<div><div class="ct-sub-titulo">Sublimação</div>'+
-      '<div class="g2"><div><label class="lbl">Produto (caneca em branco) R$</label><input type="number" id="ct-custo-produto" value="'+(gv('ct-custo-produto')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div>'+
-      '<div><label class="lbl">Papel sublimático (R$)</label><input type="number" id="ct-custo-papel" value="'+(gv('ct-custo-papel')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div></div>'+
-      '<div class="g2 mt"><div><label class="lbl">Tinta sublimática (R$)</label><input type="number" id="ct-custo-tinta" value="'+(gv('ct-custo-tinta')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div>'+
-      '<div><label class="lbl">Fita térmica (R$)</label><input type="number" id="ct-custo-fita" value="'+(gv('ct-custo-fita')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div></div>'+
-      '<div class="g2 mt"><div><label class="lbl">Perda/refugo (%) <span class="lbl-hint">— peças estragadas, pagas pelas boas</span></label><input type="number" id="ct-perda-canecas" value="'+(gv('ct-perda-canecas')||'5')+'" min="0" max="100" step="1" oninput="calcularTecidos()"></div>'+
+      '<div class="g2"><div><label class="lbl">Produto (caneca em branco) R$</label><input type="number" id="ct-custo-produto" value="'+(gv('ct-custo-produto')||'0')+'" min="0" step="0.01" oninput="calcularTecidos();lembrarCamposCanecas()"></div>'+
+      '<div><label class="lbl">Papel sublimático (R$)</label><input type="number" id="ct-custo-papel" value="'+(gv('ct-custo-papel')||'0')+'" min="0" step="0.01" oninput="calcularTecidos();lembrarCamposCanecas()"></div></div>'+
+      '<div class="g2 mt"><div><label class="lbl">Tinta sublimática (R$)</label><input type="number" id="ct-custo-tinta" value="'+(gv('ct-custo-tinta')||'0')+'" min="0" step="0.01" oninput="calcularTecidos();lembrarCamposCanecas()"></div>'+
+      '<div><label class="lbl">Fita térmica (R$)</label><input type="number" id="ct-custo-fita" value="'+(gv('ct-custo-fita')||'0')+'" min="0" step="0.01" oninput="calcularTecidos();lembrarCamposCanecas()"></div></div>'+
+      '<div class="g2 mt"><div><label class="lbl">Perda/refugo (%) <span class="lbl-hint">— peças estragadas, pagas pelas boas</span></label><input type="number" id="ct-perda-canecas" value="'+(gv('ct-perda-canecas')||'5')+'" min="0" max="100" step="1" oninput="calcularTecidos();lembrarCamposCanecas()"></div>'+
       '<div><label class="lbl">Frete do lote (R$) <span class="lbl-hint">— dividido entre as peças</span></label><input type="number" id="ct-frete" value="'+(gv('ct-frete')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div></div>'+
       '<div class="mt"><label class="lbl">Embalagem <span class="lbl-hint">— por peça</span></label>'+
-        '<div class="g2"><div><label class="lbl">Caixinha (R$)</label><input type="number" id="ct-emb-caixinha" value="'+(gv('ct-emb-caixinha')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div>'+
-        '<div><label class="lbl">Plástico bolha / papel colmeia (R$)</label><input type="number" id="ct-emb-protecao" value="'+(gv('ct-emb-protecao')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div></div>'+
-        '<div class="g2 mt"><div><label class="lbl">Cartão de visita (R$)</label><input type="number" id="ct-emb-cartao" value="'+(gv('ct-emb-cartao')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div>'+
-        '<div><label class="lbl">Brinde (R$)</label><input type="number" id="ct-emb-brinde" value="'+(gv('ct-emb-brinde')||'0')+'" min="0" step="0.01" oninput="calcularTecidos()"></div></div>'+
+        '<div class="g2"><div><label class="lbl">Caixinha (R$)</label><input type="number" id="ct-emb-caixinha" value="'+(gv('ct-emb-caixinha')||'0')+'" min="0" step="0.01" oninput="calcularTecidos();lembrarCamposCanecas()"></div>'+
+        '<div><label class="lbl">Plástico bolha / papel colmeia (R$)</label><input type="number" id="ct-emb-protecao" value="'+(gv('ct-emb-protecao')||'0')+'" min="0" step="0.01" oninput="calcularTecidos();lembrarCamposCanecas()"></div></div>'+
+        '<div class="g2 mt"><div><label class="lbl">Cartão de visita (R$)</label><input type="number" id="ct-emb-cartao" value="'+(gv('ct-emb-cartao')||'0')+'" min="0" step="0.01" oninput="calcularTecidos();lembrarCamposCanecas()"></div>'+
+        '<div><label class="lbl">Brinde (R$)</label><input type="number" id="ct-emb-brinde" value="'+(gv('ct-emb-brinde')||'0')+'" min="0" step="0.01" oninput="calcularTecidos();lembrarCamposCanecas()"></div></div>'+
         '<label class="mt" style="display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(255,255,255,.7);cursor:pointer"><input type="checkbox" id="ct-embalagem-sem-atacado" style="width:auto;padding:0"'+
           ((ge('ct-embalagem-sem-atacado')?ge('ct-embalagem-sem-atacado').checked:true)?' checked':'')+' onchange="calcularTecidos()"> Não incluir esse custo em vendas de atacado</label>'+
       '</div>'+
@@ -5577,6 +5604,7 @@ function limparTecidos(){
   setVal('ct-margem-alvo',cfg.margemAlvo!=null?cfg.margemAlvo:30);
   setNiveisAtacadoCalc(cfg.atacadoNiveis);
   setTipoProduto(tipo);// renderiza o módulo de insumos correto e os botões
+  if(tipo==='canecas')preencherCamposCanecasLembrados();// volta com os valores de produção usados da última vez
   limparArtesTecido();
   renderCustosExtrasTecido(cfg.custosExtras);
   atualizarExibicaoCustosIndiretosMEI();
@@ -5640,8 +5668,9 @@ function salvarOrcamentoTecidos(){
   if(editId){var idx=hist.findIndex(function(h){return h.id===editId;});if(idx>=0)hist[idx]=orcamento;else hist.unshift(orcamento);}
   else hist.unshift(orcamento);
   if(!saveHistTecidos(hist))return;// se a gravação falhar, não finge sucesso
-  saveConfigTecidos({tipoProduto:orcamento.tipo,margem:orcamento.margem,valorHora:orcamento.valorHora,custoIndiretoExtra:orcamento.custoIndiretoExtra,custosExtras:orcamento.custosExtras,
-    canalId:orcamento.canalId,impostoPct:orcamento.impostoPct,margemAlvo:orcamento.margemAlvo,atacadoNiveis:orcamento.atacadoNiveis});
+  // Funde com a config existente para não apagar o que é lembrado por fora do Salvar (campos do modo Canecas)
+  saveConfigTecidos(Object.assign(getConfigTecidos(),{tipoProduto:orcamento.tipo,margem:orcamento.margem,valorHora:orcamento.valorHora,custoIndiretoExtra:orcamento.custoIndiretoExtra,custosExtras:orcamento.custosExtras,
+    canalId:orcamento.canalId,impostoPct:orcamento.impostoPct,margemAlvo:orcamento.margemAlvo,atacadoNiveis:orcamento.atacadoNiveis}));
   var nomeCliente=val('ct-cliente');
   if(nomeCliente){
     var clientes=getClientes();
