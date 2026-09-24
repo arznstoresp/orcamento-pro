@@ -884,6 +884,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
             <option value="">Todos</option><option>Aguardando aprovação</option><option>Aprovado</option><option>Recusado</option><option>Em revisão</option>
           </select>
           <button class="btn btn-out btn-sm" onclick="exportarHistXls()">📊 Excel</button>
+          <button class="btn btn-brand btn-sm" id="btn-resolver-dup" onclick="resolverDuplicadosAuto()" style="display:none" title="Dá um número novo a todos os orçamentos duplicados de uma vez (nada é apagado)">🔢 Resolver todos os duplicados</button>
         </div>
         <div class="items-wrap">
           <table class="cat"><thead><tr>
@@ -4232,6 +4233,8 @@ function renderHistComDados(f,isFilter,filterLabel){
   hist.forEach(function(h){var n=h.num||'';contagem[n]=(contagem[n]||0)+1;});
   var duplicados=Object.keys(contagem).filter(function(n){return n&&contagem[n]>1;});
   var avisoDup=ge('hist-dup-aviso');
+  var btnResolverDup=ge('btn-resolver-dup');
+  if(btnResolverDup)btnResolverDup.style.display=duplicados.length?'':'none';
   if(duplicados.length){
     if(!avisoDup){
       avisoDup=document.createElement('div');
