@@ -1085,6 +1085,18 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
                 <div id="ct-indireto-total-display" style="font-size:16px;font-weight:800;color:var(--brand);padding:10px 0">R$ 0,00</div>
               </div>
             </div>
+            <div class="g2 mt">
+              <div>
+                <label class="lbl">Quantidade estimada vendida por mês <span class="lbl-hint">— opcional</span></label>
+                <input type="number" id="ct-qtd-mensal-mei" min="0" step="1" placeholder="Ex: 200" oninput="calcularTecidos()">
+              </div>
+              <div style="display:flex;flex-direction:column;justify-content:flex-end">
+                <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;padding:10px 0">
+                  <input type="checkbox" id="ct-incluir-das-mei" onchange="calcularTecidos()" style="width:auto;padding:0"> Incluir rateio do DAS-MEI no custo
+                </label>
+              </div>
+            </div>
+            <div id="ct-das-mei-info" style="font-size:11px;margin-top:6px;display:none"></div>
           </details>
 
           <!-- ETAPA 7: MARGEM -->
@@ -1315,7 +1327,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
           <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px">Sugestão: entre 20% e 30% do lucro líquido (depois de custos fixos, RH e despesas), mantendo o resto como capital de giro do negócio.</div>
         </div>
         <div class="mt">
-          <label class="lbl">Valor mensal do DAS-MEI (R$) <span class="lbl-hint">— rateado por venda no Precificador</span></label>
+          <label class="lbl">Valor mensal do DAS-MEI (R$) <span class="lbl-hint">— usado no rateio opcional da Calculadora de Precificação</span></label>
           <input type="number" id="cfg-aliquota-das" oninput="autoSave()" placeholder="Ex: 76.90" min="0" step="0.01" style="max-width:140px">
           <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px">Informe o valor fixo que você paga todo mês no DAS-MEI (consulte o boleto gerado no Portal do Empreendedor).</div>
         </div>
@@ -4817,6 +4829,24 @@ function atualizarExibicaoCustosIndiretosMEI(){
   }
 }
 
+// Rateio opcional do DAS-MEI por peça: valor mensal (Minha Empresa) ÷ quantidade estimada vendida no mês
+function calcularRateioDasMEI(){
+  var r={porPeca:0,dasMensal:parseFloat(getCfg().dasMensal)||0,qtdMensal:parseFloat(val('ct-qtd-mensal-mei'))||0};
+  var el=ge('ct-das-mei-info');
+  var marcado=ge('ct-incluir-das-mei')&&ge('ct-incluir-das-mei').checked;
+  if(!marcado){if(el)el.style.display='none';return r;}
+  var aviso='';
+  if(r.qtdMensal<=0)aviso='Informe a quantidade mensal estimada pra calcular o rateio';
+  else if(r.dasMensal<=0)aviso='Informe o valor mensal do DAS-MEI em Minha Empresa pra calcular o rateio';
+  else r.porPeca=r.dasMensal/r.qtdMensal;
+  if(el){
+    el.style.display='block';
+    el.style.color=aviso?'var(--yellow)':'rgba(255,255,255,.5)';
+    el.textContent=aviso?'⚠️ '+aviso:'DAS-MEI rateado: '+fmt(r.porPeca)+'/peça ('+fmt(r.dasMensal)+' mensal ÷ '+r.qtdMensal+' unidades)';
+  }
+  return r;
+}
+
 function setMargemTecidos(pct){setVal('ct-margem',pct);calcularTecidos();}
 
 // ── Seções que abrem/fecham: lembra o estado de cada uma entre visitas (preferência só deste navegador) ──
@@ -5229,7 +5259,8 @@ function calcularTecidos(){
 
   // Custos Indiretos
   var custoIndiretoExtra=parseFloat(val('ct-custo-indireto-extra'))||0;
-  var custoIndiretoUnitario=custoIndiretoExtra;
+  var rateioDas=calcularRateioDasMEI();
+  var custoIndiretoUnitario=custoIndiretoExtra+rateioDas.porPeca;
   var indiretEl=ge('ct-indireto-total-display');
   if(indiretEl)indiretEl.textContent=fmt(custoIndiretoUnitario);
 
@@ -5288,7 +5319,7 @@ function calcularTecidos(){
     custoDtfTotal:custoDtfTotal,dtfPorUnidade:dtfPorUnidade,
     custoInsumoEspecifico:custoInsumoEspecifico,
     tempoTotalMin:tempoTotalMin,custoMaoObraTotal:custoMaoObraTotal,custoMaoObraUnitario:custoMaoObraUnitario,
-    custoIndiretoUnitario:custoIndiretoUnitario,custosExtrasUnidade:custosExtrasUnidade,
+    custoIndiretoUnitario:custoIndiretoUnitario,rateioDas:rateioDas,custosExtrasUnidade:custosExtrasUnidade,
     custosPedido:custosPedido,custosPedidoPorUnidade:custosPedidoPorUnidade,
     valorPeca:valorPeca,custoUnitario:custoUnitario,custoTotalPedido:custoTotalPedido,
     precoMinimo:precoMinimo,precoRecomendado:precoRecomendado,precoPremium:precoPremium,
@@ -5363,6 +5394,7 @@ function renderResumoFinanceiroTecidos(r){
     ctLinha(labelInsumo,fmt(r.custoInsumoEspecifico))+
     ctLinha('Custo mão de obra',fmt(r.custoMaoObraUnitario))+
     ctLinha('Custos indiretos',fmt(r.custoIndiretoUnitario))+
+    (r.rateioDas&&r.rateioDas.porPeca>0?ctLinha('DAS-MEI rateado ('+fmt(r.rateioDas.dasMensal)+' mensal ÷ '+r.rateioDas.qtdMensal+' unidades)',fmt(r.rateioDas.porPeca)+'/peça','rgba(255,255,255,.6)'):'')+
     ctLinha('Custos diretos por peça (embalagem etc.)',fmt(r.custosExtrasUnidade))+
     (r.custosPedido>0?ctLinha('Frete do pedido rateado ('+fmt(r.custosPedido)+' ÷ '+r.qtd+')',fmt(r.custosPedidoPorUnidade)):'')+
     ctLinha('Custo final por unidade',fmt(r.custoUnitario),'var(--brand)',true)+
@@ -5451,6 +5483,7 @@ function limparTecidos(){
   setVal('ct-tempo-arte','0');setVal('ct-tempo-impressao','0');setVal('ct-tempo-prensagem','0');
   setVal('ct-tempo-acabamento','0');setVal('ct-tempo-embalagem','0');
   setVal('ct-custo-indireto-extra',cfg.custoIndiretoExtra||'0');
+  setVal('ct-qtd-mensal-mei',cfg.qtdMensalMei||'');ge('ct-incluir-das-mei').checked=!!cfg.incluirDasMei;
   setVal('ct-preco-negociado','');
   atualizarSelectCanalCalc();
   setVal('ct-canal',cfg.canalId||'');if(ge('ct-canal')&&ge('ct-canal').selectedIndex<0)setVal('ct-canal','');
@@ -5501,6 +5534,7 @@ function salvarOrcamentoTecidos(){
     valorHora:parseFloat(val('ct-valor-hora'))||0,
     tempos:{arte:parseFloat(val('ct-tempo-arte'))||0,impressao:parseFloat(val('ct-tempo-impressao'))||0,prensagem:parseFloat(val('ct-tempo-prensagem'))||0,acabamento:parseFloat(val('ct-tempo-acabamento'))||0,embalagem:parseFloat(val('ct-tempo-embalagem'))||0},
     custoIndiretoExtra:parseFloat(val('ct-custo-indireto-extra'))||0,
+    qtdMensalMei:parseFloat(val('ct-qtd-mensal-mei'))||0,incluirDasMei:ge('ct-incluir-das-mei').checked,
     canalId:val('ct-canal'),impostoPct:parseFloat(val('ct-imposto-pct'))||0,margemAlvo:parseFloat(val('ct-margem-alvo'))||0,
     atacadoNiveis:getNiveisAtacadoCalc(),
     // campos específicos por tipo (salvos como campos extras para restauração)
@@ -5523,7 +5557,7 @@ function salvarOrcamentoTecidos(){
   else hist.unshift(orcamento);
   if(!saveHistTecidos(hist))return;// se a gravação falhar, não finge sucesso
   // Funde com a config existente para não apagar o que é lembrado por fora do Salvar (campos do modo Canecas)
-  saveConfigTecidos(Object.assign(getConfigTecidos(),{tipoProduto:orcamento.tipo,margem:orcamento.margem,valorHora:orcamento.valorHora,custoIndiretoExtra:orcamento.custoIndiretoExtra,custosExtras:orcamento.custosExtras,
+  saveConfigTecidos(Object.assign(getConfigTecidos(),{tipoProduto:orcamento.tipo,margem:orcamento.margem,valorHora:orcamento.valorHora,custoIndiretoExtra:orcamento.custoIndiretoExtra,qtdMensalMei:orcamento.qtdMensalMei,incluirDasMei:orcamento.incluirDasMei,custosExtras:orcamento.custosExtras,
     canalId:orcamento.canalId,impostoPct:orcamento.impostoPct,margemAlvo:orcamento.margemAlvo,atacadoNiveis:orcamento.atacadoNiveis}));
   var nomeCliente=val('ct-cliente');
   if(nomeCliente){
@@ -5560,6 +5594,7 @@ function carregarOrcamentoTecidos(id){
   setVal('ct-margem',h.margem);setVal('ct-valor-hora',h.valorHora||'0');
   if(h.tempos){setVal('ct-tempo-arte',h.tempos.arte||0);setVal('ct-tempo-impressao',h.tempos.impressao||0);setVal('ct-tempo-prensagem',h.tempos.prensagem||0);setVal('ct-tempo-acabamento',h.tempos.acabamento||0);setVal('ct-tempo-embalagem',h.tempos.embalagem||0);}
   setVal('ct-custo-indireto-extra',h.custoIndiretoExtra||'0');
+  setVal('ct-qtd-mensal-mei',h.qtdMensalMei||'');ge('ct-incluir-das-mei').checked=!!h.incluirDasMei;
   setVal('ct-preco-negociado','');
   // Canal e imposto (cálculos salvos antes disso ficam em Venda direta, 0% e margem 30%)
   atualizarSelectCanalCalc();
