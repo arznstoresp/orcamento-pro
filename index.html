@@ -1049,7 +1049,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
               <div><label class="lbl">Canal de venda</label><select id="ct-canal" onchange="calcularTecidos()"></select></div>
               <div><label class="lbl">Imposto sobre a venda (%) <span class="lbl-hint">— MEI normalmente 0</span></label><input type="number" id="ct-imposto-pct" value="0" min="0" max="50" step="0.1" oninput="calcularTecidos()"></div>
             </div>
-            <div class="mt"><label class="lbl">Margem líquida desejada (%) <span class="lbl-hint">— o que sobra depois da taxa do canal e do imposto</span></label><input type="number" id="ct-margem-alvo" value="30" min="0" max="95" step="1" oninput="calcularTecidos()"></div>
+            <div class="mt" style="font-size:12px;color:rgba(255,255,255,.55)">Margem líquida: baseado na Margem desejada da seção 9 (<strong id="ct-margem-alvo-ref">45%</strong>)</div>
             <div id="ct-canal-info" style="display:none;margin-top:10px;background:rgba(255,255,255,.03);border-radius:8px;padding:9px 12px;font-size:11px;color:rgba(255,255,255,.55)"></div>
           </details>
 
@@ -5353,7 +5353,8 @@ function calcularTecidos(){
   // Canal de venda: taxa + imposto no preço recomendado e preço pela margem líquida desejada
   var canal=getCanalCalc();
   var impostoPct=parseFloat(val('ct-imposto-pct'))||0;
-  var margemAlvo=parseFloat(val('ct-margem-alvo'))||0;
+  var margemAlvo=parseFloat(val('ct-margem'))||0;// mesma margem da seção 9 (campo único)
+  var margemAlvoRef=ge('ct-margem-alvo-ref');if(margemAlvoRef)margemAlvoRef.textContent=margemAlvo+'%';
   var precoMargemAlvo=custoUnitario>0?resolverPrecoPorMargem(canal,custoUnitario,margemAlvo/100,impostoPct):null;
   var taxaCanalRecomendado=precoRecomendado>0?valorTaxaCanal(canal,precoRecomendado):0;
   var lucroLiquidoRecomendado=precoRecomendado>0?lucroLiquidoCanal(canal,precoRecomendado,custoUnitario,impostoPct):0;
@@ -5534,7 +5535,6 @@ function limparTecidos(){
   atualizarSelectCanalCalc();
   setVal('ct-canal',cfg.canalId||'');if(ge('ct-canal')&&ge('ct-canal').selectedIndex<0)setVal('ct-canal','');
   setVal('ct-imposto-pct',cfg.impostoPct!=null?cfg.impostoPct:0);
-  setVal('ct-margem-alvo',cfg.margemAlvo!=null?cfg.margemAlvo:30);
   setNiveisAtacadoCalc(cfg.atacadoNiveis);
   setTipoProduto(tipo);// renderiza o módulo de insumos correto e os botões
   if(tipo==='canecas')preencherCamposCanecasLembrados();// volta com os valores de produção usados da última vez
@@ -5581,7 +5581,7 @@ function salvarOrcamentoTecidos(){
     tempos:{arte:parseFloat(val('ct-tempo-arte'))||0,impressao:parseFloat(val('ct-tempo-impressao'))||0,prensagem:parseFloat(val('ct-tempo-prensagem'))||0,acabamento:parseFloat(val('ct-tempo-acabamento'))||0,embalagem:parseFloat(val('ct-tempo-embalagem'))||0},
     custoIndiretoExtra:parseFloat(val('ct-custo-indireto-extra'))||0,
     qtdMensalMei:parseFloat(val('ct-qtd-mensal-mei'))||0,incluirDasMei:ge('ct-incluir-das-mei').checked,
-    canalId:val('ct-canal'),impostoPct:parseFloat(val('ct-imposto-pct'))||0,margemAlvo:parseFloat(val('ct-margem-alvo'))||0,
+    canalId:val('ct-canal'),impostoPct:parseFloat(val('ct-imposto-pct'))||0,
     atacadoNiveis:getNiveisAtacadoCalc(),
     // campos específicos por tipo (salvos como campos extras para restauração)
     valorMetro:parseFloat(val('ct-valor-metro'))||0,frete:parseFloat(val('ct-frete'))||0,
@@ -5604,7 +5604,7 @@ function salvarOrcamentoTecidos(){
   if(!saveHistTecidos(hist))return;// se a gravação falhar, não finge sucesso
   // Funde com a config existente para não apagar o que é lembrado por fora do Salvar (campos do modo Canecas)
   saveConfigTecidos(Object.assign(getConfigTecidos(),{tipoProduto:orcamento.tipo,margem:orcamento.margem,valorHora:orcamento.valorHora,custoIndiretoExtra:orcamento.custoIndiretoExtra,qtdMensalMei:orcamento.qtdMensalMei,incluirDasMei:orcamento.incluirDasMei,custosExtras:orcamento.custosExtras,
-    canalId:orcamento.canalId,impostoPct:orcamento.impostoPct,margemAlvo:orcamento.margemAlvo,atacadoNiveis:orcamento.atacadoNiveis}));
+    canalId:orcamento.canalId,impostoPct:orcamento.impostoPct,atacadoNiveis:orcamento.atacadoNiveis}));
   var nomeCliente=val('ct-cliente');
   if(nomeCliente){
     var clientes=getClientes();
@@ -5646,7 +5646,6 @@ function carregarOrcamentoTecidos(id){
   atualizarSelectCanalCalc();
   setVal('ct-canal',h.canalId||'');if(ge('ct-canal')&&ge('ct-canal').selectedIndex<0)setVal('ct-canal','');
   setVal('ct-imposto-pct',h.impostoPct!=null?h.impostoPct:0);
-  setVal('ct-margem-alvo',h.margemAlvo!=null?h.margemAlvo:30);
   setNiveisAtacadoCalc(h.atacadoNiveis);
   // Restaura campos específicos do tipo (renderModuloInsumos já criou os elementos com setTipoProduto acima)
   if(tipo==='tecidos'){setVal('ct-valor-metro',h.valorMetro||0);setVal('ct-frete',h.frete||0);setVal('ct-largura-rolo',h.larguraRolo||57);setVal('ct-altura-metro',h.alturaMetro||100);setVal('ct-perda',h.perda||15);}
