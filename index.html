@@ -1782,7 +1782,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
     <input type="hidden" id="prod-composicao-temp">
     <div><label class="lbl">Nome * <span class="lbl-hint">— nome genérico do produto; NÃO inclua cor/tamanho aqui se for usar variações abaixo</span></label><input id="prod-nome" style="font-size:15px;padding:10px 12px" oninput="checarNomeDuplicaVariacao()"></div>
     <div id="prod-nome-duplicidade-aviso" style="display:none;margin-top:6px"></div>
-    <div class="g2 mt"><div><label class="lbl">Categoria</label><input id="prod-cat" placeholder="Ex: Camisetas" list="cats-datalist"><datalist id="cats-datalist"></datalist></div><div><label class="lbl">SKU</label><input id="prod-sku" placeholder="CAM-001"></div></div>
+    <div class="g2 mt"><div><label class="lbl">Categoria</label><input id="prod-cat" placeholder="Ex: Camisetas" list="cats-datalist" oninput="autoSkuPelaCategoria()"><datalist id="cats-datalist"></datalist></div><div><label class="lbl">SKU</label><input id="prod-sku" placeholder="CAM-001"></div></div>
     <div class="g2 mt"><div><label class="lbl">Unidade</label><select id="prod-unit"><option>un</option><option>cx</option><option>kg</option><option>m</option><option>m²</option><option>L</option><option>par</option><option>pç</option></select></div><div></div></div>
 
     <div class="mt" style="background:rgba(255,255,255,.03);border:1px solid var(--dark-border2);border-radius:10px;padding:12px 14px">
@@ -2739,6 +2739,49 @@ function recalc(){
 function getProdutos(){try{return JSON.parse(localStorage.getItem('orcpro_produtos')||'[]');}catch(e){return[];}}
 function saveProdutos(arr){return gravarSeguro('orcpro_produtos',JSON.stringify(arr),'produtos');}
 
+// ── SKU automático no formato CATEGORIA-NÚMERO (ex: CAM-001) ──
+function prefixoSku(categoria){
+  var p=String(categoria||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9]/g,'').substring(0,3).toUpperCase();
+  return p||'PRD';
+}
+// produtos é opcional: a migração passa a lista que está sendo preenchida, para enxergar os SKUs recém-gerados
+function gerarSkuAutomatico(categoria,produtoIdAtual,produtos){
+  var pfx=prefixoSku(categoria);
+  var re=new RegExp('^'+pfx+'-(\\d+)','i');
+  var maior=0;
+  (produtos||getProdutos()).forEach(function(p){
+    if(produtoIdAtual&&p.id===produtoIdAtual)return;
+    var m=String(p.sku||'').trim().match(re);
+    if(m){var n=parseInt(m[1],10);if(n>maior)maior=n;}
+  });
+  return pfx+'-'+String(maior+1).padStart(3,'0');
+}
+// Último SKU preenchido sozinho no modal — enquanto o campo tiver esse valor, digitar a categoria atualiza o SKU
+var _skuAutoGerado='';
+function autoSkuPelaCategoria(){
+  var skuAtual=val('prod-sku').trim();
+  if(skuAtual&&skuAtual!==_skuAutoGerado)return;// usuário digitou um SKU próprio: não sobrescreve
+  _skuAutoGerado=gerarSkuAutomatico(val('prod-cat'),val('prod-edit-id'));
+  setVal('prod-sku',_skuAutoGerado);
+}
+// Gera SKU para todos os produtos sem SKU, na ordem da lista. Retorna quantos ganharam SKU (-1 se falhar ao gravar).
+function preencherSkusFaltantes(){
+  var prods=getProdutos(),qtd=0;
+  prods.forEach(function(p){
+    if(String(p.sku||'').trim())return;
+    p.sku=gerarSkuAutomatico(p.cat,p.id,prods);
+    qtd++;
+  });
+  if(qtd&&!saveProdutos(prods))return -1;
+  return qtd;
+}
+// Roda a migração de SKUs uma única vez por navegador (mesmo padrão da seed de Maquinários)
+function migrarSkusUmaVez(){
+  if(localStorage.getItem('orcpro_skus_migrados'))return;
+  if(preencherSkusFaltantes()<0)return;// não gravou: tenta de novo na próxima abertura
+  try{localStorage.setItem('orcpro_skus_migrados','1');}catch(e){}
+}
+
 function calcMargem(custo,venda){if(!custo||!venda||venda===0)return null;return((venda-custo)/venda)*100;}
 
 function formatarVariacao(v){
@@ -3162,6 +3205,7 @@ function aplicarNcmPorTipo(){
 
 function openProdModal(id){
   ge('prod-edit-id').value=id||'';ge('modal-prod-title').textContent=id?'Editar Produto':'Novo Produto';
+  _skuAutoGerado='';
   ge('prod-composicao-temp').value='';
   prodFotosTemp=['','',''];
   limparProdVariacoes();
@@ -3452,6 +3496,8 @@ function saveProd(){
     alert('Pelo menos uma variação está sem preço e o produto não tem preço base. Informe o preço base OU o preço de cada variação.');return;
   }
   var prods=getProdutos(),editId=val('prod-edit-id');
+  // Garantia final: produto novo salvo sem SKU ganha um automático
+  if(!editId&&!val('prod-sku').trim())setVal('prod-sku',gerarSkuAutomatico(val('prod-cat'),''));
 
   // Composição de custo vinculada — mantém a que já existia (o Precificador antigo foi removido)
   var composicaoCusto=null;
@@ -9711,6 +9757,7 @@ function aplicarProtecaoAutofill(){
 
 window.onload=function(){
   if(checkLinkPublico())return;
+  migrarSkusUmaVez();
   initPIN();
   desregistrarServiceWorkerAntigo();
   aplicarProtecaoAutofill();
