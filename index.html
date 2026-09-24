@@ -1068,7 +1068,8 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
           <!-- ETAPA 4: CUSTOS DIRETOS -->
           <details class="card ct-sec" id="ct-sec-diretos" ontoggle="salvarEstadoSecaoCalc(this)">
             <summary class="card-title">7. Custos Diretos <span style="margin-left:6px;font-size:11px;color:rgba(255,255,255,.4);font-weight:400;text-transform:none;letter-spacing:0">— por unidade</span></summary>
-            <div id="ct-custos-extras-lista" style="display:flex;flex-direction:column;gap:8px"></div>
+            <div id="ct-custos-extras-lista" class="g2"></div>
+            <div class="mt" style="display:flex;justify-content:space-between;font-size:14px;font-weight:800;color:var(--brand);padding-top:8px;border-top:1px solid var(--dark-border2)"><span>Total Custos Diretos</span><span id="ct-custos-diretos-total">R$ 0,00</span></div>
           </details>
 
           <!-- ETAPA 6: CUSTOS INDIRETOS -->
@@ -4820,14 +4821,20 @@ function renderCustosExtrasTecido(custos){
   container.innerHTML='';
   lista.forEach(function(c){
     var row=document.createElement('div');
-    row.style.display='flex';row.style.alignItems='center';row.style.gap='8px';
     row.setAttribute('data-custo-id',c.id);
     row.innerHTML=
-      '<input type="checkbox" '+(c.ativo?'checked':'')+' style="width:auto;padding:0" data-f="ativo" onchange="calcularTecidos()">'+
-      '<span style="font-size:12px;color:rgba(255,255,255,.7);flex:1">'+c.label+'</span>'+
-      '<input type="number" value="'+(c.valor||0)+'" min="0" step="0.01" style="width:100px;font-size:12px;padding:6px 8px" data-f="valor" oninput="calcularTecidos()">';
+      '<label class="lbl" style="display:flex;align-items:center;gap:6px;cursor:pointer">'+
+        '<input type="checkbox" '+(c.ativo?'checked':'')+' style="width:auto;padding:0" data-f="ativo" onchange="calcularTecidos()"> '+c.label+' (R$)'+
+      '</label>'+
+      '<input type="number" value="'+(c.valor||0)+'" min="0" step="0.01" data-f="valor" oninput="calcularTecidos()">';
     container.appendChild(row);
   });
+  atualizarTotalCustosDiretos();
+}
+// Soma de todos os Custos Diretos marcados, exibida embaixo da grade
+function atualizarTotalCustosDiretos(){
+  var el=ge('ct-custos-diretos-total');if(!el)return;
+  el.textContent=fmt(getCustosExtrasTecido().filter(function(c){return c.ativo;}).reduce(function(a,c){return a+c.valor;},0));
 }
 function getCustosExtrasTecido(){
   return Array.from(document.querySelectorAll('#ct-custos-extras-lista > div')).map(function(row){
@@ -5371,6 +5378,7 @@ function calcularTecidos(){
 
   // Custos Diretos
   var custosExtrasUnidade=getTotalCustosExtrasAtivos();// por peça (embalagem, etiqueta...)
+  atualizarTotalCustosDiretos();
   var custosPedido=getTotalCustosPedidoAtivos();// do pedido inteiro (frete interno)
   var custosPedidoPorUnidade=qtd>0?custosPedido/qtd:0;// rateado entre as peças
 
