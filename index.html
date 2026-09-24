@@ -1093,7 +1093,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
               </div>
               <div style="display:flex;flex-direction:column;justify-content:flex-end">
                 <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;padding:10px 0">
-                  <input type="checkbox" id="ct-incluir-das-mei" onchange="aoMarcarRateioDasMei()" style="width:auto;padding:0"> Incluir rateio do DAS-MEI no custo
+                  <input type="checkbox" id="ct-incluir-das-mei" checked="checked" onchange="aoMarcarRateioDasMei()" style="width:auto;padding:0"> Incluir rateio do DAS-MEI no custo
                 </label>
               </div>
             </div>
@@ -5567,8 +5567,9 @@ function limparTecidos(){
   setVal('ct-tempo-arte','0');setVal('ct-tempo-impressao','0');setVal('ct-tempo-prensagem','0');
   setVal('ct-tempo-acabamento','0');setVal('ct-tempo-embalagem','0');
   setVal('ct-custo-indireto-extra',cfg.custoIndiretoExtra||'0');
-  _qtdMensalMeiAuto=undefined;setVal('ct-qtd-mensal-mei','');ge('ct-incluir-das-mei').checked=!!cfg.incluirDasMei;
-  if(ge('ct-incluir-das-mei').checked)preencherQtdMensalMeiAuto();else atualizarNotaQtdMensalMei();
+  // Todo cálculo novo começa com o rateio do DAS-MEI ligado e a quantidade mensal calculada do histórico
+  _qtdMensalMeiAuto=undefined;setVal('ct-qtd-mensal-mei','');ge('ct-incluir-das-mei').checked=true;
+  preencherQtdMensalMeiAuto();
   setVal('ct-preco-negociado','');
   atualizarSelectCanalCalc();
   setVal('ct-canal',cfg.canalId||'');if(ge('ct-canal')&&ge('ct-canal').selectedIndex<0)setVal('ct-canal','');
@@ -5641,7 +5642,7 @@ function salvarOrcamentoTecidos(){
   else hist.unshift(orcamento);
   if(!saveHistTecidos(hist))return;// se a gravação falhar, não finge sucesso
   // Funde com a config existente para não apagar o que é lembrado por fora do Salvar (campos do modo Canecas)
-  saveConfigTecidos(Object.assign(getConfigTecidos(),{tipoProduto:orcamento.tipo,margem:orcamento.margem,valorHora:orcamento.valorHora,custoIndiretoExtra:orcamento.custoIndiretoExtra,incluirDasMei:orcamento.incluirDasMei,custosExtras:orcamento.custosExtras,
+  saveConfigTecidos(Object.assign(getConfigTecidos(),{tipoProduto:orcamento.tipo,margem:orcamento.margem,valorHora:orcamento.valorHora,custoIndiretoExtra:orcamento.custoIndiretoExtra,custosExtras:orcamento.custosExtras,
     canalId:orcamento.canalId,impostoPct:orcamento.impostoPct,atacadoNiveis:orcamento.atacadoNiveis}));
   var nomeCliente=val('ct-cliente');
   if(nomeCliente){
