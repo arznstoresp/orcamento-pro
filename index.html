@@ -9735,6 +9735,9 @@ function aplicarProtecaoAutofill(){
     if(el.hasAttribute('data-protegido-autofill'))return;
     el.setAttribute('readonly','');
     el.addEventListener('focus',function(){this.removeAttribute('readonly');});
+    // Volta a travar ao sair do campo: sem isso o campo ficava desprotegido para sempre depois do
+    // primeiro foco, e um autofill feito em OUTRO campo podia preenchê-lo junto
+    el.addEventListener('blur',function(){this.setAttribute('readonly','');});
     el.setAttribute('autocomplete','off');
     el.setAttribute('autocorrect','off');
     el.setAttribute('autocapitalize','off');
