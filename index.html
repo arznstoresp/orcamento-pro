@@ -1088,11 +1088,12 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
             <div class="g2 mt">
               <div>
                 <label class="lbl">Quantidade estimada vendida por mês <span class="lbl-hint">— opcional</span></label>
-                <input type="number" id="ct-qtd-mensal-mei" min="0" step="1" placeholder="Ex: 200" oninput="calcularTecidos()">
+                <input type="number" id="ct-qtd-mensal-mei" min="0" step="1" placeholder="Ex: 200" oninput="atualizarNotaQtdMensalMei();calcularTecidos()">
+                <div id="ct-qtd-mensal-mei-nota" style="font-size:10px;color:rgba(255,255,255,.45);margin-top:4px;display:none"></div>
               </div>
               <div style="display:flex;flex-direction:column;justify-content:flex-end">
                 <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;padding:10px 0">
-                  <input type="checkbox" id="ct-incluir-das-mei" onchange="calcularTecidos()" style="width:auto;padding:0"> Incluir rateio do DAS-MEI no custo
+                  <input type="checkbox" id="ct-incluir-das-mei" onchange="aoMarcarRateioDasMei()" style="width:auto;padding:0"> Incluir rateio do DAS-MEI no custo
                 </label>
               </div>
             </div>
@@ -4875,6 +4876,42 @@ function atualizarExibicaoCustosIndiretosMEI(){
   }
 }
 
+// Média mensal de unidades vendidas (todos os produtos somados) nas vendas aprovadas dos últimos `meses` meses.
+// É o volume total do negócio, não por produto — o DAS-MEI é um imposto único da empresa.
+function calcularMediaVendasMensal(meses){
+  meses=meses||3;
+  var limite=new Date();limite.setMonth(limite.getMonth()-meses);
+  var dataLimite=limite.getFullYear()+'-'+String(limite.getMonth()+1).padStart(2,'0')+'-'+String(limite.getDate()).padStart(2,'0');
+  var dataHoje=hoje(),total=0;
+  getHist().forEach(function(h){
+    if(h.status!=='Aprovado'||!h.data||h.data<dataLimite||h.data>dataHoje)return;
+    (h.items||[]).forEach(function(it){total+=parseFloat(it.qty)||0;});
+  });
+  return total/meses;
+}
+// Resultado do último preenchimento automático da quantidade mensal:
+// undefined = não tentou; '' = tentou, mas não há vendas; '123' = valor preenchido pelo sistema
+var _qtdMensalMeiAuto;
+function preencherQtdMensalMeiAuto(){
+  var media=Math.round(calcularMediaVendasMensal(3));
+  _qtdMensalMeiAuto=media>0?String(media):'';
+  setVal('ct-qtd-mensal-mei',_qtdMensalMeiAuto);
+  atualizarNotaQtdMensalMei();
+}
+function aoMarcarRateioDasMei(){
+  if(ge('ct-incluir-das-mei').checked&&!val('ct-qtd-mensal-mei'))preencherQtdMensalMeiAuto();
+  else atualizarNotaQtdMensalMei();
+  calcularTecidos();
+}
+function atualizarNotaQtdMensalMei(){
+  var nota=ge('ct-qtd-mensal-mei-nota');if(!nota)return;
+  var marcado=ge('ct-incluir-das-mei').checked,v=val('ct-qtd-mensal-mei'),txt='';
+  if(marcado&&v&&v===_qtdMensalMeiAuto)txt='(calculado automaticamente com base nos últimos 3 meses de vendas aprovadas)';
+  else if(marcado&&!v&&_qtdMensalMeiAuto==='')txt='Sem vendas suficientes no histórico pra calcular sozinho — informe manualmente.';
+  nota.textContent=txt;
+  nota.style.display=txt?'block':'none';
+}
+
 // Rateio opcional do DAS-MEI por peça: valor mensal (Minha Empresa) ÷ quantidade estimada vendida no mês
 function calcularRateioDasMEI(){
   var r={porPeca:0,dasMensal:parseFloat(getCfg().dasMensal)||0,qtdMensal:parseFloat(val('ct-qtd-mensal-mei'))||0};
@@ -5530,7 +5567,8 @@ function limparTecidos(){
   setVal('ct-tempo-arte','0');setVal('ct-tempo-impressao','0');setVal('ct-tempo-prensagem','0');
   setVal('ct-tempo-acabamento','0');setVal('ct-tempo-embalagem','0');
   setVal('ct-custo-indireto-extra',cfg.custoIndiretoExtra||'0');
-  setVal('ct-qtd-mensal-mei',cfg.qtdMensalMei||'');ge('ct-incluir-das-mei').checked=!!cfg.incluirDasMei;
+  _qtdMensalMeiAuto=undefined;setVal('ct-qtd-mensal-mei','');ge('ct-incluir-das-mei').checked=!!cfg.incluirDasMei;
+  if(ge('ct-incluir-das-mei').checked)preencherQtdMensalMeiAuto();else atualizarNotaQtdMensalMei();
   setVal('ct-preco-negociado','');
   atualizarSelectCanalCalc();
   setVal('ct-canal',cfg.canalId||'');if(ge('ct-canal')&&ge('ct-canal').selectedIndex<0)setVal('ct-canal','');
@@ -5603,7 +5641,7 @@ function salvarOrcamentoTecidos(){
   else hist.unshift(orcamento);
   if(!saveHistTecidos(hist))return;// se a gravação falhar, não finge sucesso
   // Funde com a config existente para não apagar o que é lembrado por fora do Salvar (campos do modo Canecas)
-  saveConfigTecidos(Object.assign(getConfigTecidos(),{tipoProduto:orcamento.tipo,margem:orcamento.margem,valorHora:orcamento.valorHora,custoIndiretoExtra:orcamento.custoIndiretoExtra,qtdMensalMei:orcamento.qtdMensalMei,incluirDasMei:orcamento.incluirDasMei,custosExtras:orcamento.custosExtras,
+  saveConfigTecidos(Object.assign(getConfigTecidos(),{tipoProduto:orcamento.tipo,margem:orcamento.margem,valorHora:orcamento.valorHora,custoIndiretoExtra:orcamento.custoIndiretoExtra,incluirDasMei:orcamento.incluirDasMei,custosExtras:orcamento.custosExtras,
     canalId:orcamento.canalId,impostoPct:orcamento.impostoPct,atacadoNiveis:orcamento.atacadoNiveis}));
   var nomeCliente=val('ct-cliente');
   if(nomeCliente){
@@ -5640,7 +5678,8 @@ function carregarOrcamentoTecidos(id){
   setVal('ct-margem',h.margem);setVal('ct-valor-hora',h.valorHora||'0');
   if(h.tempos){setVal('ct-tempo-arte',h.tempos.arte||0);setVal('ct-tempo-impressao',h.tempos.impressao||0);setVal('ct-tempo-prensagem',h.tempos.prensagem||0);setVal('ct-tempo-acabamento',h.tempos.acabamento||0);setVal('ct-tempo-embalagem',h.tempos.embalagem||0);}
   setVal('ct-custo-indireto-extra',h.custoIndiretoExtra||'0');
-  setVal('ct-qtd-mensal-mei',h.qtdMensalMei||'');ge('ct-incluir-das-mei').checked=!!h.incluirDasMei;
+  _qtdMensalMeiAuto=undefined;setVal('ct-qtd-mensal-mei',h.qtdMensalMei||'');ge('ct-incluir-das-mei').checked=!!h.incluirDasMei;
+  atualizarNotaQtdMensalMei();
   setVal('ct-preco-negociado','');
   // Canal e imposto (cálculos salvos antes disso ficam em Venda direta, 0% e margem 30%)
   atualizarSelectCanalCalc();
