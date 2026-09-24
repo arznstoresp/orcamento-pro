@@ -1819,9 +1819,6 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
 
       <!-- Grade de combinações gerada automaticamente -->
       <div id="prod-variacoes-grade" style="margin-top:14px"></div>
-
-      <!-- Mantém compatibilidade com a lista antiga (oculta) -->
-      <div id="prod-variacoes-lista" style="display:none"></div>
     </div>
     <datalist id="prod-cores-list"></datalist>
     <datalist id="prod-tamanhos-list"></datalist>
@@ -3400,45 +3397,8 @@ function reconstruirOpcoesDeVariacoes(variacoes){
   renderOpcoesProduto();renderGradeVariacoes();
 }
 
-var prodVarIid=0;
-function addProdVariacao(v){
-  var id=++prodVarIid;
-  var container=ge('prod-variacoes-lista');
-  var row=document.createElement('div');
-  row.id='pv'+id;
-  row.style.background='rgba(255,255,255,.03)';row.style.border='1px solid var(--dark-border2)';row.style.borderRadius='8px';row.style.padding='9px 10px';
-  row.innerHTML=
-    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:6px;margin-bottom:6px">'+
-      '<input placeholder="Cor (ex: Branco)" value="'+(v&&v.cor||'')+'" list="prod-cores-list" style="font-size:12px;padding:6px 8px" data-f="cor" oninput="checarNomeDuplicaVariacao()">'+
-      '<input placeholder="Tamanho (ex: M)" value="'+(v&&v.tamanho||'')+'" list="prod-tamanhos-list" style="font-size:12px;padding:6px 8px" data-f="tamanho" oninput="checarNomeDuplicaVariacao()">'+
-      '<input placeholder="Modelo (ex: Slim)" value="'+(v&&v.modelo||'')+'" list="prod-modelos-list" style="font-size:12px;padding:6px 8px" data-f="modelo" oninput="checarNomeDuplicaVariacao()">'+
-      '<button type="button" class="del-btn" style="width:26px;height:26px" onclick="removeProdVariacao('+id+')">×</button>'+
-    '</div>'+
-    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">'+
-      '<input type="number" placeholder="Varejo (R$)" value="'+(v&&v.varejo!=null?v.varejo:'')+'" min="0" step="0.01" style="font-size:12px;padding:6px 8px" data-f="varejo" title="Deixe em branco para usar o preço base do produto">'+
-      '<input type="number" placeholder="Atacado (R$)" value="'+(v&&v.atacado!=null?v.atacado:'')+'" min="0" step="0.01" style="font-size:12px;padding:6px 8px" data-f="atacado" title="Deixe em branco para usar o preço base do produto">'+
-      '<input type="number" placeholder="Estoque" value="'+(v&&v.estoqueQtd!=null?v.estoqueQtd:'0')+'" min="0" step="1" style="font-size:12px;padding:6px 8px" data-f="estoqueQtd">'+
-    '</div>';
-  container.appendChild(row);
-  toggleEstoqueGeralVisibilidade();
-  checarNomeDuplicaVariacao();
-}
-function removeProdVariacao(id){var r=ge('pv'+id);if(r)r.remove();toggleEstoqueGeralVisibilidade();checarNomeDuplicaVariacao();}
-function limparProdVariacoes(){ge('prod-variacoes-lista').innerHTML='';prodVarIid=0;_prodOpcoes=[];_prodVariacoesGrade=[];_prodCombosComEstoque={};if(typeof renderOpcoesProduto==='function')renderOpcoesProduto();if(typeof renderGradeVariacoes==='function')renderGradeVariacoes();toggleEstoqueGeralVisibilidade();}
-function getProdVariacoes(){
-  return Array.from(document.querySelectorAll('#prod-variacoes-lista > div')).map(function(row){
-    function g(f){var e=row.querySelector('[data-f="'+f+'"]');return e?e.value:'';}
-    var cor=g('cor'),tamanho=g('tamanho'),modelo=g('modelo');
-    if(!cor&&!tamanho&&!modelo)return null;// linha vazia, ignora
-    var varejo=g('varejo'),atacado=g('atacado');
-    return{
-      cor:cor,tamanho:tamanho,modelo:modelo,
-      varejo:varejo!==''?parseFloat(varejo):null,
-      atacado:atacado!==''?parseFloat(atacado):null,
-      estoqueQtd:parseFloat(g('estoqueQtd'))||0
-    };
-  }).filter(function(v){return v;});
-}
+// Zera as Opções/grade de variações ao abrir o modal de produto
+function limparProdVariacoes(){_prodOpcoes=[];_prodVariacoesGrade=[];_prodCombosComEstoque={};if(typeof renderOpcoesProduto==='function')renderOpcoesProduto();if(typeof renderGradeVariacoes==='function')renderGradeVariacoes();toggleEstoqueGeralVisibilidade();}
 
 function closeProdModal(){ge('modal-prod').className='modal-overlay';}
 function editProd(id){openProdModal(id);}
@@ -3472,8 +3432,7 @@ function duplicarProduto(){
 
 function saveProd(){
   var nome=val('prod-nome');if(!nome){alert('Informe o nome.');return;}
-  // Prioriza a grade nova (Shopify); se estiver vazia, usa a lista antiga (compatibilidade)
-  var variacoes=(_prodVariacoesGrade&&_prodVariacoesGrade.length)?getVariacoesShopify():getProdVariacoes();
+  var variacoes=getVariacoesShopify();
   var varejo=parseFloat(val('prod-varejo'))||0,atacado=parseFloat(val('prod-atacado'))||0,custo=parseFloat(val('prod-custo'))||0;
   // Se não há variações, o preço base é obrigatório. Se há variações, cada uma pode ter o seu próprio (ou herdar o base).
   if(!variacoes.length&&!varejo&&!atacado){alert('Informe ao menos um preço, ou adicione uma variação com preço próprio.');return;}
@@ -4524,8 +4483,7 @@ function toggleEstoqueFields(){
 }
 
 function toggleEstoqueGeralVisibilidade(){
-  // Considera tanto a grade nova (Shopify) quanto a lista antiga
-  var temVariacoes=(typeof _prodVariacoesGrade!=='undefined'&&_prodVariacoesGrade.length>0)||ge('prod-variacoes-lista').children.length>0;
+  var temVariacoes=typeof _prodVariacoesGrade!=='undefined'&&_prodVariacoesGrade.length>0;
   var wrap=ge('prod-estoque-geral-wrap'),aviso=ge('prod-estoque-substituido-aviso');
   if(wrap)wrap.style.display=temVariacoes?'none':'block';
   if(aviso)aviso.style.display=temVariacoes?'block':'none';
@@ -4535,7 +4493,7 @@ function checarNomeDuplicaVariacao(){
   var nome=(val('prod-nome')||'').toLowerCase();
   var avisoEl=ge('prod-nome-duplicidade-aviso');
   if(!nome){avisoEl.style.display='none';return;}
-  var variacoes=getProdVariacoes();
+  var variacoes=getVariacoesShopify();
   if(!variacoes.length){avisoEl.style.display='none';return;}
 
   var termosEncontrados=[];
