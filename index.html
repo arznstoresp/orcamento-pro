@@ -1070,6 +1070,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
             <summary class="card-title">7. Custos Diretos <span style="margin-left:6px;font-size:11px;color:rgba(255,255,255,.4);font-weight:400;text-transform:none;letter-spacing:0">— por unidade</span></summary>
             <div id="ct-custos-extras-lista" class="g2"></div>
             <div class="mt" style="display:flex;justify-content:space-between;font-size:14px;font-weight:800;color:var(--brand);padding-top:8px;border-top:1px solid var(--dark-border2)"><span>Total Custos Diretos</span><span id="ct-custos-diretos-total">R$ 0,00</span></div>
+            <div id="ct-custos-diretos-frete-nota" style="font-size:11px;color:rgba(255,255,255,.45);margin-top:4px;text-align:right;display:none"></div>
           </details>
 
           <!-- ETAPA 6: CUSTOS INDIRETOS -->
@@ -4831,10 +4832,18 @@ function renderCustosExtrasTecido(custos){
   });
   atualizarTotalCustosDiretos();
 }
-// Soma de todos os Custos Diretos marcados, exibida embaixo da grade
+// Total por peça dos Custos Diretos marcados, embaixo da grade. O frete interno é do pedido
+// inteiro, então entra dividido pela quantidade — o mesmo valor que vai para o custo da peça.
 function atualizarTotalCustosDiretos(){
   var el=ge('ct-custos-diretos-total');if(!el)return;
-  el.textContent=fmt(getCustosExtrasTecido().filter(function(c){return c.ativo;}).reduce(function(a,c){return a+c.valor;},0));
+  var qtd=parseFloat(val('ct-qtd'))||0,frete=getTotalCustosPedidoAtivos();
+  var fretePorPeca=qtd>0?frete/qtd:0;
+  el.textContent=fmt(getTotalCustosExtrasAtivos()+fretePorPeca);
+  var nota=ge('ct-custos-diretos-frete-nota');
+  if(nota){
+    nota.textContent=frete>0&&qtd>0?'inclui frete interno: '+fmt(frete)+' ÷ '+qtd+' peças = '+fmt(fretePorPeca)+'/peça':'';
+    nota.style.display=nota.textContent?'block':'none';
+  }
 }
 function getCustosExtrasTecido(){
   return Array.from(document.querySelectorAll('#ct-custos-extras-lista > div')).map(function(row){
