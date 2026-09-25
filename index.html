@@ -5586,7 +5586,8 @@ function limparTecidos(){
   setTipoProduto(tipo);// renderiza o módulo de insumos correto e os botões
   if(tipo==='canecas')preencherCamposCanecasLembrados();// volta com os valores de produção usados da última vez
   limparArtesTecido();
-  renderCustosExtrasTecido(cfg.custosExtras);
+  // Lembra só os VALORES dos Custos Diretos; todo cálculo novo começa com todos desmarcados
+  renderCustosExtrasTecido(cfg.custosExtras?cfg.custosExtras.map(function(c){return Object.assign({},c,{ativo:false});}):null);
   atualizarExibicaoCustosIndiretosMEI();
   if(tipo==='tecidos'||tipo==='adesivos')addArteTecido();
   ge('ct-btn-duplicar').style.display='none';
