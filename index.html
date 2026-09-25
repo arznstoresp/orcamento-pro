@@ -5055,6 +5055,7 @@ function setTipoProduto(tipo){
   var cardArtes=ge('ct-card-artes');
   if(cardArtes)cardArtes.style.display=(CT_TIPOS[tipo]&&CT_TIPOS[tipo].usaArtes)?'block':'none';
   if(tipo==='canecas')garantirMaquinasPadrao();
+  if(tipo==='tecidos')garantirMaquinaPadraoTecidos();
   var valorPecaAnterior=parseFloat(val('ct-valor-peca'))||0;
   renderModuloInsumos(tipo);
   // Ao entrar no modo Canecas vindo de outro tipo, traz os valores de produção lembrados
@@ -5187,10 +5188,17 @@ function aplicarGravacao(){
 
 function renderModuloInsumos(tipo){
   var el=ge('ct-modulo-insumos');if(!el)return;
-  // Seção "3. Máquinas": só nos tipos que usam máquinas cadastradas (hoje, Canecas)
+  // Seção "3. Máquinas": só nos tipos que usam máquinas cadastradas (Canecas e Tecidos/DTF)
   var secMaq=ge('ct-sec-maquinas'),listaMaq=ge('ct-maquinas-lista');
-  if(secMaq)secMaq.style.display=tipo==='canecas'?'':'none';
-  if(listaMaq&&tipo==='canecas')listaMaq.innerHTML='<label class="lbl">Máquinas usadas <span class="lbl-hint">— desgaste por peça</span></label>'+htmlMaquinasCanecas();
+  var usaMaquinas=tipo==='canecas'||tipo==='tecidos';
+  if(secMaq)secMaq.style.display=usaMaquinas?'':'none';
+  if(listaMaq&&usaMaquinas){
+    // Trocou de tipo: descarta as marcações do tipo anterior para valerem as máquinas padrão deste
+    if(listaMaq.getAttribute('data-tipo')!==tipo)listaMaq.innerHTML='';
+    listaMaq.setAttribute('data-tipo',tipo);
+    var padraoMaq=tipo==='tecidos'?[MAQUINA_PADRAO_TECIDOS.id]:MAQUINAS_PADRAO.map(function(m){return m.id;});
+    listaMaq.innerHTML='<label class="lbl">Máquinas usadas <span class="lbl-hint">— desgaste por peça</span></label>'+htmlMaquinasCanecas(padraoMaq);
+  }
   function gv(id){return val(id)||'';}
   if(tipo==='tecidos'){
     el.innerHTML='<div><div class="ct-sub-titulo">Impressão DTF</div>'+
@@ -5245,10 +5253,11 @@ function renderModuloInsumos(tipo){
 
 // Checkboxes das máquinas cadastradas no modo Canecas. Mantém o que já estava marcado na tela;
 // na 1ª renderização vêm marcadas só as máquinas padrão (impressora + prensa).
-function htmlMaquinasCanecas(){
+// padraoIds: máquinas que vêm marcadas quando ainda não há marcação na tela (padrão: as das Canecas)
+function htmlMaquinasCanecas(padraoIds){
   var maquinas=getMaquinarios();
   if(!maquinas.length)return'<div style="font-size:12px;color:rgba(255,255,255,.4);padding:6px 0">Nenhuma máquina cadastrada. <a href="#" onclick="showView(\'maquinas\');return false" style="color:var(--brand)">Cadastrar em Maquinários</a></div>';
-  var padrao=MAQUINAS_PADRAO.map(function(m){return m.id;});
+  var padrao=padraoIds||MAQUINAS_PADRAO.map(function(m){return m.id;});
   return'<div style="display:flex;flex-direction:column;gap:4px">'+maquinas.map(function(m){
     var cb=ge('ct-maquina-'+m.id);
     var marcada=cb?cb.checked:padrao.indexOf(m.id)>=0;
@@ -5370,7 +5379,7 @@ function calcularTecidos(){
   // Para tecidos: ainda calcula DTF baseado em artes (lógica existente)
   var artes=getArtesTecido();
   var areaTotalPorPeca=artes.reduce(function(a,arte){return a+arte.area;},0);
-  var areaUtilMetro=0,metrosNecessarios=0,metrosComPerda=0,custoDtfTotal=0,dtfPorUnidade=0;
+  var areaUtilMetro=0,metrosNecessarios=0,metrosComPerda=0,custoDtfTotal=0,dtfPorUnidade=0,custoMaquinasDtf=0;
   if(tipo==='tecidos'){
     var valorMetro=parseFloat(val('ct-valor-metro'))||0;
     var frete=parseFloat(val('ct-frete'))||0;
@@ -5381,7 +5390,10 @@ function calcularTecidos(){
     metrosNecessarios=areaUtilMetro>0?(areaTotalPorPeca*qtd)/areaUtilMetro:0;
     metrosComPerda=metrosNecessarios*(1+perdaPct/100);
     custoDtfTotal=(metrosComPerda*valorMetro)+frete;
-    dtfPorUnidade=qtd>0?custoDtfTotal/qtd:0;
+    var maquinasMarcadas=getMaquinasMarcadasCanecas();// função já genérica, reaproveitada
+    custoMaquinasDtf=getMaquinarios().filter(function(m){return maquinasMarcadas.indexOf(m.id)>=0;})
+      .reduce(function(a,m){return a+custoPorPecaMaquina(m);},0);
+    dtfPorUnidade=(qtd>0?custoDtfTotal/qtd:0)+custoMaquinasDtf;// custo de máquina não depende da área usada
     custoInsumoEspecifico=dtfPorUnidade;
   }
 
@@ -5417,7 +5429,7 @@ function calcularTecidos(){
   window._ctResultado={
     tipo:tipo,qtd:qtd,areaTotalPorPeca:areaTotalPorPeca,areaUtilMetro:areaUtilMetro,
     metrosNecessarios:metrosNecessarios,metrosComPerda:metrosComPerda,
-    custoDtfTotal:custoDtfTotal,dtfPorUnidade:dtfPorUnidade,
+    custoDtfTotal:custoDtfTotal,dtfPorUnidade:dtfPorUnidade,custoMaquinasDtf:custoMaquinasDtf,
     custoInsumoEspecifico:custoInsumoEspecifico,
     tempoTotalMin:tempoTotalMin,custoMaoObraTotal:custoMaoObraTotal,custoMaoObraUnitario:custoMaoObraUnitario,
     custoIndiretoUnitario:custoIndiretoUnitario,rateioDas:rateioDas,custosExtrasUnidade:custosExtrasUnidade,
@@ -5443,13 +5455,14 @@ function calcularTecidos(){
 function renderBreakdownsDTF(r,artes){
   var el=ge('ct-dtf-breakdown');
   if(!el)return;
-  if(r.custoDtfTotal>0){
+  if(r.custoDtfTotal>0||r.custoMaquinasDtf>0){
     el.style.display='block';
     el.innerHTML=
       '📐 Área total/peça: <strong>'+r.areaTotalPorPeca.toFixed(0)+' cm²</strong> &nbsp;|&nbsp; '+
       'Área útil/metro: <strong>'+r.areaUtilMetro.toFixed(0)+' cm²</strong><br>'+
       '📏 Metros necessários: <strong>'+r.metrosNecessarios.toFixed(3)+' m</strong> &nbsp;→&nbsp; com perda: <strong>'+r.metrosComPerda.toFixed(3)+' m</strong><br>'+
-      '💰 DTF total: <strong>'+fmt(r.custoDtfTotal)+'</strong> &nbsp;|&nbsp; DTF/unidade: <strong>'+fmt(r.dtfPorUnidade)+'</strong>';
+      '💰 DTF total: <strong>'+fmt(r.custoDtfTotal)+'</strong> &nbsp;|&nbsp; DTF/unidade: <strong>'+fmt(r.dtfPorUnidade-r.custoMaquinasDtf)+'</strong> &nbsp;|&nbsp; '+
+      '🛠️ Máquinas: <strong>'+fmt(r.custoMaquinasDtf)+'</strong>';
   }else{
     el.style.display='none';
   }
@@ -5489,7 +5502,7 @@ function renderResumoFinanceiroTecidos(r){
   var elC=ge('ct-resumo-custos'),elV=ge('ct-resumo-venda'),elL=ge('ct-resumo-lucro');
   if(!elC||!elV||!elL)return;
 
-  var labelInsumo={tecidos:'Custo do DTF',canecas:'Caneca + sublimação + máquinas',adesivos:'Custo do vinil/processo',impressao3d:'Custo filamento + máquina',generico:'Custo do processo'}[r.tipo||'tecidos']||'Custo do processo';
+  var labelInsumo={tecidos:'Custo do DTF + máquinas',canecas:'Caneca + sublimação + máquinas',adesivos:'Custo do vinil/processo',impressao3d:'Custo filamento + máquina',generico:'Custo do processo'}[r.tipo||'tecidos']||'Custo do processo';
   elC.innerHTML=
     (r.tipo==='canecas'?'':ctLinha('Custo do insumo principal',fmt(r.valorPeca)))+// em Canecas a caneca já está no custo abaixo
     ctLinha(labelInsumo,fmt(r.custoInsumoEspecifico))+
@@ -5646,7 +5659,7 @@ function salvarOrcamentoTecidos(){
     perda:parseFloat(val('ct-perda'))||0,
     custoProduto:parseFloat(val('ct-custo-produto'))||0,custoPapel:parseFloat(val('ct-custo-papel'))||0,
     custoTinta:parseFloat(val('ct-custo-tinta'))||0,custoFita:parseFloat(val('ct-custo-fita'))||0,
-    perdaCanecas:parseFloat(val('ct-perda-canecas'))||0,maquinas:getMaquinasMarcadasCanecas(),
+    perdaCanecas:parseFloat(val('ct-perda-canecas'))||0,maquinas:getMaquinasMarcadasCanecas(),maquinasEmTecidos:tipoProd==='tecidos',
     embCaixinha:parseFloat(val('ct-emb-caixinha'))||0,embProtecao:parseFloat(val('ct-emb-protecao'))||0,
     embCartao:parseFloat(val('ct-emb-cartao'))||0,embBrinde:parseFloat(val('ct-emb-brinde'))||0,
     custoEmbalagem:getCustoEmbalagemCanecas(),embalagemSemAtacado:!ge('ct-embalagem-sem-atacado')||ge('ct-embalagem-sem-atacado').checked,
@@ -5706,7 +5719,14 @@ function carregarOrcamentoTecidos(id){
   setVal('ct-imposto-pct',h.impostoPct!=null?h.impostoPct:0);
   setNiveisAtacadoCalc(h.atacadoNiveis);
   // Restaura campos específicos do tipo (renderModuloInsumos já criou os elementos com setTipoProduto acima)
-  if(tipo==='tecidos'){setVal('ct-valor-metro',h.valorMetro||0);setVal('ct-frete',h.frete||0);setVal('ct-largura-rolo',h.larguraRolo||57);setVal('ct-altura-metro',h.alturaMetro||100);setVal('ct-perda',h.perda||15);}
+  if(tipo==='tecidos'){
+    setVal('ct-valor-metro',h.valorMetro||0);setVal('ct-frete',h.frete||0);setVal('ct-largura-rolo',h.larguraRolo||57);setVal('ct-altura-metro',h.alturaMetro||100);setVal('ct-perda',h.perda||15);
+    // Cálculo de Tecidos salvo antes das máquinas no DTF abre sem nenhuma, mantendo o custo que tinha
+    var maqsT=h.maquinasEmTecidos?(h.maquinas||[]):[];
+    Array.prototype.slice.call(document.querySelectorAll('#ct-maquinas-lista input[data-maquina-id]')).forEach(function(cb){
+      cb.checked=maqsT.indexOf(cb.getAttribute('data-maquina-id'))>=0;
+    });
+  }
   else if(tipo==='canecas'){
     var cn=h.custoProduto!==undefined?h:{
       // Cálculo salvo antes dos campos separados: caneca e sublimação vão para Produto e Papel,
@@ -5799,7 +5819,7 @@ function exportarPDFTecidos(){
       '</tbody></table>'+
       '<div class="stitle">Custos por Unidade</div>'+
       '<div class="row"><span>Peça</span><span>'+fmt(r.valorPeca)+'</span></div>'+
-      '<div class="row"><span>DTF</span><span>'+fmt(r.dtfPorUnidade)+'</span></div>'+
+      '<div class="row"><span>DTF + máquinas</span><span>'+fmt(r.dtfPorUnidade)+'</span></div>'+
       (r.custoMaoObraUnitario>0?'<div class="row"><span>Mão de obra</span><span>'+fmt(r.custoMaoObraUnitario)+'</span></div>':'')+
       (r.custoIndiretoUnitario>0?'<div class="row"><span>Custos indiretos</span><span>'+fmt(r.custoIndiretoUnitario)+'</span></div>':'')+
       (r.custosExtrasUnidade>0?'<div class="row"><span>Custos diretos</span><span>'+fmt(r.custosExtrasUnidade)+'</span></div>':'')+
@@ -5910,6 +5930,18 @@ var MAQUINAS_PADRAO=[
   {id:'maq_impressora_sublimatica',nome:'Impressora Sublimática',preco:1200,vidaUtilPecas:10000},
   {id:'maq_prensa_caneca',nome:'Prensa de Caneca',preco:400,vidaUtilPecas:5000}
 ];
+// Máquina padrão do modo Tecidos (DTF) — separada das de Canecas
+var MAQUINA_PADRAO_TECIDOS={id:'maq_prensa_dtf',nome:'Prensa Plana DTF (Deko 38x38)',preco:2694.74,vidaUtilPecas:15000};
+// Adiciona a prensa DTF uma única vez, se ainda não existir esse id (as máquinas de Canecas podem já estar na lista)
+function garantirMaquinaPadraoTecidos(){
+  if(localStorage.getItem('orcpro_maquina_dtf_inicializada'))return;
+  var maquinas=getMaquinarios();
+  if(!maquinas.some(function(m){return m.id===MAQUINA_PADRAO_TECIDOS.id;})){
+    maquinas.push(Object.assign({},MAQUINA_PADRAO_TECIDOS));
+    if(!saveMaquinarios(maquinas))return;// não gravou: tenta de novo na próxima vez
+  }
+  try{localStorage.setItem('orcpro_maquina_dtf_inicializada','1');}catch(e){}
+}
 function garantirMaquinasPadrao(){
   if(localStorage.getItem('orcpro_maquinas_inicializado'))return;
   if(!getMaquinarios().length)saveMaquinarios(MAQUINAS_PADRAO.map(function(m){return Object.assign({},m);}));
