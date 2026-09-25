@@ -3996,6 +3996,28 @@ function calcHistTotal(h){
   return sub-dv+frete;
 }
 
+// Converte o savedAt em timestamp. O savedAt é gravado com toLocaleString('pt-BR')
+// ("25/09/2026, 14:30:00"), que o new Date() não entende — por isso o parse manual.
+// Retorna 0 se não existir ou não der para ler.
+function tsSavedAt(s){
+  if(!s)return 0;
+  var m=String(s).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\D+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if(m)return new Date(+m[3],+m[2]-1,+m[1],+(m[4]||0),+(m[5]||0),+(m[6]||0)).getTime();
+  var t=new Date(s).getTime();
+  return isNaN(t)?0:t;
+}
+
+// Ordena a lista do histórico por data decrescente (mais recente primeiro).
+// Empate na data: desempata pelo savedAt (mais recente primeiro); sem savedAt,
+// o sort estável mantém a ordem original entre eles.
+function ordenarHistPorData(lista){
+  return lista.sort(function(a,b){
+    var da=a.data||'',db=b.data||'';
+    if(da!==db)return da<db?1:-1;
+    return tsSavedAt(b.savedAt)-tsSavedAt(a.savedAt);
+  });
+}
+
 function renderHist(){
   var hist=getHist(),hoje2=hoje();
 
@@ -4010,7 +4032,7 @@ function renderHist(){
       var diff=Math.ceil((valDate-new Date())/(1000*60*60*24));
       return diff>=0&&diff<=2;
     });
-    renderHistComDados(hist,true,'⏰ Vencendo em até 48h');
+    renderHistComDados(ordenarHistPorData(hist),true,'⏰ Vencendo em até 48h');
     return;
   }
 
@@ -4030,13 +4052,13 @@ function renderHist(){
     // Mostrar aviso no topo do histórico
     var empty=ge('hist-empty');
     if(empty)empty.innerHTML='Nenhum orçamento vencido encontrado.';
-    renderHistComDados(hist,true,'⚠️ Vencidos sem resposta');
+    renderHistComDados(ordenarHistPorData(hist),true,'⚠️ Vencidos sem resposta');
     return;
   }
 
   var q=(val('hist-search')||'').toLowerCase(),fs=val('hist-filter');
   var f=hist.filter(function(h){return(!q||h.num.toLowerCase().includes(q)||(h.cliente.nome||'').toLowerCase().includes(q)||(h.desc||'').toLowerCase().includes(q))&&(!fs||h.status===fs);});
-  renderHistComDados(f,false,'');
+  renderHistComDados(ordenarHistPorData(f),false,'');
 }
 
 // Renumera UM orçamento específico, dando a ele o próximo número livre.
