@@ -9302,6 +9302,9 @@ function aplicarBackupComMerge(d){
   var locFunc=getFuncs(),remFunc=parse(d.funcionarios,[]);
   gravarSeguro('orcpro_funcs',JSON.stringify(fundirRegistros(locFunc,remFunc,'id')),'funcionários');
 
+  var locCustos=getCustos(),remCustos=parse(d.custosFixos,[]);
+  gravarSeguro('orcpro_custos',JSON.stringify(fundirRegistros(locCustos,remCustos,'id')),'custos fixos');
+
   var locCT=getHistTecidos(),remCT=parse(d.histTecidos,[]);
   gravarSeguro('orcpro_ct_hist',JSON.stringify(fundirRegistros(locCT,remCT,'id')),'calculadora');
 
