@@ -1080,7 +1080,8 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
             <div class="g2">
               <div>
                 <label class="lbl">Custo indireto por peça (R$)</label>
-                <input type="number" id="ct-custo-indireto-extra" value="0" min="0" step="0.01" placeholder="Valor adicional" oninput="calcularTecidos()">
+                <input type="number" id="ct-custo-indireto-extra" min="0" step="0.01" placeholder="Ex: 1,50" oninput="atualizarNotaCustoIndireto();calcularTecidos()">
+                <div id="ct-custo-indireto-nota" style="font-size:10px;color:rgba(255,255,255,.45);margin-top:4px;display:none"></div>
               </div>
               <div style="display:flex;flex-direction:column;justify-content:flex-end">
                 <label class="lbl" style="font-size:10px">Total por peça</label>
@@ -4918,19 +4919,41 @@ function getCustoIndiretoPorPecaMEI(){
   // na prática o usuário ajusta com o campo extra
   return 0;// retorna 0 — mostramos o total de custos fixos MEI como referência visual, mas não assumimos automaticamente
 }
+// Custos fixos do mês atual cadastrados no Dashboard MEI (mesma fonte que o Dashboard usa: getCustosDoMes)
+function calcularCustoIndiretoAuto(){
+  var agora=new Date();
+  var totalFixos=getCustosDoMes(agora.getFullYear(),agora.getMonth()).reduce(function(a,c){return a+(parseFloat(c.valor)||0);},0);
+  var media=Math.round(calcularMediaVendasMensal(3));
+  return{totalFixos:totalFixos,media:media,porPeca:totalFixos>0&&media>0?Math.round(totalFixos/media*100)/100:0};
+}
 function atualizarExibicaoCustosIndiretosMEI(){
-  var custos=getCustos();
-  var totalFixos=custos.filter(function(c){return c.ativo!==false;}).reduce(function(a,c){return a+(parseFloat(c.valor)||0);},0);
   var el=ge('ct-custos-indiretos-mei');
   if(!el)return;
-  if(totalFixos>0){
-    el.innerHTML='💡 Seus custos fixos no MEI somam <strong>'+fmt(totalFixos)+'/mês</strong>. '+
-      'Calcule quanto rateio por peça você quer aplicar e coloque no campo abaixo.';
-    el.style.display='block';
+  var r=calcularCustoIndiretoAuto();
+  if(r.totalFixos>0){
+    el.innerHTML='💡 Seus custos fixos no MEI somam <strong>'+fmt(r.totalFixos)+'/mês</strong>'+
+      (r.media>0?' e a média de vendas é <strong>'+r.media+' un/mês</strong> (últimos 3 meses) → <strong>'+fmt(r.porPeca)+'/peça</strong>.':'. Sem vendas aprovadas nos últimos 3 meses pra ratear por peça.');
   }else{
-    el.innerHTML='💡 Configure seus custos fixos mensais no <strong>Dashboard MEI</strong> para usar como referência aqui.';
-    el.style.display='block';
+    el.innerHTML='💡 Configure seus custos fixos mensais no <strong>Dashboard MEI</strong> para o rateio por peça ser calculado aqui.';
   }
+  el.style.display='block';
+}
+// Resultado do último preenchimento automático do custo indireto (mesma convenção de _qtdMensalMeiAuto)
+var _custoIndiretoAuto;
+function preencherCustoIndiretoAuto(){
+  if(val('ct-custo-indireto-extra')!=='')return;// só preenche quando o campo está vazio
+  var r=calcularCustoIndiretoAuto();
+  _custoIndiretoAuto=r.porPeca>0?String(r.porPeca):'';
+  setVal('ct-custo-indireto-extra',_custoIndiretoAuto);
+  atualizarNotaCustoIndireto();
+}
+function atualizarNotaCustoIndireto(){
+  var nota=ge('ct-custo-indireto-nota');if(!nota)return;
+  var v=val('ct-custo-indireto-extra'),txt='';
+  if(v&&v===_custoIndiretoAuto)txt='(calculado automaticamente: custos fixos ÷ média de vendas)';
+  else if(!v&&_custoIndiretoAuto==='')txt='Sem custos fixos no Dashboard MEI ou sem vendas nos últimos 3 meses pra calcular sozinho — informe manualmente.';
+  nota.textContent=txt;
+  nota.style.display=txt?'block':'none';
 }
 
 // Média mensal de unidades vendidas (todos os produtos somados) nas vendas aprovadas dos últimos `meses` meses.
@@ -5638,10 +5661,11 @@ function limparTecidos(){
   setVal('ct-valor-hora',cfg.valorHora||'0');
   setVal('ct-tempo-arte','0');setVal('ct-tempo-impressao','0');setVal('ct-tempo-prensagem','0');
   setVal('ct-tempo-acabamento','0');setVal('ct-tempo-embalagem','0');
-  setVal('ct-custo-indireto-extra',cfg.custoIndiretoExtra||'0');
+  _custoIndiretoAuto=undefined;setVal('ct-custo-indireto-extra','');
   // Todo cálculo novo começa com o rateio do DAS-MEI ligado e a quantidade mensal calculada do histórico
   _qtdMensalMeiAuto=undefined;setVal('ct-qtd-mensal-mei','');ge('ct-incluir-das-mei').checked=true;
   preencherQtdMensalMeiAuto();
+  preencherCustoIndiretoAuto();
   setVal('ct-preco-negociado','');
   atualizarSelectCanalCalc();
   setVal('ct-canal',cfg.canalId||'');if(ge('ct-canal')&&ge('ct-canal').selectedIndex<0)setVal('ct-canal','');
@@ -5751,7 +5775,7 @@ function carregarOrcamentoTecidos(id){
   setVal('ct-cliente',h.cliente==='Cliente não identificado'?'':h.cliente);setVal('ct-obs',h.obs||'');
   setVal('ct-margem',h.margem);setVal('ct-valor-hora',h.valorHora||'0');
   if(h.tempos){setVal('ct-tempo-arte',h.tempos.arte||0);setVal('ct-tempo-impressao',h.tempos.impressao||0);setVal('ct-tempo-prensagem',h.tempos.prensagem||0);setVal('ct-tempo-acabamento',h.tempos.acabamento||0);setVal('ct-tempo-embalagem',h.tempos.embalagem||0);}
-  setVal('ct-custo-indireto-extra',h.custoIndiretoExtra||'0');
+  _custoIndiretoAuto=undefined;setVal('ct-custo-indireto-extra',h.custoIndiretoExtra||'0');atualizarNotaCustoIndireto();
   _qtdMensalMeiAuto=undefined;setVal('ct-qtd-mensal-mei',h.qtdMensalMei||'');ge('ct-incluir-das-mei').checked=!!h.incluirDasMei;
   atualizarNotaQtdMensalMei();
   setVal('ct-preco-negociado','');
