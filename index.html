@@ -7517,6 +7517,7 @@ function saveCusto(){
     if(!algumPreenchido){alert('Preencha o valor de ao menos um mês.');return;}
   }
 
+  c.savedAt=new Date().toISOString();// fundirRegistros usa para manter a versão mais recente no merge do Drive
   if(editId){var idx=custos.findIndex(function(x){return x.id===editId;});if(idx>=0)custos[idx]=c;else custos.push(c);}
   else custos.push(c);
   saveCustos(custos);closeCustoModal();renderMEI();
@@ -7540,6 +7541,7 @@ function quickEditCustoMes(id,ano,mesIdx,novoValor){
       // (mantém simples: só atualiza o mês editado, os demais continuam como estavam)
     }
   }
+  c.savedAt=new Date().toISOString();
   saveCustos(custos);
   renderMEI();
 }
@@ -7572,6 +7574,7 @@ function marcarCustoMesPago(id,ano,mesIdx,pago){
   if(!c.pagosPorMes)c.pagosPorMes={};
   var key=ano+'_'+mesIdx;
   if(pago)c.pagosPorMes[key]=true;else delete c.pagosPorMes[key];
+  c.savedAt=new Date().toISOString();
   saveCustos(custos);
   renderMEI();
 }
