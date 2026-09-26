@@ -4797,6 +4797,19 @@ function lembrarCamposCanecas(){
   });
   if(mudou)saveConfigTecidos(cfg);
 }
+// Correção única: grava na config lembrada os valores reais de produção de Canecas confirmados pelo usuário
+// (estavam errados/zerados). Os tempos que não fazem parte do processo de caneca ficam em 0.
+var CT_VALORES_CANECAS_CORRETOS={
+  custoProdutoCanecas:7.99,custoPapel:0.349,custoTinta:0.30,custoFita:0.034,perdaCanecas:5,
+  embCaixinha:0.80,embProtecao:0.15,embCartao:0.104,embBrinde:0.50,
+  valorHora:25,tempoPrensagem:6,tempoArte:0,tempoImpressao:0,tempoAcabamento:0,tempoEmbalagem:0
+};
+function corrigirValoresCanecasUmaVez(){
+  if(localStorage.getItem('orcpro_canecas_valores_corrigidos'))return;
+  var cfg=Object.assign(getConfigTecidos(),CT_VALORES_CANECAS_CORRETOS);
+  if(!saveConfigTecidos(cfg))return;// não gravou: tenta de novo na próxima abertura
+  try{localStorage.setItem('orcpro_canecas_valores_corrigidos','1');}catch(e){}
+}
 // Preenche os campos de produção do modo Canecas com os valores lembrados (perda padrão 5%)
 function preencherCamposCanecasLembrados(){
   var cfg=getConfigTecidos();
@@ -9971,6 +9984,7 @@ function aplicarProtecaoAutofill(){
 window.onload=function(){
   if(checkLinkPublico())return;
   migrarSkusUmaVez();
+  corrigirValoresCanecasUmaVez();
   initPIN();
   desregistrarServiceWorkerAntigo();
   aplicarProtecaoAutofill();
