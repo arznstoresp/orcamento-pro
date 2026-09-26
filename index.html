@@ -4113,9 +4113,7 @@ function resolverDuplicadosAuto(){
   var renumerados=0;
   // Ordena por data de salvamento para manter o mais antigo com o número original
   hist.sort(function(a,b){
-    var ta=a.savedAt?new Date(a.savedAt).getTime():0;
-    var tb=b.savedAt?new Date(b.savedAt).getTime():0;
-    return ta-tb;
+    return tsSavedAt(a.savedAt)-tsSavedAt(b.savedAt);
   });
   hist.forEach(function(h){
     var n=h.num||'';
@@ -4773,7 +4771,7 @@ function exportarRelatorioCompraExcel(){
 function getHistTecidos(){try{return JSON.parse(localStorage.getItem('orcpro_ct_hist')||'[]');}catch(e){return[];}}
 function saveHistTecidos(arr){return gravarSeguro('orcpro_ct_hist',JSON.stringify(arr),'orçamentos da calculadora');}
 function getConfigTecidos(){try{return JSON.parse(localStorage.getItem('orcpro_ct_config')||'{}');}catch(e){return{};}}
-function saveConfigTecidos(cfg){return gravarSeguro('orcpro_ct_config',JSON.stringify(cfg),'config da calculadora');}
+function saveConfigTecidos(cfg){cfg.atualizadoEm=Date.now();return gravarSeguro('orcpro_ct_config',JSON.stringify(cfg),'config da calculadora');}
 // Campos de produção do modo Canecas lembrados na config (chave da config → campo da tela)
 var CT_CAMPOS_CANECAS_CONFIG={
   custoProdutoCanecas:'ct-custo-produto',custoPapel:'ct-custo-papel',custoTinta:'ct-custo-tinta',custoFita:'ct-custo-fita',
@@ -9233,6 +9231,10 @@ function aplicarBackupComMerge(d){
     var locCfg=getCfg(),remCfg=parse(d.empresa,{});
     if(deveAdotarRemoto(locCfg,remCfg))localStorage.setItem('orcpro_emp',JSON.stringify(remCfg));
   }
+  if(d.configTecidos){
+    var locCT2=getConfigTecidos(),remCT2=parse(d.configTecidos,{});
+    if(deveAdotarRemotoConfigTecidos(locCT2,remCT2))gravarSeguro('orcpro_ct_config',JSON.stringify(remCT2),'config da calculadora');
+  }
   if(d.logo&&!localStorage.getItem('orcpro_logo'))localStorage.setItem('orcpro_logo',d.logo);
 }
 
@@ -9246,6 +9248,17 @@ function deveAdotarRemoto(loc,rem){
   if(!rem||!rem.atualizadoEm)return false; // backup remoto antigo, sem timestamp: não sobrescreve
   if(!loc.atualizadoEm)return false; // local sem timestamp mas já tem nome: presumido mais recente
   return rem.atualizadoEm>loc.atualizadoEm;
+}
+
+// Mesma ideia para a config da Calculadora (canecas, margem, DAS-MEI, atacado): só adota o remoto se for mais recente
+function deveAdotarRemotoConfigTecidos(loc,rem){
+  var locVazio=!loc||!Object.keys(loc).length,remVazio=!rem||!Object.keys(rem).length;
+  if(locVazio&&!remVazio)return true;
+  if(remVazio&&!locVazio)return false;
+  var tsLocal=loc.atualizadoEm||0,tsRemoto=rem.atualizadoEm||0;
+  if(!tsRemoto)return false; // backup remoto antigo, sem timestamp: não sobrescreve
+  if(!tsLocal)return false; // local sem timestamp mas preenchido: presumido mais recente
+  return tsRemoto>tsLocal;
 }
 
 function autoBaixarDoDriveAoAbrir(){
