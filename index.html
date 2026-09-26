@@ -1032,11 +1032,11 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
             <div class="mt" style="background:rgba(255,255,255,.03);border-radius:8px;padding:10px 12px">
               <label class="lbl" style="margin-bottom:8px;display:block">Tempos de produção <span class="lbl-hint">— em minutos; Arte uma vez por pedido, os demais por peça</span></label>
               <div class="g2" style="gap:8px">
-                <div><label class="lbl" style="font-size:10px">Arte / Criação</label><input type="number" id="ct-tempo-arte" value="0" min="0" step="1" oninput="calcularTecidos()"></div>
-                <div><label class="lbl" style="font-size:10px">Produção / Impressão</label><input type="number" id="ct-tempo-impressao" value="0" min="0" step="1" oninput="calcularTecidos()"></div>
-                <div><label class="lbl" style="font-size:10px">Prensagem / Processo</label><input type="number" id="ct-tempo-prensagem" value="0" min="0" step="1" oninput="calcularTecidos()"></div>
-                <div><label class="lbl" style="font-size:10px">Acabamento</label><input type="number" id="ct-tempo-acabamento" value="0" min="0" step="1" oninput="calcularTecidos()"></div>
-                <div><label class="lbl" style="font-size:10px">Embalagem</label><input type="number" id="ct-tempo-embalagem" value="0" min="0" step="1" oninput="calcularTecidos()"></div>
+                <div><label class="lbl" style="font-size:10px">Arte / Criação</label><input type="number" id="ct-tempo-arte" value="0" min="0" step="1" oninput="calcularTecidos();lembrarCamposCanecas()"></div>
+                <div><label class="lbl" style="font-size:10px">Produção / Impressão</label><input type="number" id="ct-tempo-impressao" value="0" min="0" step="1" oninput="calcularTecidos();lembrarCamposCanecas()"></div>
+                <div><label class="lbl" style="font-size:10px">Prensagem / Processo</label><input type="number" id="ct-tempo-prensagem" value="0" min="0" step="1" oninput="calcularTecidos();lembrarCamposCanecas()"></div>
+                <div><label class="lbl" style="font-size:10px">Acabamento</label><input type="number" id="ct-tempo-acabamento" value="0" min="0" step="1" oninput="calcularTecidos();lembrarCamposCanecas()"></div>
+                <div><label class="lbl" style="font-size:10px">Embalagem</label><input type="number" id="ct-tempo-embalagem" value="0" min="0" step="1" oninput="calcularTecidos();lembrarCamposCanecas()"></div>
               </div>
             </div>
             <div id="ct-mao-obra-breakdown" style="display:none;margin-top:10px;background:rgba(255,107,0,.06);border-radius:8px;padding:9px 12px;font-size:11px"></div>
@@ -4775,11 +4775,14 @@ function saveConfigTecidos(cfg){cfg.atualizadoEm=Date.now();return gravarSeguro(
 // Campos de produção do modo Canecas lembrados na config (chave da config → campo da tela)
 var CT_CAMPOS_CANECAS_CONFIG={
   custoProdutoCanecas:'ct-custo-produto',custoPapel:'ct-custo-papel',custoTinta:'ct-custo-tinta',custoFita:'ct-custo-fita',
-  perdaCanecas:'ct-perda-canecas',embCaixinha:'ct-emb-caixinha',embProtecao:'ct-emb-protecao',embCartao:'ct-emb-cartao',embBrinde:'ct-emb-brinde'
+  perdaCanecas:'ct-perda-canecas',embCaixinha:'ct-emb-caixinha',embProtecao:'ct-emb-protecao',embCartao:'ct-emb-cartao',embBrinde:'ct-emb-brinde',
+  tempoArte:'ct-tempo-arte',tempoImpressao:'ct-tempo-impressao',tempoPrensagem:'ct-tempo-prensagem',tempoAcabamento:'ct-tempo-acabamento',tempoEmbalagem:'ct-tempo-embalagem'
 };
 // Chamado no oninput desses campos: guarda o valor digitado como padrão para o próximo cálculo.
 // Não roda ao carregar um cálculo do histórico, para não trocar o padrão sem o usuário digitar.
+// Os tempos de Mão de Obra são campos comuns a todos os tipos: só são lembrados no modo Canecas.
 function lembrarCamposCanecas(){
+  if(val('ct-tipo-produto')!=='canecas')return;
   var cfg=getConfigTecidos(),mudou=false;
   Object.keys(CT_CAMPOS_CANECAS_CONFIG).forEach(function(chave){
     var el=ge(CT_CAMPOS_CANECAS_CONFIG[chave]);if(!el)return;
