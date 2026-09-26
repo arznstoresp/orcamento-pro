@@ -4838,8 +4838,17 @@ var CT_CUSTOS_EXTRAS_PADRAO=[
   {id:'frete_interno',label:'Frete interno',valor:0,ativo:false},
   {id:'outros',label:'Outros materiais',valor:0,ativo:false}
 ];
+// Canecas já tem o detalhamento próprio de embalagem (caixinha, plástico bolha, cartão, brinde),
+// então nesse tipo o item "Embalagem" dos Custos Diretos fica oculto e fora do total
+function custoDiretoOcultoNoTipo(id){
+  return id==='embalagem'&&val('ct-tipo-produto')==='canecas';
+}
 function renderCustosExtrasTecido(custos){
   var lista=custos||JSON.parse(JSON.stringify(CT_CUSTOS_EXTRAS_PADRAO));
+  // Garante todos os itens padrão (lista salva em Canecas pode ter vindo sem "Embalagem")
+  lista=CT_CUSTOS_EXTRAS_PADRAO.map(function(d){
+    return lista.find(function(c){return c.id===d.id;})||Object.assign({},d);
+  }).concat(lista.filter(function(c){return !CT_CUSTOS_EXTRAS_PADRAO.some(function(d){return d.id===c.id;});}));
   var container=ge('ct-custos-extras-lista');
   container.innerHTML='';
   lista.forEach(function(c){
@@ -4852,7 +4861,13 @@ function renderCustosExtrasTecido(custos){
       '<input type="number" value="'+(c.valor||0)+'" min="0" step="0.01" data-f="valor" oninput="calcularTecidos()">';
     container.appendChild(row);
   });
+  aplicarVisibilidadeCustosDiretos();
   atualizarTotalCustosDiretos();
+}
+function aplicarVisibilidadeCustosDiretos(){
+  Array.prototype.slice.call(document.querySelectorAll('#ct-custos-extras-lista > div')).forEach(function(row){
+    row.style.display=custoDiretoOcultoNoTipo(row.getAttribute('data-custo-id'))?'none':'';
+  });
 }
 // Total por peça dos Custos Diretos marcados, embaixo da grade. O frete interno é do pedido
 // inteiro, então entra dividido pela quantidade — o mesmo valor que vai para o custo da peça.
@@ -4867,8 +4882,11 @@ function atualizarTotalCustosDiretos(){
     nota.style.display=nota.textContent?'block':'none';
   }
 }
-function getCustosExtrasTecido(){
-  return Array.from(document.querySelectorAll('#ct-custos-extras-lista > div')).map(function(row){
+// todos=true inclui os itens ocultos no tipo atual (para salvar e não perder o valor lembrado)
+function getCustosExtrasTecido(todos){
+  return Array.from(document.querySelectorAll('#ct-custos-extras-lista > div')).filter(function(row){
+    return todos||!custoDiretoOcultoNoTipo(row.getAttribute('data-custo-id'));
+  }).map(function(row){
     var id=row.getAttribute('data-custo-id');
     var def=CT_CUSTOS_EXTRAS_PADRAO.find(function(c){return c.id===id;})||{label:id};
     var ativo=row.querySelector('[data-f="ativo"]').checked;
@@ -5078,6 +5096,7 @@ function setTipoProduto(tipo){
   if(cardArtes)cardArtes.style.display=(CT_TIPOS[tipo]&&CT_TIPOS[tipo].usaArtes)?'block':'none';
   if(tipo==='canecas')garantirMaquinasPadrao();
   if(tipo==='tecidos')garantirMaquinaPadraoTecidos();
+  aplicarVisibilidadeCustosDiretos();
   var valorPecaAnterior=parseFloat(val('ct-valor-peca'))||0;
   renderModuloInsumos(tipo);
   // Ao entrar no modo Canecas vindo de outro tipo, traz os valores de produção lembrados
@@ -5323,14 +5342,12 @@ function getCustoInsumoEspecifico(){
     var semEmbalagem=embalagem>0&&nivelAtacado!==null&&ge('ct-embalagem-sem-atacado')&&ge('ct-embalagem-sem-atacado').checked;
     var embalagemAplicada=semEmbalagem?0:embalagem;
     result.custoProcesso=comPerda+custoMaquinas+freteUn+embalagemAplicada;
-    var embDiretos=(getCustosExtrasTecido()||[]).find(function(c){return c.id==='embalagem'&&c.ativo&&c.valor>0;});
     result.breakdown='🧾 Consumíveis: <strong>'+fmt(somaConsumiveis)+'</strong> &nbsp;|&nbsp; '+
       '♻️ Perda ('+perdaCanecas+'%): <strong>+'+fmt(comPerda-somaConsumiveis)+'</strong> &nbsp;|&nbsp; '+
       '🛠️ Máquinas: <strong>'+fmt(custoMaquinas)+'</strong>'+
       (freteUn>0?' &nbsp;|&nbsp; 🚚 Frete: <strong>'+fmt(freteUn)+'</strong>':'')+
       (embalagem>0?' &nbsp;|&nbsp; 📦 Embalagem: '+(semEmbalagem?'<strong>não incluída</strong> (atacado a partir de '+nivelAtacado+' un.)':'<strong>'+fmt(embalagem)+'</strong>'):'')+
-      '<br>💰 Total por peça: <strong style="color:var(--brand)">'+fmt(result.custoProcesso)+'</strong>'+
-      (embalagem>0&&embDiretos?'<br><span style="color:var(--yellow)">⚠️ "Embalagem" também está preenchida em Custos Diretos — confira para não contar duas vezes.</span>':'');
+      '<br>💰 Total por peça: <strong style="color:var(--brand)">'+fmt(result.custoProcesso)+'</strong>';
     var cbk=ge('ct-canecas-breakdown');if(cbk){cbk.style.display='block';cbk.innerHTML=result.breakdown;}
   }else if(tipo==='adesivos'){
     var artes=getArtesTecido();
@@ -5688,7 +5705,7 @@ function salvarOrcamentoTecidos(){
     custoVinilM2:parseFloat(val('ct-custo-vinil-m2'))||0,custoPlotagem:parseFloat(val('ct-custo-plotagem'))||0,custoLaminacao:parseFloat(val('ct-custo-laminacao'))||0,
     custoFilamentoG:parseFloat(val('ct-custo-filamento-g'))||0,pesoPecaG:parseFloat(val('ct-peso-peca-g'))||0,tempoImpressao3d:parseFloat(val('ct-tempo-impressao-3d'))||0,custoHoraMaquina:parseFloat(val('ct-custo-hora-maquina'))||0,
     custoProcesso:parseFloat(val('ct-custo-processo'))||0,
-    artes:artes,custosExtras:getCustosExtrasTecido(),resultado:r,savedAt:new Date().toLocaleString('pt-BR')
+    artes:artes,custosExtras:getCustosExtrasTecido(true),resultado:r,savedAt:new Date().toLocaleString('pt-BR')
   };
   var hist=getHistTecidos();
   if(editId){var idx=hist.findIndex(function(h){return h.id===editId;});if(idx>=0)hist[idx]=orcamento;else hist.unshift(orcamento);}
