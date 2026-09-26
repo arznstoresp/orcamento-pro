@@ -4841,9 +4841,15 @@ var CT_CUSTOS_EXTRAS_PADRAO=[
   {id:'outros',label:'Outros materiais',valor:0,ativo:false}
 ];
 // Canecas já tem o detalhamento próprio de embalagem (caixinha, plástico bolha, cartão, brinde),
-// então nesse tipo o item "Embalagem" dos Custos Diretos fica oculto e fora do total
+// então nesse tipo o item "Embalagem" dos Custos Diretos fica oculto e fora do total.
+// "Frete interno" some nos tipos que já têm campo de frete na Produção (seria contado em dobro);
+// Adesivos e Impressão 3D não têm, então lá ele continua.
+var CT_TIPOS_COM_FRETE_PROPRIO=['tecidos','canecas','generico'];
 function custoDiretoOcultoNoTipo(id){
-  return id==='embalagem'&&val('ct-tipo-produto')==='canecas';
+  var tipo=val('ct-tipo-produto')||'tecidos';
+  if(id==='embalagem')return tipo==='canecas';
+  if(id==='frete_interno')return CT_TIPOS_COM_FRETE_PROPRIO.indexOf(tipo)>=0;
+  return false;
 }
 function renderCustosExtrasTecido(custos){
   var lista=custos||JSON.parse(JSON.stringify(CT_CUSTOS_EXTRAS_PADRAO));
