@@ -2746,7 +2746,20 @@ function recalc(){
 // CATÁLOGO
 // ═══════════════════════════════════════════════════
 function getProdutos(){try{return JSON.parse(localStorage.getItem('orcpro_produtos')||'[]');}catch(e){return[];}}
-function saveProdutos(arr){return gravarSeguro('orcpro_produtos',JSON.stringify(arr),'produtos');}
+function saveProdutos(arr){carimbarRegistrosAlterados(arr,'orcpro_produtos');return gravarSeguro('orcpro_produtos',JSON.stringify(arr),'produtos');}
+// Marca savedAt nos registros novos ou com conteúdo diferente do que está gravado, para o merge do Drive
+// (fundirRegistros) manter a versão mais recente. Feito aqui para cobrir todos os pontos que gravam a lista.
+function carimbarRegistrosAlterados(arr,chave){
+  var antes={};
+  try{JSON.parse(localStorage.getItem(chave)||'[]').forEach(function(r){if(r&&r.id)antes[r.id]=r;});}catch(e){}
+  function semSavedAt(r){return JSON.stringify(Object.assign({},r,{savedAt:undefined}));}
+  var agora=new Date().toISOString();
+  (arr||[]).forEach(function(r){
+    if(!r||!r.id)return;
+    var a=antes[r.id];
+    if(!a||semSavedAt(a)!==semSavedAt(r))r.savedAt=agora;
+  });
+}
 
 // ── SKU automático no formato CATEGORIA-NÚMERO (ex: CAM-001) ──
 function prefixoSku(categoria){
@@ -3667,7 +3680,7 @@ function importProdExcel(e){
 // CLIENTES
 // ═══════════════════════════════════════════════════
 function getClientes(){try{return JSON.parse(localStorage.getItem('orcpro_clientes')||'[]');}catch(e){return[];}}
-function saveClientes(arr){return gravarSeguro('orcpro_clientes',JSON.stringify(arr),'clientes');}
+function saveClientes(arr){carimbarRegistrosAlterados(arr,'orcpro_clientes');return gravarSeguro('orcpro_clientes',JSON.stringify(arr),'clientes');}
 
 function autoRegistrarCliente(){
   var nome=val('cli-nome');if(!nome)return;
