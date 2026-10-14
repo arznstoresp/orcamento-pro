@@ -973,9 +973,11 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
               <option value="sem_preco">🚫 Sem preço (visual)</option>
             </select>
             <button class="btn btn-brand btn-sm" onclick="exportarCatalogoPDF()">📄 Exportar PDF</button>
+            <button class="btn btn-brand btn-sm" id="btn-sync-xbz" onclick="sincronizarXBZ()" style="background:linear-gradient(135deg,#ff6b00,#e65c00)" title="Importar produtos do catálogo XBZ Brindes para o Orçamento Pro">🔄 Sincronizar XBZ</button>
           </span>
         </div>
         <p style="font-size:12px;color:rgba(255,255,255,.45);margin-bottom:0;line-height:1.5">Atualiza automaticamente conforme você cadastra produtos. Para ocultar um item daqui, desmarque "Exibir no Catálogo" ao editar o produto.</p>
+        <div id="xbz-sync-status" style="display:none;margin-top:8px;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:500"></div>
       </div>
       <div id="catalogo-conteudo"></div>
       <div id="catalogo-empty" style="text-align:center;padding:40px;color:rgba(255,255,255,.4);font-size:13px;display:none">Nenhum produto disponível para o catálogo ainda. Cadastre produtos em "Produtos" e marque "Exibir no Catálogo".</div>
@@ -3071,6 +3073,115 @@ function renderCatalogoProfissional(){
       (lista.length?'<div class="cat-grid">'+lista.map(function(p){return montarCardProdutoCatalogo(p,modo);}).join('')+'</div>':'')+
     '</div>';
   }).join('');
+}
+
+/* ══════════════════════════════════════════════════════
+   SINCRONIZAÇÃO XBZ — importa produtos_xbz + precos_xbz
+   ══════════════════════════════════════════════════════ */
+var _XBZ_URL='https://edztcoebgllqrkrkormc.supabase.co';
+var _XBZ_KEY='sb_publishable_s6MSdF0rhidpCpddqTzNRg_1ajwnxIc';
+
+function _xbzFetch(path){
+  return fetch(_XBZ_URL+'/rest/v1/'+path,{
+    headers:{apikey:_XBZ_KEY,Authorization:'Bearer '+_XBZ_KEY,'Content-Type':'application/json'}
+  }).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});
+}
+
+function _xbzStatus(msg,tipo){
+  var el=document.getElementById('xbz-sync-status');if(!el)return;
+  el.style.display=msg?'block':'none';
+  el.style.background=tipo==='ok'?'rgba(34,197,94,.15)':tipo==='err'?'rgba(239,68,68,.15)':'rgba(255,107,0,.12)';
+  el.style.color=tipo==='ok'?'#4ade80':tipo==='err'?'#f87171':'#ffb347';
+  el.style.border='1px solid '+(tipo==='ok'?'rgba(74,222,128,.3)':tipo==='err'?'rgba(248,113,113,.3)':'rgba(255,107,0,.3)');
+  el.textContent=msg;
+}
+
+async function sincronizarXBZ(){
+  var btn=document.getElementById('btn-sync-xbz');
+  if(btn){btn.disabled=true;btn.textContent='⏳ Sincronizando...';}
+  _xbzStatus('Buscando produtos do catálogo XBZ…','info');
+  try{
+    /* 1. Buscar produtos validados */
+    var prods=await _xbzFetch('produtos_xbz?select=codigo_xbz,nome,sku,modelo,categoria,descricao,imagem_url,link_fornecedor,status&status=eq.validado&limit=1000');
+    /* 2. Buscar preços */
+    var precos=await _xbzFetch('precos_xbz?select=codigo_xbz,codigo_variante,sku,disponivel,preco,preco_texto,venda_minima&order=preco.asc&limit=5000');
+    /* 3. Montar mapa de preços por codigo_xbz */
+    var precoMap={};
+    (precos||[]).forEach(function(v){
+      var c=String(v.codigo_xbz||'').trim();if(!c)return;
+      if(!precoMap[c])precoMap[c]=[];
+      precoMap[c].push(v);
+    });
+    /* 4. Mesclar com produtos existentes (nunca sobrescreve dados editados manualmente) */
+    var existing=getProdutos();
+    var existingXbzCodes={};
+    existing.forEach(function(p){if(p._xbzCodigo)existingXbzCodes[p._xbzCodigo]=p.id;});
+    var novos=0,atualizados=0;
+    (prods||[]).forEach(function(p){
+      var code=String(p.codigo_xbz||'').trim();if(!code)return;
+      /* Calcular melhor preço disponível */
+      var variacoes=(precoMap[code]||[]);
+      var precoBase=0,precoTexto='',vendaMin=1;
+      variacoes.forEach(function(v){
+        var pr=parseFloat(v.preco)||0;
+        if(pr>0&&(precoBase===0||pr<precoBase)){precoBase=pr;precoTexto=v.preco_texto||'';vendaMin=parseInt(v.venda_minima)||1;}
+      });
+      var disponivel=variacoes.length>0&&variacoes.some(function(v){return(v.disponivel||'').toUpperCase()==='SIM'&&parseFloat(v.preco)>0;});
+      var statusProd=disponivel?'disponivel':'sob_consulta';
+      if(existingXbzCodes[code]){
+        /* Produto já existe — atualizar apenas campos que vêm do fornecedor */
+        var idx=existing.findIndex(function(x){return x.id===existingXbzCodes[code];});
+        if(idx>=0){
+          existing[idx].imagem=existing[idx].imagem||p.imagem_url||'';
+          existing[idx].linkFornecedor=p.link_fornecedor||'';
+          existing[idx]._xbzStatus=statusProd;
+          if(precoBase>0&&!existing[idx]._precoEditado) existing[idx].precoVarejo=precoBase.toFixed(2);
+          atualizados++;
+        }
+      } else {
+        /* Produto novo — criar entrada */
+        var safeId='xbz_'+code.replace(/[^a-zA-Z0-9_-]/g,'_')+'_'+Date.now()+'_'+novos;
+        var variacoesArr=variacoes.map(function(v){
+          return{id:'v_'+String(v.codigo_variante||'').replace(/[^a-zA-Z0-9_-]/g,'_'),
+            nome:v.sku||v.codigo_variante||'',
+            preco:parseFloat(v.preco)||0,
+            precoTexto:v.preco_texto||'',
+            vendaMinima:parseInt(v.venda_minima)||1,
+            disponivel:(v.disponivel||'').toUpperCase()==='SIM',
+            estoque:0};
+        });
+        existing.push({
+          id:safeId,
+          nome:p.nome||code,
+          sku:p.sku||code,
+          cat:p.categoria||p.modelo||'XBZ Brindes',
+          desc:p.descricao||'',
+          imagem:p.imagem_url||'',
+          linkFornecedor:p.link_fornecedor||'',
+          precoVarejo:precoBase>0?precoBase.toFixed(2):'',
+          precoAtacado:'',
+          unidade:'un',
+          controlaEstoque:false,
+          exibirCatalogo:true,
+          variacoes:variacoesArr,
+          _xbzCodigo:code,
+          _xbzStatus:statusProd,
+          _origem:'xbz'
+        });
+        existingXbzCodes[code]=safeId;
+        novos++;
+      }
+    });
+    saveProdutos(existing);
+    if(typeof renderCat==='function')renderCat();
+    if(typeof renderCatalogoProfissional==='function')renderCatalogoProfissional();
+    _xbzStatus('✅ Sincronizado! '+novos+' produto(s) novo(s) adicionado(s), '+atualizados+' atualizado(s).','ok');
+  }catch(err){
+    console.error('[Sync XBZ]',err);
+    _xbzStatus('❌ Erro ao sincronizar: '+(err.message||'falha de conexão. Tente novamente.'),'err');
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='🔄 Sincronizar XBZ';}
+  }
 }
 
 function exportarCatalogoPDF(){
