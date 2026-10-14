@@ -292,48 +292,48 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
 .dash-card{animation:fadeUp .3s ease both}
 .dash-card:nth-child(1){animation-delay:.04s}.dash-card:nth-child(2){animation-delay:.08s}.dash-card:nth-child(3){animation-delay:.12s}.dash-card:nth-child(4){animation-delay:.16s}
 
-/* ═══════════════════════════════════════════════════
-   CATÁLOGO PROFISSIONAL — vitrine assimétrica
-   ═══════════════════════════════════════════════════ */
-.cat-capa{background:linear-gradient(135deg,var(--dark-card2),var(--dark-surface));border:1px solid var(--dark-border2);border-radius:16px;padding:32px 28px;margin-bottom:22px;position:relative;overflow:hidden}
-.cat-capa::before{content:'';position:absolute;top:-40%;right:-10%;width:300px;height:300px;background:radial-gradient(circle,var(--brand-glow),transparent 70%);pointer-events:none}
-.cat-capa-marca{font-size:12px;font-weight:700;color:var(--brand);text-transform:uppercase;letter-spacing:3px;margin-bottom:8px}
-.cat-capa-titulo{font-size:32px;font-weight:800;color:#F5F5FA;font-family:Georgia,'Times New Roman',serif;line-height:1.1;margin-bottom:6px}
-.cat-capa-slogan{font-size:14px;color:rgba(255,255,255,.55);font-style:italic;margin-bottom:12px;max-width:70%}
-.cat-capa-meta{font-size:11px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1.5px}
-
-.cat-secao{margin-bottom:32px}
-.cat-secao-head{display:flex;align-items:center;gap:14px;margin-bottom:16px}
-.cat-secao-titulo{font-size:20px;font-weight:800;color:#F0F0F5;font-family:Georgia,serif;white-space:nowrap}
-.cat-secao-linha{flex:1;height:1px;background:linear-gradient(90deg,var(--brand-glow),transparent)}
-.cat-secao-count{font-size:11px;font-weight:700;color:var(--brand);background:var(--brand-glow);width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-
-/* Card destaque — grande, horizontal no desktop */
-.cat-destaque{display:grid;grid-template-columns:1.1fr 1fr;background:var(--dark-card2);border:1px solid var(--dark-border2);border-radius:14px;overflow:hidden;margin-bottom:14px;min-height:280px;transition:transform .2s,box-shadow .2s}
-.cat-destaque:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(0,0,0,.35)}
-.cat-destaque-foto{position:relative;min-height:280px;background:#000}
-.cat-destaque-badge{position:absolute;top:14px;left:14px;background:var(--brand);color:#fff;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:5px 12px;border-radius:20px;box-shadow:0 2px 12px var(--brand-glow)}
-.cat-destaque-info{padding:26px 28px;display:flex;flex-direction:column}
-.cat-eyebrow{font-size:11px;font-weight:700;color:var(--brand);text-transform:uppercase;letter-spacing:2px;margin-bottom:8px}
-.cat-destaque-nome{font-size:24px;font-weight:800;color:#F5F5FA;line-height:1.2;font-family:Georgia,serif;margin-bottom:8px}
-.cat-destaque-desc{font-size:13px;color:rgba(255,255,255,.55);line-height:1.6;margin-top:4px}
-
-/* Grid dos demais produtos */
-.cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
-.cat-card{background:var(--dark-card2);border:1px solid var(--dark-border2);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;transition:transform .2s,box-shadow .2s,border-color .2s}
-.cat-card:hover{transform:translateY(-3px);box-shadow:0 10px 28px rgba(0,0,0,.3);border-color:var(--brand-glow)}
-.cat-card-foto{width:100%;height:160px;overflow:hidden;background:#000}
-.cat-card-info{padding:12px 14px;display:flex;flex-direction:column;flex:1}
-.cat-card-nome{font-size:14px;font-weight:700;color:#F0F0F5;line-height:1.3;margin-bottom:4px}
-.cat-card-desc{font-size:11px;color:rgba(255,255,255,.45);line-height:1.5;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+/* ══════════════════════════════════════════════════════
+   CATÁLOGO PROFISSIONAL — reformulado
+   ══════════════════════════════════════════════════════ */
+.cat-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 18px;background:var(--dark-card2);border:1px solid var(--dark-border2);border-radius:14px;margin-bottom:18px}
+.cat-search-wrap{position:relative;flex:1;min-width:160px}
+.cat-search-ico{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:15px;height:15px;opacity:.4;pointer-events:none}
+.cat-search-input{width:100%;background:var(--dark-surface);border:1px solid var(--dark-border);border-radius:9px;padding:8px 10px 8px 34px;font-size:13px;color:#E8E8F0;outline:none;transition:border-color .15s}
+.cat-search-input:focus{border-color:var(--brand)}
+.cat-cats-scroll{display:flex;gap:6px;overflow-x:auto;flex-shrink:0;max-width:100%;padding-bottom:2px;scrollbar-width:none}
+.cat-cats-scroll::-webkit-scrollbar{display:none}
+.cat-pill{padding:5px 13px;border-radius:20px;border:1px solid var(--dark-border2);background:transparent;color:rgba(255,255,255,.55);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s,border-color .15s}
+.cat-pill.ativo,.cat-pill:focus{background:var(--brand);color:#fff;border-color:var(--brand);outline:none}
+.cat-pill:hover:not(.ativo){background:rgba(255,107,0,.12);border-color:rgba(255,107,0,.4);color:#ffb347}
+.cat-stats-bar{display:flex;gap:24px;flex-wrap:wrap;padding:12px 18px;background:linear-gradient(135deg,rgba(255,107,0,.08),rgba(255,107,0,.03));border:1px solid rgba(255,107,0,.18);border-radius:12px;margin-bottom:16px}
+.cat-stat{display:flex;flex-direction:column;gap:1px}
+.cat-stat-val{font-size:22px;font-weight:800;color:var(--brand);line-height:1;font-variant-numeric:tabular-nums}
+.cat-stat-lbl{font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.9px;font-weight:600}
+.cat-sec-head{display:flex;align-items:center;gap:12px;margin-bottom:14px;margin-top:26px}
+.cat-sec-titulo{font-size:13px;font-weight:800;color:#F0F0F5;white-space:nowrap;text-transform:uppercase;letter-spacing:.8px}
+.cat-sec-linha{flex:1;height:1px;background:linear-gradient(90deg,rgba(255,107,0,.35),transparent)}
+.cat-sec-count{background:rgba(255,107,0,.14);color:var(--brand);font-size:10px;font-weight:800;padding:2px 9px;border-radius:10px;flex-shrink:0;border:1px solid rgba(255,107,0,.2)}
+.cat-grade{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:14px}
+.cat2-card{background:var(--dark-card2);border:1px solid var(--dark-border2);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;transition:transform .18s,box-shadow .18s,border-color .18s;cursor:default}
+.cat2-card:hover{transform:translateY(-4px);box-shadow:0 14px 36px rgba(0,0,0,.42);border-color:rgba(255,107,0,.4)}
+.cat2-foto-wrap{position:relative;width:100%;aspect-ratio:1/1;background:var(--dark-surface);overflow:hidden;flex-shrink:0}
+.cat2-foto-wrap img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .3s}
+.cat2-card:hover .cat2-foto-wrap img{transform:scale(1.06)}
+.cat2-foto-ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:40px;background:linear-gradient(135deg,var(--dark-surface),var(--dark-card2))}
+.cat2-cat-badge{position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);color:rgba(255,255,255,.8);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;padding:3px 9px;border-radius:12px;border:1px solid rgba(255,255,255,.08);max-width:calc(100% - 16px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cat2-info{padding:12px 13px;display:flex;flex-direction:column;flex:1;gap:2px}
+.cat2-nome{font-size:13px;font-weight:700;color:#EEEEF5;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.cat2-desc{font-size:11px;color:rgba(255,255,255,.4);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.cat2-variacao{font-size:10px;color:var(--brand-l)}
+.cat2-preco-wrap{margin-top:auto;padding-top:9px;border-top:1px solid var(--dark-border);display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.cat2-preco{font-size:17px;font-weight:800;color:var(--brand);line-height:1;font-variant-numeric:tabular-nums}
+.cat2-preco-label{font-size:9px;text-transform:uppercase;letter-spacing:.7px;color:rgba(255,255,255,.3);font-weight:600}
+.cat2-preco-sec{font-size:12px;font-weight:700;color:rgba(255,107,0,.65);font-variant-numeric:tabular-nums}
+.cat2-sem-preco{font-size:11px;color:rgba(255,255,255,.3);font-style:italic}
+/* legado — mantidos para precoCatalogoHtml existente */
 .cat-variacao{font-size:10px;color:var(--brand-l);margin:2px 0}
-
-@media (max-width:720px){
-  .cat-destaque{grid-template-columns:1fr}
-  .cat-destaque-foto{min-height:200px;height:200px}
-  .cat-capa-slogan{max-width:100%}
-  .cat-capa-titulo{font-size:26px}
-}
+.cat-eyebrow{font-size:11px;font-weight:700;color:var(--brand);text-transform:uppercase;letter-spacing:2px;margin-bottom:8px}
+@media(max-width:600px){.cat-grade{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}.cat-toolbar{flex-direction:column;align-items:stretch}.cat-cats-scroll{max-width:100%}}
 
 /* ═══════════════════════════════════════════════════
    BOTÃO DE AÇÃO FLUTUANTE (FAB) — só mobile
@@ -963,25 +963,34 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
 
     <!-- CATÁLOGO PROFISSIONAL -->
     <div id="view-catalogo" style="display:none;min-height:100%">
-      <div class="card">
-        <div class="card-title">
-          Catálogo Profissional
-          <span style="margin-left:auto;display:flex;gap:7px;align-items:center;flex-wrap:wrap">
-            <select id="catalogo-modo-preco" onchange="renderCatalogoProfissional()" style="max-width:170px">
-              <option value="varejo">💰 Preço Varejo</option>
-              <option value="atacado">📦 Preço Atacado</option>
-              <option value="ambos">💰📦 Varejo + Atacado</option>
-              <option value="sem_preco">🚫 Sem preço (visual)</option>
-            </select>
-            <button class="btn btn-brand btn-sm" onclick="exportarCatalogoPDF()">📄 Exportar PDF</button>
-            <button class="btn btn-brand btn-sm" id="btn-sync-xbz" onclick="sincronizarXBZ()" style="background:linear-gradient(135deg,#ff6b00,#e65c00)" title="Importar produtos do catálogo XBZ Brindes para o Orçamento Pro">🔄 Sincronizar XBZ</button>
-          </span>
+      <!-- Toolbar: busca + filtros + ações -->
+      <div class="cat-toolbar">
+        <div class="cat-search-wrap">
+          <svg class="cat-search-ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="13.5" y1="13.5" x2="18" y2="18"/></svg>
+          <input id="cat-pro-search" class="cat-search-input" type="search" placeholder="Buscar produto..." autocomplete="off" oninput="renderCatalogoProfissional()">
         </div>
-        <p style="font-size:12px;color:rgba(255,255,255,.45);margin-bottom:0;line-height:1.5">Atualiza automaticamente conforme você cadastra produtos. Para ocultar um item daqui, desmarque "Exibir no Catálogo" ao editar o produto.</p>
-        <div id="xbz-sync-status" style="display:none;margin-top:8px;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:500"></div>
+        <div class="cat-cats-scroll" id="cat-pro-pills">
+          <button class="cat-pill ativo" data-cat="" onclick="_catProFiltro(this)">Todos</button>
+        </div>
+        <select id="catalogo-modo-preco" onchange="renderCatalogoProfissional()" style="background:var(--dark-surface);border:1px solid var(--dark-border);border-radius:9px;padding:7px 10px;font-size:12px;color:#E8E8F0;flex-shrink:0">
+          <option value="varejo">💰 Varejo</option>
+          <option value="atacado">📦 Atacado</option>
+          <option value="ambos">💰📦 Ambos</option>
+          <option value="sem_preco">🚫 Sem preço</option>
+        </select>
+        <button class="btn btn-brand btn-sm" onclick="exportarCatalogoPDF()" style="flex-shrink:0">📄 PDF</button>
+        <button class="btn btn-brand btn-sm" id="btn-sync-xbz" onclick="sincronizarXBZ()" style="background:linear-gradient(135deg,#ff6b00,#e65c00);flex-shrink:0" title="Sincronizar produtos XBZ Brindes">🔄 XBZ</button>
       </div>
+      <div id="xbz-sync-status" style="display:none;margin-bottom:12px;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:500"></div>
+      <!-- Stats -->
+      <div id="cat-pro-stats" class="cat-stats-bar" style="display:none"></div>
+      <!-- Conteúdo -->
       <div id="catalogo-conteudo"></div>
-      <div id="catalogo-empty" style="text-align:center;padding:40px;color:rgba(255,255,255,.4);font-size:13px;display:none">Nenhum produto disponível para o catálogo ainda. Cadastre produtos em "Produtos" e marque "Exibir no Catálogo".</div>
+      <div id="catalogo-empty" style="text-align:center;padding:50px 20px;color:rgba(255,255,255,.35);font-size:13px;display:none">
+        <div style="font-size:40px;margin-bottom:12px">📦</div>
+        <div style="font-weight:700;font-size:15px;margin-bottom:6px;color:rgba(255,255,255,.5)">Nenhum produto no catálogo</div>
+        Cadastre produtos em <strong style="color:var(--brand)">Produtos</strong> e marque <em>"Exibir no Catálogo"</em>.
+      </div>
     </div>
 
     <!-- GERADOR DE CATÁLOGO -->
@@ -3032,76 +3041,133 @@ function precoCatalogoHtml(p,modo,grande){
 }
 
 // Card destaque — maior, produto em evidência (primeiro de cada categoria)
-function montarCardDestaque(p,modo){
-  var foto=p.foto?'<img src="'+p.foto+'" style="width:100%;height:100%;object-fit:cover" loading="lazy">':placeholderProdutoCatalogo(p,280);
+/* ── helpers catálogo reformulado ────────────── */
+function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function _catProFiltro(btn){
+  document.querySelectorAll('#cat-pro-pills .cat-pill').forEach(function(b){b.classList.remove('ativo');});
+  btn.classList.add('ativo');
+  renderCatalogoProfissional();
+}
+
+function _catProAtivoPill(){
+  var btn=document.querySelector('#cat-pro-pills .cat-pill.ativo');
+  return btn?btn.dataset.cat:'';
+}
+
+function _cat2FotoHtml(p){
+  if(p.foto)return'<img src="'+p.foto+'" loading="lazy" alt="'+escHtml(p.nome||'')+'">';
+  var emoji='📦';
+  var cat=(p.cat||'').toLowerCase();
+  if(cat.includes('camiseta')||cat.includes('camisa'))emoji='👕';
+  else if(cat.includes('caneca')||cat.includes('xícar'))emoji='☕';
+  else if(cat.includes('brinde'))emoji='🎁';
+  else if(cat.includes('boné')||cat.includes('bone'))emoji='🧢';
+  else if(cat.includes('adesivo'))emoji='🏷️';
+  else if(cat.includes('squeeze')||cat.includes('garrafa'))emoji='🧴';
+  return'<div class="cat2-foto-ph">'+emoji+'</div>';
+}
+
+function _cat2PrecoHtml(p,modo){
+  if(modo==='sem_preco')return'';
+  var varejo=parseFloat(p.precoVarejo||p.varejo||0);
+  var atacado=parseFloat(p.precoAtacado||p.atacado||0);
+  var minAt=parseInt(p.minAtacado||p.qtdMinAtacado||0)||2;
+  if(modo==='varejo'){
+    if(!varejo)return'<span class="cat2-sem-preco">consulte</span>';
+    return'<span class="cat2-preco">'+fmt(varejo)+'</span>';
+  }
+  if(modo==='atacado'){
+    if(!atacado)return'<span class="cat2-sem-preco">consulte</span>';
+    return'<span class="cat2-preco">'+fmt(atacado)+'</span><span class="cat2-preco-label">'+minAt+'+ un.</span>';
+  }
+  if(modo==='ambos'){
+    var html='';
+    if(varejo)html+='<span class="cat2-preco-label">VRJ</span><span class="cat2-preco">'+fmt(varejo)+'</span>';
+    if(atacado)html+='<span class="cat2-preco-label" style="margin-left:6px">ATC</span><span class="cat2-preco-sec">'+fmt(atacado)+'</span>';
+    return html||'<span class="cat2-sem-preco">consulte</span>';
+  }
+  return'';
+}
+
+function montarCardProdutoNovo(p,modo){
   var variacaoTxt=formatarVariacaoProduto(p);
-  return'<div class="cat-destaque">'+
-    '<div class="cat-destaque-foto">'+foto+'<div class="cat-destaque-badge">Destaque</div></div>'+
-    '<div class="cat-destaque-info">'+
-      (p.cat?'<div class="cat-eyebrow">'+p.cat+'</div>':'')+
-      '<div class="cat-destaque-nome">'+p.nome+'</div>'+
-      (variacaoTxt?'<div class="cat-variacao">🎨 '+variacaoTxt+'</div>':'')+
-      (p.desc?'<div class="cat-destaque-desc">'+p.desc+'</div>':'')+
-      '<div style="margin-top:auto;padding-top:12px">'+precoCatalogoHtml(p,modo,true)+'</div>'+
+  var precoHtml=_cat2PrecoHtml(p,modo);
+  return'<div class="cat2-card">'+
+    '<div class="cat2-foto-wrap">'+_cat2FotoHtml(p)+(p.cat?'<div class="cat2-cat-badge">'+escHtml(p.cat)+'</div>':'')+
+    '</div>'+
+    '<div class="cat2-info">'+
+      '<div class="cat2-nome">'+escHtml(p.nome||'')+'</div>'+
+      (variacaoTxt?'<div class="cat2-variacao">🎨 '+escHtml(variacaoTxt)+'</div>':'')+
+      (p.desc?'<div class="cat2-desc">'+escHtml(p.desc)+'</div>':'')+
+      (precoHtml?'<div class="cat2-preco-wrap">'+precoHtml+'</div>':'')+
     '</div>'+
   '</div>';
 }
 
-function montarCardProdutoCatalogo(p,modo){
-  var foto=p.foto?'<img src="'+p.foto+'" style="width:100%;height:160px;object-fit:cover" loading="lazy">':placeholderProdutoCatalogo(p,160);
-  var variacaoTxt=formatarVariacaoProduto(p);
-  return'<div class="cat-card">'+
-    '<div class="cat-card-foto">'+foto+'</div>'+
-    '<div class="cat-card-info">'+
-      '<div class="cat-card-nome">'+p.nome+'</div>'+
-      (variacaoTxt?'<div class="cat-variacao">🎨 '+variacaoTxt+'</div>':'')+
-      (p.desc?'<div class="cat-card-desc">'+p.desc+'</div>':'')+
-      '<div style="margin-top:auto;padding-top:8px">'+precoCatalogoHtml(p,modo,false)+'</div>'+
-    '</div>'+
-  '</div>';
-}
+/* mantidos para compatibilidade com eventuals chamadas antigas */
+function montarCardDestaque(p,modo){return montarCardProdutoNovo(p,modo);}
+function montarCardProdutoCatalogo(p,modo){return montarCardProdutoNovo(p,modo);}
 
 function renderCatalogoProfissional(){
   var produtos=getProdutosCatalogavel();
   var modo=val('catalogo-modo-preco')||'varejo';
+  var busca=(document.getElementById('cat-pro-search')&&document.getElementById('cat-pro-search').value||'').toLowerCase().trim();
+  var catAtiva=_catProAtivoPill();
   var conteudoEl=ge('catalogo-conteudo'),emptyEl=ge('catalogo-empty');
+  var statsEl=ge('cat-pro-stats');
 
-  if(!produtos.length){
-    conteudoEl.innerHTML='';if(emptyEl)emptyEl.style.display='block';return;
+  /* Atualizar pills de categoria */
+  var pillsEl=ge('cat-pro-pills');
+  if(pillsEl){
+    var cats=[...new Set(produtos.map(function(p){return(p.cat||'Sem categoria').trim();}).filter(Boolean))].sort();
+    var pillAtual=_catProAtivoPill();
+    pillsEl.innerHTML='<button class="cat-pill'+(pillAtual===''?' ativo':'')+'" data-cat="" onclick="_catProFiltro(this)">Todos</button>'+
+      cats.map(function(c){return'<button class="cat-pill'+(pillAtual===c?' ativo':'')+'" data-cat="'+escHtml(c)+'" onclick="_catProFiltro(this)">'+escHtml(c)+'</button>';}).join('');
+  }
+
+  /* Filtrar */
+  var filtrados=produtos.filter(function(p){
+    if(catAtiva&&(p.cat||'Sem categoria').trim()!==catAtiva)return false;
+    if(busca){var txt=(p.nome+' '+(p.desc||'')+' '+(p.sku||'')).toLowerCase();if(!txt.includes(busca))return false;}
+    return true;
+  });
+
+  if(!filtrados.length){
+    if(conteudoEl)conteudoEl.innerHTML='';
+    if(emptyEl)emptyEl.style.display='block';
+    if(statsEl)statsEl.style.display='none';
+    return;
   }
   if(emptyEl)emptyEl.style.display='none';
 
-  var grupos=agruparProdutosPorCategoria(produtos);
-  var cfg=getCfg();
+  /* Stats bar */
+  if(statsEl){
+    var grupos=agruparProdutosPorCategoria(filtrados);
+    var cfg=getCfg();
+    statsEl.style.display='flex';
+    statsEl.innerHTML=
+      '<div class="cat-stat"><div class="cat-stat-val">'+filtrados.length+'</div><div class="cat-stat-lbl">Produtos</div></div>'+
+      '<div class="cat-stat"><div class="cat-stat-val">'+grupos.length+'</div><div class="cat-stat-lbl">Categorias</div></div>'+
+      (cfg.nome?'<div class="cat-stat" style="margin-left:auto;text-align:right"><div class="cat-stat-val" style="font-size:14px;color:rgba(255,255,255,.7)">'+escHtml(cfg.nome)+'</div><div class="cat-stat-lbl">Catálogo de Produtos</div></div>':'');
+  }
 
-  // Cabeçalho editorial do catálogo (aparece só na tela; no PDF tem o seu próprio)
-  var totalProdutos=produtos.length;
-  var capa='<div class="cat-capa">'+
-    '<div class="cat-capa-marca">'+(cfg.nome||'Catálogo')+'</div>'+
-    '<div class="cat-capa-titulo">Catálogo de Produtos</div>'+
-    (cfg.slogan?'<div class="cat-capa-slogan">'+cfg.slogan+'</div>':'')+
-    '<div class="cat-capa-meta">'+totalProdutos+' produtos · '+grupos.length+' categorias</div>'+
-  '</div>';
-
-  conteudoEl.innerHTML=capa+grupos.map(function(g){
-    var lista=g.produtos.slice();
-    // O primeiro produto (preferindo um COM foto) vira destaque
-    var idxDestaque=lista.findIndex(function(p){return p.foto;});
-    if(idxDestaque<0)idxDestaque=0;
-    var destaque=lista.splice(idxDestaque,1)[0];
-
-    return'<div class="cat-secao">'+
-      '<div class="cat-secao-head">'+
-        '<span class="cat-secao-titulo">'+g.categoria+'</span>'+
-        '<span class="cat-secao-linha"></span>'+
-        '<span class="cat-secao-count">'+g.produtos.length+'</span>'+
+  /* Renderizar por categoria */
+  var grupos2=agruparProdutosPorCategoria(filtrados);
+  conteudoEl.innerHTML=grupos2.map(function(g){
+    return'<div>'+
+      '<div class="cat-sec-head">'+
+        '<span class="cat-sec-titulo">'+escHtml(g.categoria)+'</span>'+
+        '<span class="cat-sec-linha"></span>'+
+        '<span class="cat-sec-count">'+g.produtos.length+'</span>'+
       '</div>'+
-      montarCardDestaque(destaque,modo)+
-      (lista.length?'<div class="cat-grid">'+lista.map(function(p){return montarCardProdutoCatalogo(p,modo);}).join('')+'</div>':'')+
+      '<div class="cat-grade">'+g.produtos.map(function(p){return montarCardProdutoNovo(p,modo);}).join('')+'</div>'+
     '</div>';
   }).join('');
 }
 
+/* ══════════════════════════════════════════════════════
+   SINCRONIZAÇÃO XBZ — importa produtos_xbz + precos_xbz
+   ══════════════════════════════════════════════════════ */
 /* ══════════════════════════════════════════════════════
    SINCRONIZAÇÃO XBZ — importa produtos_xbz + precos_xbz
    ══════════════════════════════════════════════════════ */
@@ -3213,73 +3279,125 @@ async function sincronizarXBZ(){
 
 function exportarCatalogoPDF(){
   var produtos=getProdutosCatalogavel();
-  if(!produtos.length){alert('Nenhum produto disponível para exportar. Cadastre produtos e marque "Exibir no Catálogo".');return;}
-
+  if(!produtos.length){alert('Nenhum produto no catálogo. Cadastre produtos e marque "Exibir no Catálogo".');return;}
   var modo=val('catalogo-modo-preco')||'varejo';
   var cfg=getCfg();
   var logo=localStorage.getItem('orcpro_logo')||'';
   var grupos=agruparProdutosPorCategoria(produtos);
-
-  var logoHtml=logo?'<img src="'+logo+'" style="width:52px;height:52px;object-fit:cover;border-radius:10px">':'<div style="width:52px;height:52px;background:rgba(255,107,0,.15);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px">📖</div>';
+  var dataHoje=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+  var logoHtml=logo
+    ?'<img src="'+logo+'" style="height:52px;max-width:90px;object-fit:contain;border-radius:8px">'
+    :'<div style="width:50px;height:50px;background:rgba(255,107,0,.15);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:24px">📦</div>';
 
   function precoHtmlPdf(p){
-    if(modo==='varejo')return'<div style="font-size:18px;font-weight:800;color:#FF6B00">'+fmt(p.varejo)+'</div>';
-    if(modo==='atacado')return'<div style="font-size:18px;font-weight:800;color:#FF6B00">'+fmt(p.atacado)+'</div><div style="font-size:10px;color:#999">a partir de '+p.minAtacado+' un.</div>';
-    if(modo==='ambos')return'<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:4px"><div><div style="font-size:9px;color:#999;text-transform:uppercase">Varejo</div><div style="font-size:16px;font-weight:800;color:#FF6B00">'+fmt(p.varejo)+'</div></div><div style="text-align:right"><div style="font-size:9px;color:#999;text-transform:uppercase">Atacado ('+p.minAtacado+'+)</div><div style="font-size:16px;font-weight:800;color:#CC5500">'+fmt(p.atacado)+'</div></div></div>';
-    return'';
+    var varejo=parseFloat(p.precoVarejo||p.varejo||0);
+    var atacado=parseFloat(p.precoAtacado||p.atacado||0);
+    var minAt=parseInt(p.minAtacado||p.qtdMinAtacado||0)||2;
+    if(modo==='sem_preco')return'';
+    if(modo==='varejo')return varejo?'<span class="pdf-preco">'+fmt(varejo)+'</span>':'<span class="pdf-consulte">Consulte</span>';
+    if(modo==='atacado')return atacado?'<span class="pdf-preco">'+fmt(atacado)+'</span><span class="pdf-min">'+minAt+'+ un.</span>':'<span class="pdf-consulte">Consulte</span>';
+    var h='';
+    if(varejo)h+='<div class="pdf-preco-row"><span class="pdf-label">VRJ</span><span class="pdf-preco">'+fmt(varejo)+'</span></div>';
+    if(atacado)h+='<div class="pdf-preco-row"><span class="pdf-label">ATC '+minAt+'+</span><span class="pdf-preco-sec">'+fmt(atacado)+'</span></div>';
+    return h||'<span class="pdf-consulte">Consulte</span>';
   }
 
   function cardPdf(p){
-    var foto=p.foto?'<img src="'+p.foto+'" style="width:100%;height:160px;object-fit:cover;border-radius:8px 8px 0 0">':'<div style="width:100%;height:160px;background:#F0F0F0;border-radius:8px 8px 0 0;display:flex;align-items:center;justify-content:center;font-size:36px">📦</div>';
     var variacaoTxt=formatarVariacaoProduto(p);
-    return'<div style="background:#fff;border:1px solid #E5E5EA;border-radius:10px;overflow:hidden;break-inside:avoid;margin-bottom:14px">'+
+    var foto=p.foto
+      ?'<div style="width:100%;aspect-ratio:1/1;overflow:hidden;border-radius:8px 8px 0 0"><img src="'+p.foto+'" style="width:100%;height:100%;object-fit:cover;display:block"></div>'
+      :'<div style="width:100%;aspect-ratio:1/1;background:#f0f0f0;border-radius:8px 8px 0 0;display:flex;align-items:center;justify-content:center;font-size:36px">📦</div>';
+    return'<div class="pdfcard">'+
       foto+
-      '<div style="padding:10px 12px">'+
-        '<div style="font-size:13px;font-weight:700;color:#111;margin-bottom:4px;line-height:1.3">'+p.nome+'</div>'+
-        (variacaoTxt?'<div style="font-size:10px;color:#FF6B00;margin-bottom:4px">'+variacaoTxt+'</div>':'')+
-        (p.desc?'<div style="font-size:11px;color:#777;margin-bottom:6px;line-height:1.4">'+p.desc+'</div>':'')+
-        precoHtmlPdf(p)+
+      '<div class="pdfcard-body">'+
+        '<div class="pdfcard-nome">'+p.nome+'</div>'+
+        (variacaoTxt?'<div class="pdfcard-var">'+variacaoTxt+'</div>':'')+
+        (p.desc?'<div class="pdfcard-desc">'+p.desc+'</div>':'')+
+        (modo!=='sem_preco'?'<div class="pdfcard-preco-area">'+precoHtmlPdf(p)+'</div>':'')+
       '</div>'+
     '</div>';
   }
 
   var secoesHtml=grupos.map(function(g){
-    return'<div style="margin-bottom:24px">'+
-      '<div style="font-size:14px;font-weight:800;color:#FF6B00;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #FF6B00;padding-bottom:6px;margin-bottom:14px">'+g.categoria+'</div>'+
-      '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">'+
-        g.produtos.map(cardPdf).join('')+
-      '</div>'+
+    return'<div class="pdf-secao">'+
+      '<div class="pdf-secao-head"><span class="pdf-secao-titulo">'+g.categoria+'</span><span class="pdf-secao-count">'+g.produtos.length+' item'+(g.produtos.length!==1?'s':'')+'</span></div>'+
+      '<div class="pdf-grid">'+g.produtos.map(cardPdf).join('')+'</div>'+
     '</div>';
   }).join('');
 
+  var modoLabel={varejo:'Preços Varejo',atacado:'Preços Atacado',ambos:'Varejo + Atacado',sem_preco:'Vitrine'}[modo]||'';
+  var contatos=[(cfg.tel?'📞 '+cfg.tel:''),(cfg.email?'✉️ '+cfg.email:''),(cfg.site?'🌐 '+cfg.site:'')].filter(Boolean).join('  ·  ');
+
   var html='<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Catálogo — '+(cfg.nome||'Empresa')+'</title>'+
   '<style>'+
-    '*{box-sizing:border-box;margin:0;padding:0;font-family:Segoe UI,Arial,sans-serif}'+
-    'body{background:#F4F4F4;padding:24px}'+
-    '.wrap{max-width:980px;margin:0 auto}'+
-    '.header{background:#111;border-radius:14px;padding:26px 30px;display:flex;align-items:center;gap:16px;margin-bottom:24px;border-bottom:4px solid #FF6B00}'+
-    '.header-nome{font-size:22px;font-weight:800;color:#fff}'+
-    '.header-sub{font-size:12px;color:rgba(255,255,255,.5);margin-top:3px}'+
-    '.btns{max-width:980px;margin:0 auto 16px;display:flex;gap:8px;justify-content:flex-end}'+
-    '.btn{padding:9px 18px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer}'+
+    '*{box-sizing:border-box;margin:0;padding:0}'+
+    'body{font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;background:#F5F5F7;color:#1a1a1a;padding:28px 20px}'+
+    '.wrap{max-width:960px;margin:0 auto}'+
+    '.no-print{max-width:960px;margin:0 auto 16px;display:flex;gap:8px;justify-content:flex-end}'+
+    '.btn{padding:9px 20px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}'+
     '.btn-print{background:#FF6B00;color:#fff}'+
-    '.btn-close{background:#e5e5e5;color:#333}'+
-    '.footer{text-align:center;font-size:11px;color:#999;margin-top:20px}'+
-    '@media print{.btns{display:none}body{background:#fff;padding:0}@page{size:A4;margin:1cm}}'+
+    '.btn-close{background:#e5e5ea;color:#444}'+
+    /* Header */
+    '.pdf-header{background:#fff;border-radius:14px;padding:22px 26px;display:flex;align-items:center;gap:18px;margin-bottom:6px;box-shadow:0 1px 4px rgba(0,0,0,.06)}'+
+    '.pdf-header-info{flex:1;min-width:0}'+
+    '.pdf-emp-nome{font-size:22px;font-weight:800;color:#111;line-height:1.1}'+
+    '.pdf-emp-sub{font-size:12px;color:#888;margin-top:3px}'+
+    '.pdf-header-right{text-align:right;flex-shrink:0}'+
+    '.pdf-header-data{font-size:11px;color:#aaa}'+
+    '.pdf-header-modo{display:inline-block;background:#fff3ec;color:#FF6B00;font-size:11px;font-weight:700;padding:3px 10px;border-radius:8px;border:1px solid #ffd6b5;margin-top:4px}'+
+    /* Seção */
+    '.pdf-secao{margin-top:22px}'+
+    '.pdf-secao-head{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #FF6B00;padding-bottom:6px;margin-bottom:14px}'+
+    '.pdf-secao-titulo{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#FF6B00}'+
+    '.pdf-secao-count{font-size:11px;color:#aaa;font-weight:600}'+
+    /* Grid */
+    '.pdf-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}'+
+    '.pdfcard{background:#fff;border-radius:10px;overflow:hidden;break-inside:avoid;box-shadow:0 1px 3px rgba(0,0,0,.07);border:1px solid #eee}'+
+    '.pdfcard-body{padding:10px 12px}'+
+    '.pdfcard-nome{font-size:13px;font-weight:700;color:#111;line-height:1.3;margin-bottom:3px}'+
+    '.pdfcard-var{font-size:10px;color:#FF6B00;margin-bottom:3px}'+
+    '.pdfcard-desc{font-size:11px;color:#777;line-height:1.4;margin-bottom:5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}'+
+    '.pdfcard-preco-area{margin-top:6px;padding-top:6px;border-top:1px solid #f0f0f0}'+
+    '.pdf-preco{font-size:16px;font-weight:800;color:#FF6B00}'+
+    '.pdf-preco-sec{font-size:13px;font-weight:700;color:#cc5500}'+
+    '.pdf-min{font-size:10px;color:#aaa;margin-left:4px}'+
+    '.pdf-consulte{font-size:11px;color:#aaa;font-style:italic}'+
+    '.pdf-label{font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:#aaa;font-weight:700;margin-right:4px}'+
+    '.pdf-preco-row{display:flex;align-items:baseline;gap:2px;margin-bottom:1px}'+
+    /* Footer */
+    '.pdf-footer{text-align:center;font-size:11px;color:#bbb;margin-top:28px;padding-top:14px;border-top:1px solid #eee}'+
+    '@media print{'+
+      '.no-print{display:none!important}'+
+      'body{background:#fff;padding:8px}'+
+      '@page{size:A4;margin:1cm}'+
+      '.pdfcard{box-shadow:none!important}'+
+    '}'+
   '</style></head><body>'+
-    '<div class="btns"><button class="btn btn-print" onclick="window.print()">🖨️ Imprimir / Salvar PDF</button><button class="btn btn-close" onclick="window.close()">Fechar</button></div>'+
-    '<div class="wrap">'+
-      '<div class="header">'+logoHtml+
-        '<div><div class="header-nome">'+(cfg.nome||'Empresa')+'</div>'+
-        '<div class="header-sub">Catálogo de Produtos'+(modo==='sem_preco'?'':' — '+(modo==='atacado'?'Preços Atacado':modo==='ambos'?'Preços Varejo e Atacado':'Preços Varejo'))+'</div></div>'+
+  '<div class="no-print">'+
+    '<button class="btn btn-print" onclick="window.print()">🖨️ Imprimir / Salvar PDF</button>'+
+    '<button class="btn btn-close" onclick="window.close()">✕ Fechar</button>'+
+  '</div>'+
+  '<div class="wrap">'+
+    '<div class="pdf-header">'+
+      logoHtml+
+      '<div class="pdf-header-info">'+
+        '<div class="pdf-emp-nome">'+(cfg.nome||'Catálogo de Produtos')+'</div>'+
+        '<div class="pdf-emp-sub">'+produtos.length+' produto'+(produtos.length!==1?'s':'')+' · '+grupos.length+' categoria'+(grupos.length!==1?'s':'')+
+        (contatos?' · '+contatos:'')+
+        '</div>'+
       '</div>'+
-      secoesHtml+
-      '<div class="footer">'+(cfg.tel?cfg.tel+' · ':'')+(cfg.email?cfg.email+' · ':'')+(cfg.site||'')+'<br>Catálogo gerado em '+new Date().toLocaleDateString('pt-BR')+'</div>'+
+      '<div class="pdf-header-right">'+
+        '<div class="pdf-header-data">'+dataHoje+'</div>'+
+        (modoLabel?'<div class="pdf-header-modo">'+modoLabel+'</div>':'')+
+      '</div>'+
     '</div>'+
+    secoesHtml+
+    '<div class="pdf-footer">Catálogo gerado em '+dataHoje+(cfg.nome?' · '+cfg.nome:'')+'</div>'+
+  '</div>'+
   '</body></html>';
 
   var w=window.open('','_blank');
-  if(!w){alert('Seu navegador bloqueou a abertura da janela. Permita pop-ups para gerar o catálogo.');return;}
+  if(!w){alert('Seu navegador bloqueou a janela. Permita pop-ups para gerar o catálogo PDF.');return;}
   w.document.write(html);
   w.document.close();
 }
