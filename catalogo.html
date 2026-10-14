@@ -285,13 +285,29 @@ input:hover,textarea:hover{border-color:var(--line-2)}
         </div>
       </div>
     </div>
-    <!-- step 2: fotos -->
-    <div class="step-label" style="margin-bottom:0;padding:0 0 10px"><div class="step-num">2</div><h2>Fotos dos produtos</h2></div>
-    <div id="drop" class="drop" tabindex="0" role="button" aria-label="Adicionar fotos ou PDFs">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4m0 0l-4 4m4-4l4 4"/><path d="M4 15v3a2 2 0 002 2h12a2 2 0 002-2v-3"/></svg>
-      <strong>Solte aqui as fotos ou os PDFs do Canva</strong>
-      <span>Cada foto vira um produto. Cada página de PDF também, e o nome, a área de gravação e o peso são lidos sozinhos. Você também pode colar imagens com Ctrl+V.</span>
-      <div class="row"><button class="btn" type="button" id="btnPick">Escolher arquivos</button></div>
+    <!-- step 2: produtos -->
+    <div class="step-label" style="margin-bottom:0;padding:0 0 10px"><div class="step-num">2</div><h2>Produtos</h2></div>
+
+    <!-- auto-import banner -->
+    <div class="block" id="importBanner" style="border-color:var(--orange);background:#1a0f08">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:700;margin-bottom:2px">Importar do Orçamento Pro</div>
+          <div class="hint">Usa os produtos já cadastrados — sem precisar adicionar tudo de novo.</div>
+        </div>
+        <button class="btn primary" id="btnImportOrcpro" type="button">Importar produtos</button>
+      </div>
+      <div id="importInfo" style="margin-top:10px;font-size:12px;color:var(--mute);display:none"></div>
+    </div>
+
+    <div id="drop" class="drop" tabindex="0" role="button" aria-label="Adicionar fotos ou PDFs" style="padding:16px 16px">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:24px;height:24px;flex:none"><path d="M12 16V4m0 0l-4 4m4-4l4 4"/><path d="M4 15v3a2 2 0 002 2h12a2 2 0 002-2v-3"/></svg>
+        <div style="text-align:left">
+          <strong style="font-size:14px">Ou adicione fotos manualmente</strong>
+          <span style="display:block;font-size:12px;color:var(--mute)">Arraste fotos/PDFs ou <u style="cursor:pointer" id="btnPickInline">escolha arquivos</u></span>
+        </div>
+      </div>
       <input id="file" type="file" accept="image/*,application/pdf" multiple hidden>
     </div>
 
@@ -305,9 +321,9 @@ input:hover,textarea:hover{border-color:var(--line-2)}
 
     <div class="block">
       <div class="block-head">
-        <div class="step-label" style="margin-bottom:0"><div class="step-num">4</div><h2>Produtos</h2></div><span class="hint" id="count"></span><span class="sp"></span>
+        <div class="step-label" style="margin-bottom:0"><div class="step-num">3</div><h2>Lista de produtos</h2></div><span class="hint" id="count"></span><span class="sp"></span>
         <button class="btn small" id="btnSuggestAll" type="button" hidden>Sugerir textos com Claude</button>
-        <button class="btn primary" id="btnBlank" type="button">+ Produto em branco</button>
+        <button class="btn small" id="btnBlank" type="button">+ Produto</button>
       </div>
       <div id="list"></div>
     </div>
@@ -339,7 +355,12 @@ input:hover,textarea:hover{border-color:var(--line-2)}
     </details>
   </section>
 
-    <div class="export-bar">
+  <aside class="preview" aria-label="Prévia do catálogo">
+    <div class="preview-header">
+      <span class="preview-title">Prévia ao vivo</span>
+      <span class="slide-counter" id="slideCounter"></span>
+    </div>
+    <div class="export-bar" style="margin-bottom:16px">
       <div class="exp-info">
         <strong>Exportar catálogo</strong>
         <span>PPTX editável no Canva ou PDF direto</span>
@@ -347,9 +368,13 @@ input:hover,textarea:hover{border-color:var(--line-2)}
       <button class="btn" id="btnExportPdf2" type="button">Baixar PDF</button>
       <button class="btn primary" id="btnExport2" type="button">Baixar PPTX</button>
     </div>
-
-  <aside class="preview" aria-label="Prévia do catálogo">
-    <div class="preview-header"><span class="preview-title">Prévia ao vivo</span><span class="slide-counter" id="slideCounter"></span></div>
+    <div id="slides-empty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-height:200px;color:var(--mute);text-align:center;padding:20px;border:1px dashed var(--line);border-radius:10px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:40px;height:40px;opacity:.4"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+      <div>
+        <div style="font-size:14px;font-weight:700;margin-bottom:4px">Prévia aparece aqui</div>
+        <div style="font-size:12px">Importe ou adicione produtos para gerar o catálogo</div>
+      </div>
+    </div>
     <div id="slides"></div>
   </aside>
 </main>
@@ -1436,7 +1461,7 @@ document.getElementById("themeRow").addEventListener("click",function(ev){
 })();
 
 var drop=$("drop"), fileIn=$("file");
-$("btnPick").addEventListener("click",function(e){ e.stopPropagation(); fileIn.click(); });
+var _btnPick=$("btnPick"); if(_btnPick) _btnPick.addEventListener("click",function(e){ e.stopPropagation(); fileIn.click(); });
 drop.addEventListener("click",function(){ fileIn.click(); });
 drop.addEventListener("keydown",function(e){ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); fileIn.click(); } });
 fileIn.addEventListener("change",function(){ var f=this.files; addFiles(f); this.value=""; });
@@ -1501,11 +1526,60 @@ setTimeout(function(){
 renderList();
 renderPreview();
 generateQR();
-window.__gen={S:S,buildSlides:buildSlides,addFiles:addFiles,parsePage:parsePage};
+window.__gen={S:S,buildSlides:buildSlides,addFiles:addFiles,parsePage:parsePage,renderPreview:renderPreview,renderList:renderList,newProduct:newProduct,schedule:schedule};
 })();
 
 $("btnExport2").addEventListener("click",function(){ $("btnExport").click(); });
 $("btnExportPdf2").addEventListener("click",function(){ $("btnExportPdf").click(); });
+
+/* ---- btnPickInline alias ---- */
+var _inlineLink=$("btnPickInline"); if(_inlineLink) _inlineLink.addEventListener("click",function(e){e.stopPropagation();$("file").click();});
+
+/* ---- empty state toggle ---- */
+function _ge(id){return document.getElementById(id);}
+function updateEmptyState(){
+  var g=window.__gen; if(!g) return;
+  var empty=_ge("slides-empty");
+  if(empty) empty.style.display=(g.S.products&&g.S.products.length)?"none":"flex";
+}
+// poll every 500ms to sync empty state after renders
+setInterval(updateEmptyState,500);
+updateEmptyState();
+
+/* ---- import from orcpro_produtos ---- */
+_ge("btnImportOrcpro").addEventListener("click",function(){
+  var g=window.__gen;
+  if(!g){ alert("Gerador ainda carregando, aguarde."); return; }
+  var raw; try{ raw=JSON.parse(localStorage.getItem("orcpro_produtos")||"[]"); }catch(e){ raw=[]; }
+  var prods=(raw||[]).filter(function(p){ return p&&p.nome; });
+  var info=_ge("importInfo");
+  if(!prods.length){
+    info.textContent="Nenhum produto encontrado no Orçamento Pro. Certifique-se de que o arquivo está aberto na mesma aba ou domínio.";
+    info.style.color="var(--err)"; info.style.display="block";
+    return;
+  }
+  // evitar duplicatas por nome
+  var existingNames={};
+  (g.S.products||[]).forEach(function(p){ existingNames[p.name]=true; });
+  var added=0;
+  prods.forEach(function(p){
+    if(existingNames[p.nome]) return;
+    g.S.products.push(g.newProduct({
+      name: p.nome||"",
+      cat: p.cat||"",
+      desc: p.desc||"",
+      img: p.foto||"",
+      prev: p.foto||"",
+      preco: p.varejo?String(p.varejo):"",
+      minQtd: p.minAtacado?String(p.minAtacado):""
+    }));
+    added++;
+  });
+  g.renderList(); g.schedule();
+  info.textContent=added+" produto(s) importado(s)"+(prods.length-added?" ("+( prods.length-added)+" já existiam)":"")+ ". Revise nomes e fotos antes de exportar.";
+  info.style.color="var(--ok)"; info.style.display="block";
+  updateEmptyState();
+});
 
 </script>
 </body>
