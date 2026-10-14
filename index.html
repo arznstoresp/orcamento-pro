@@ -498,6 +498,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
     <div class="sb-sec">Catálogo</div>
     <button class="nb" id="nb-cat"       onclick="showView('cat')">      📦 Produtos</button>
     <button class="nb" id="nb-catalogo"  onclick="showView('catalogo')"> 📖 Catálogo Profissional</button>
+    <button class="nb" id="nb-gerador"   onclick="showView('gerador')">  🗂️ Gerador de Catálogo</button>
     <div class="sb-sec">Calculadoras</div>
     <button class="nb" id="nb-calctecidos" onclick="showView('calctecidos')"> 🧮 Precificação</button>
     <div class="sb-sec">Estoque</div>
@@ -981,6 +982,11 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
       </div>
       <div id="catalogo-conteudo"></div>
       <div id="catalogo-empty" style="text-align:center;padding:40px;color:rgba(255,255,255,.4);font-size:13px;display:none">Nenhum produto disponível para o catálogo ainda. Cadastre produtos em "Produtos" e marque "Exibir no Catálogo".</div>
+    </div>
+
+    <!-- GERADOR DE CATÁLOGO -->
+    <div id="view-gerador" style="display:none;min-height:100%;height:calc(100vh - 56px)">
+      <iframe id="iframe-gerador" src="catalogo.html" style="width:100%;height:100%;border:none;min-height:calc(100vh - 56px)" allowfullscreen loading="lazy" title="Gerador de Catálogo Pro"></iframe>
     </div>
 
     <!-- CALCULADORA DE TECIDOS (DTF) -->
@@ -1475,6 +1481,22 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
           </label>
         </div>
         <div class="info-box mt" style="margin-bottom:0">💡 Como criar o Client ID: acesse <strong>console.cloud.google.com</strong> → crie um projeto → "APIs e Serviços" → "Credenciais" → "Criar credenciais" → "ID do cliente OAuth" → tipo "Aplicativo da Web" → adicione a URL do seu GitHub Pages em "Origens JavaScript autorizadas". É gratuito e leva uns 5 minutos.</div>
+      </div>
+
+      <div class="card" id="card-nuvem">
+        <div class="card-title">☁️ Sincronização em Nuvem <small style="font-size:11px;font-weight:400;color:rgba(255,255,255,.4);margin-left:6px">— acesse seus dados em qualquer aparelho</small></div>
+        <p style="font-size:13px;color:rgba(255,255,255,.5);margin-bottom:11px;line-height:1.6">Crie uma <strong style="color:rgba(255,255,255,.8)">Chave de Acesso</strong> (qualquer texto que só você sabe) e use a mesma chave em todos os seus dispositivos. Seus dados ficam salvos em nuvem e aparecem automaticamente em qualquer navegador ou celular.</p>
+        <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+          <div style="flex:1;min-width:200px">
+            <label class="lbl">Chave de Acesso <span class="lbl-hint">— ex: arznstore2025</span></label>
+            <input id="cfg-nuvem-chave" placeholder="Digite sua chave pessoal..." autocomplete="off" style="font-family:monospace;letter-spacing:.04em" oninput="autoSave()">
+          </div>
+          <button class="btn btn-brand" onclick="ativarSyncNuvem()" title="Ativa a sincronização com esta chave">🔗 Ativar Sync</button>
+          <button class="btn btn-out" onclick="sincronizarNuvemAgora()" id="btn-nuvem-sync" style="display:none" title="Envia todos os dados para a nuvem agora">☁️ Enviar agora</button>
+          <button class="btn btn-out" onclick="baixarDaNuvem()" id="btn-nuvem-baixar" style="display:none" title="Baixa os dados salvos na nuvem">📥 Baixar nuvem</button>
+        </div>
+        <div id="nuvem-status" style="margin-top:8px;font-size:12px;min-height:18px"></div>
+        <div class="info-box mt" style="margin-bottom:0">💡 Use a <strong>mesma chave</strong> no celular, no trabalho e em casa. Seus orçamentos, clientes e produtos ficam sincronizados automaticamente. Se trocar de chave, os dados ficam sob a nova chave — a anterior continua na nuvem.</div>
       </div>
 
       <div class="card">
@@ -2483,6 +2505,11 @@ function fillConfigForm(){
   if(ge('cfg-auto-os'))ge('cfg-auto-os').checked=!!c.autoOS;
   if(ge('cfg-auto-preco-atacado'))ge('cfg-auto-preco-atacado').checked=!!c.autoPrecoAtacado;
   if(ge('cfg-relatorio-semanal'))ge('cfg-relatorio-semanal').checked=!!c.relatorioSemanal;
+  // Preencher chave de acesso nuvem
+  var chaveNuvem=localStorage.getItem('orcpro_chave_nuvem')||'';
+  if(ge('cfg-nuvem-chave')&&!ge('cfg-nuvem-chave').value)ge('cfg-nuvem-chave').value=chaveNuvem;
+  var btnSync=ge('btn-nuvem-sync'),btnBaixar=ge('btn-nuvem-baixar');
+  if(chaveNuvem){if(btnSync)btnSync.style.display='';if(btnBaixar)btnBaixar.style.display='';}
   updateMiniPreview();loadLogoPreview();renderFuncs();renderCanais();
   atualizarStatusGoogleDrive();
 }
@@ -9591,7 +9618,7 @@ function closeMobileSidebarIfOpen(){
 }
 
 function showView(name){
-  var views=['dash','form','preview','hist','os','templates','cat','clientes','config','mei','notas','fornec','maquinas','receber','pagar','dre','usuarios','venda-rapida','catalogo','calctecidos'];
+  var views=['dash','form','preview','hist','os','templates','cat','clientes','config','mei','notas','fornec','maquinas','receber','pagar','dre','usuarios','venda-rapida','catalogo','calctecidos','gerador'];
   views.forEach(function(n){
     var v=ge('view-'+n);if(v)v.style.display=n===name?'block':'none';
     var nb=ge('nb-'+n);if(nb){var badge=nb.querySelector('.nb-badge');nb.className='nb'+(n===name?' active':'');if(badge)nb.appendChild(badge);}
@@ -9613,7 +9640,7 @@ function showView(name){
   if(tbSub)tbSub.style.color='var(--dark-text3)';
   if(tbAccent)tbAccent.style.background='linear-gradient(180deg,var(--brand),transparent)';
 
-  var titles={dash:['Dashboard','Visão geral do negócio'],form:['Novo Orçamento','Preencha os dados abaixo'],preview:['Pré-visualização','Revise e envie ao cliente'],hist:['Histórico','Edite e acompanhe orçamentos'],os:['Ordens de Serviço','Acompanhe a produção'],templates:['Templates','Orçamentos reutilizáveis'],cat:['Catálogo de Produtos','Preços, custos e margens'],clientes:['Clientes & Follow-up','Gerencie relacionamentos'],config:['Minha Empresa','Dados, logotipo e backup'],mei:['Dashboard MEI','Controle financeiro para declaração anual'],notas:['Notas de Compra','Entrada de estoque e despesas automáticas'],fornec:['Fornecedores','Gerencie seus fornecedores'],maquinas:['Maquinários','Desgaste das máquinas por peça'],receber:['Contas a Receber','Controle de pagamentos dos clientes'],pagar:['Contas a Pagar','RH, custos fixos e fornecedores'],dre:['DRE Simplificado','Demonstrativo de resultado mês a mês'],usuarios:['Usuários','Perfis de acesso da equipe'],'venda-rapida':['Registrar Venda','Vendas rápidas de marketplace e balcão'],catalogo:['Catálogo Profissional','Vitrine dos seus produtos, sempre atualizada'],calctecidos:['Calculadora de Precificação','Tecidos, Canecas, Adesivos, 3D e mais']};
+  var titles={dash:['Dashboard','Visão geral do negócio'],form:['Novo Orçamento','Preencha os dados abaixo'],preview:['Pré-visualização','Revise e envie ao cliente'],hist:['Histórico','Edite e acompanhe orçamentos'],os:['Ordens de Serviço','Acompanhe a produção'],templates:['Templates','Orçamentos reutilizáveis'],cat:['Catálogo de Produtos','Preços, custos e margens'],clientes:['Clientes & Follow-up','Gerencie relacionamentos'],config:['Minha Empresa','Dados, logotipo e backup'],mei:['Dashboard MEI','Controle financeiro para declaração anual'],notas:['Notas de Compra','Entrada de estoque e despesas automáticas'],fornec:['Fornecedores','Gerencie seus fornecedores'],maquinas:['Maquinários','Desgaste das máquinas por peça'],receber:['Contas a Receber','Controle de pagamentos dos clientes'],pagar:['Contas a Pagar','RH, custos fixos e fornecedores'],dre:['DRE Simplificado','Demonstrativo de resultado mês a mês'],usuarios:['Usuários','Perfis de acesso da equipe'],'venda-rapida':['Registrar Venda','Vendas rápidas de marketplace e balcão'],catalogo:['Catálogo Profissional','Vitrine dos seus produtos, sempre atualizada'],calctecidos:['Calculadora de Precificação','Tecidos, Canecas, Adesivos, 3D e mais'],gerador:['Gerador de Catálogo','Crie catálogos PPTX e PDF profissionais']};
   ge('tb-title').textContent=titles[name][0];ge('tb-sub').textContent=titles[name][1];
   var acts={
     dash:'<button class="btn btn-brand" onclick="showView(\'form\')">✏️ Novo orçamento</button> <button class="btn btn-out" onclick="abrirRelatorioSemanal()">📊 Relatório semanal</button>',
@@ -9632,7 +9659,8 @@ function showView(name){
     usuarios:'<button class="btn btn-brand" onclick="openUsuarioModal()">＋ Novo usuário</button>',
     'venda-rapida':'',
     catalogo:'<button class="btn btn-brand" onclick="exportarCatalogoPDF()">📄 Exportar PDF</button>',
-    calctecidos:''
+    calctecidos:'',
+    gerador:''
   };
   ge('tb-actions').innerHTML=acts[name]||'';
   if(name==='preview')buildPreview();
@@ -10111,6 +10139,150 @@ function aplicarProtecaoAutofill(){
   observer.observe(document.body,{childList:true,subtree:true});
 })();
 
+// ═══════════════════════════════════════════════════
+// SYNC NUVEM — Supabase multi-dispositivo
+// ═══════════════════════════════════════════════════
+(function(){
+  var SUPA_URL='https://edztcoebgllqrkrkormc.supabase.co';
+  var SUPA_KEY='sb_publishable_s6MSdF0rhidpCpddqTzNRg_1ajwnxIc';
+  var CHAVE_KEY='orcpro_chave_nuvem';
+  var SYNC_TIPOS=['orcpro_emp','orcpro_produtos','orcpro_clientes','orcpro_hist','orcpro_os','orcpro_notas','orcpro_templates','orcpro_fornecedores','orcpro_maquinas','orcpro_receber','orcpro_rh','orcpro_precif_modelos','orcpro_ct_hist','orcpro_mov_estoque','orcpro_despesas','orcpro_custos','orcpro_canais','orcpro_funcs','orcpro_usuarios'];
+
+  function getChave(){return localStorage.getItem(CHAVE_KEY)||'';}
+
+  function nuvemStatus(msg,cor){
+    var el=document.getElementById('nuvem-status');
+    if(el){el.textContent=msg;el.style.color=cor||'rgba(255,255,255,.5)';}
+  }
+
+  async function supaReq(method,path,body){
+    var opts={method:method,headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'}};
+    if(body)opts.body=JSON.stringify(body);
+    var r=await fetch(SUPA_URL+'/rest/v1/'+path,opts);
+    if(!r.ok){var t=await r.text();throw new Error('Supabase '+r.status+': '+t);}
+    var ct=r.headers.get('content-type')||'';
+    return ct.includes('json')&&r.status!==204?r.json():null;
+  }
+
+  window._supaSave=async function(tipo,dados){
+    var chave=getChave();if(!chave)return;
+    try{
+      await supaReq('POST','orcpro_dados',{chave:chave,tipo:tipo,dados:dados,atualizado_em:new Date().toISOString()});
+    }catch(e){console.warn('_supaSave falhou:',e);}
+  };
+
+  window._supaLoad=async function(tipo){
+    var chave=getChave();if(!chave)return null;
+    try{
+      var rows=await supaReq('GET','orcpro_dados?chave=eq.'+encodeURIComponent(chave)+'&tipo=eq.'+encodeURIComponent(tipo)+'&select=dados&limit=1',null);
+      return(rows&&rows.length)?rows[0].dados:null;
+    }catch(e){console.warn('_supaLoad falhou:',e);return null;}
+  };
+
+  window.ativarSyncNuvem=async function(){
+    var inp=document.getElementById('cfg-nuvem-chave');
+    var chave=(inp?inp.value:'').trim();
+    if(!chave){alert('Digite uma chave de acesso primeiro.');return;}
+    localStorage.setItem(CHAVE_KEY,chave);
+    nuvemStatus('⏳ Verificando dados na nuvem…','#f59e0b');
+    var btnSync=document.getElementById('btn-nuvem-sync');
+    var btnBaixar=document.getElementById('btn-nuvem-baixar');
+    try{
+      // Tenta carregar orcpro_emp como teste
+      var empNuvem=await window._supaLoad('orcpro_emp');
+      if(empNuvem){
+        nuvemStatus('✅ Chave ativa — dados encontrados na nuvem!','#22c55e');
+        if(btnSync)btnSync.style.display='';if(btnBaixar)btnBaixar.style.display='';
+        if(confirm('Foram encontrados dados nesta chave. Deseja baixar agora e substituir os dados locais?')){
+          await baixarDaNuvem();
+        }
+      } else {
+        nuvemStatus('✅ Chave ativa — enviando dados para a nuvem…','#22c55e');
+        if(btnSync)btnSync.style.display='';if(btnBaixar)btnBaixar.style.display='';
+        await sincronizarNuvemAgora();
+      }
+    }catch(e){nuvemStatus('❌ Erro: '+e.message,'#ef4444');}
+  };
+
+  window.sincronizarNuvemAgora=async function(){
+    var chave=getChave();
+    if(!chave){alert('Configure uma chave de acesso em Minha Empresa → Sincronização em Nuvem.');return;}
+    nuvemStatus('⏳ Enviando para a nuvem…','#f59e0b');
+    var erros=0;
+    for(var i=0;i<SYNC_TIPOS.length;i++){
+      var tipo=SYNC_TIPOS[i];
+      var raw=localStorage.getItem(tipo);
+      if(raw===null)continue;
+      try{var dados=JSON.parse(raw);await window._supaSave(tipo,dados);}
+      catch(e){erros++;console.warn('Erro ao enviar '+tipo,e);}
+    }
+    if(erros===0)nuvemStatus('✅ Dados enviados — '+new Date().toLocaleTimeString('pt-BR'),'#22c55e');
+    else nuvemStatus('⚠️ Enviado com '+erros+' erro(s). Verifique o console.','#f59e0b');
+  };
+
+  window.baixarDaNuvem=async function(){
+    var chave=getChave();
+    if(!chave){alert('Configure uma chave de acesso em Minha Empresa → Sincronização em Nuvem.');return;}
+    nuvemStatus('⏳ Baixando da nuvem…','#f59e0b');
+    var baixados=0,erros=0;
+    for(var i=0;i<SYNC_TIPOS.length;i++){
+      var tipo=SYNC_TIPOS[i];
+      try{
+        var dados=await window._supaLoad(tipo);
+        if(dados!==null){localStorage.setItem(tipo,JSON.stringify(dados));baixados++;}
+      }catch(e){erros++;console.warn('Erro ao baixar '+tipo,e);}
+    }
+    nuvemStatus('✅ '+baixados+' tipo(s) baixado(s) — recarregue para ver.','#22c55e');
+    if(baixados>0&&confirm('✅ Dados da nuvem carregados! Recarregar a página agora para aplicar?'))location.reload();
+  };
+
+  // Auto-sync: save hook — wraps gravarSeguro to also push to Supabase
+  var _origGravarSeguro=null;
+  document.addEventListener('DOMContentLoaded',function(){
+    if(typeof gravarSeguro==='function'&&!_origGravarSeguro){
+      _origGravarSeguro=gravarSeguro;
+      window.gravarSeguro=function(chaveLS,valor,nome){
+        var r=_origGravarSeguro(chaveLS,valor,nome);
+        if(getChave()&&SYNC_TIPOS.indexOf(chaveLS)>=0){
+          try{var d=JSON.parse(valor);window._supaSave(chaveLS,d);}catch(e){}
+        }
+        return r;
+      };
+    }
+    // Preencher campo da chave se já configurada
+    var inp=document.getElementById('cfg-nuvem-chave');
+    var chave=getChave();
+    if(inp&&chave)inp.value=chave;
+    var btnSync=document.getElementById('btn-nuvem-sync');
+    var btnBaixar=document.getElementById('btn-nuvem-baixar');
+    if(chave){if(btnSync)btnSync.style.display='';if(btnBaixar)btnBaixar.style.display='';}
+  });
+
+  // Auto-load on page open: se tiver chave, baixa silenciosamente em background
+  window._autoNuvemAoAbrir=async function(){
+    var chave=getChave();
+    if(!chave)return;
+    try{
+      // Só sincroniza se a nuvem tiver dados mais recentes
+      var empNuvem=await window._supaLoad('orcpro_emp');
+      if(!empNuvem)return;// Nuvem vazia, não sobrescreve
+      // Compara timestamp se existir
+      var empLocal=JSON.parse(localStorage.getItem('orcpro_emp')||'{}');
+      var tsNuvem=empNuvem.atualizadoEm||0;
+      var tsLocal=empLocal.atualizadoEm||0;
+      if(tsNuvem>tsLocal){
+        // Baixa todos os tipos silenciosamente
+        for(var i=0;i<SYNC_TIPOS.length;i++){
+          var tipo=SYNC_TIPOS[i];
+          var dados=await window._supaLoad(tipo);
+          if(dados!==null)localStorage.setItem(tipo,JSON.stringify(dados));
+        }
+        console.log('[Nuvem] Dados sincronizados do servidor.');
+      }
+    }catch(e){console.warn('[Nuvem] Auto-sync falhou:',e);}
+  };
+})();
+
 window.onload=function(){
   if(checkLinkPublico())return;
   migrarSkusUmaVez();
@@ -10123,6 +10295,8 @@ window.onload=function(){
   if(bg){bg.value='';setTimeout(function(){bg.value='';},300);setTimeout(function(){bg.value='';},1000);}
   // Sincronização automática: baixa a versão do Drive se for mais recente (ex: salvou no PC)
   setTimeout(function(){if(typeof autoBaixarDoDriveAoAbrir==='function')autoBaixarDoDriveAoAbrir();},2000);
+  // Sincronização em nuvem (Supabase multi-dispositivo)
+  setTimeout(function(){if(typeof _autoNuvemAoAbrir==='function')_autoNuvemAoAbrir();},3000);
 };
 
 function desregistrarServiceWorkerAntigo(){
