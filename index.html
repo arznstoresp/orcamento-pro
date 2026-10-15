@@ -1368,16 +1368,18 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
         </div>
         <div id="notas-empty" style="text-align:center;padding:26px;color:rgba(255,255,255,.5);font-size:13px;display:none">Nenhuma nota de compra cadastrada.</div>
       </div>
+      <div id="notas-alertas"></div>
     </div>
 
     <!-- FORNECEDORES -->
     <div id="view-fornec" style="display:none;min-height:100%">
       <div class="card">
         <div class="card-title">Fornecedores <span id="fornec-count" style="margin-left:6px;font-size:12px;color:var(--brand);font-weight:700"></span></div>
-        <div style="display:flex;gap:7px;margin-bottom:11px;flex-wrap:wrap;align-items:center">
-          <input id="fornec-search" placeholder="🔍 Buscar..." style="max-width:220px" oninput="renderFornecedores()">
+        <div style="display:flex;gap:7px;margin-bottom:8px;flex-wrap:wrap;align-items:center">
+          <input id="fornec-search" placeholder="🔍 Nome, contato ou e-mail..." style="max-width:260px" oninput="renderFornecedores()">
           <button class="btn btn-brand btn-sm" onclick="openFornecedorModal()">＋ Novo fornecedor</button>
         </div>
+        <div id="fornec-kpis-bar" style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px"></div>
         <div class="items-wrap">
           <table class="cat"><thead><tr>
             <th style="width:25%">Nome</th><th style="width:18%">WhatsApp</th>
@@ -2391,6 +2393,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
 
     <div class="info-box mt" style="margin-bottom:0">✅ Ao salvar: a quantidade entra automaticamente no estoque de cada produto (ou da variação específica) e o valor total é lançado como despesa em "Matéria-prima / Insumos" no Dashboard MEI.</div>
 
+    <div id="nota-alertas"></div>
     <div class="modal-footer">
       <button class="btn btn-out" onclick="closeNotaModal()">Cancelar</button>
       <button class="btn btn-brand" onclick="saveNota()">💾 Salvar Nota</button>
@@ -6777,7 +6780,11 @@ function openFornecedorModal(id){
 }
 function closeFornecedorModal(){ge('modal-fornecedor').className='modal-overlay';}
 function saveFornecedor(){
-  var nome=val('forn-nome');if(!nome){alert('Informe o nome do fornecedor.');return;}
+  var nome=val('forn-nome');
+  if(!nome){
+    var inp=ge('forn-nome');if(inp){inp.focus();inp.style.borderColor='var(--red)';}
+    return;
+  }
   var fornecedores=getFornecedores(),editId=val('fornecedor-edit-id');
   var f={id:editId||'fn'+Date.now(),nome:nome,wpp:val('forn-wpp'),email:val('forn-email'),contato:val('forn-contato'),obs:val('forn-obs')};
   if(editId){var idx=fornecedores.findIndex(function(x){return x.id===editId;});if(idx>=0)fornecedores[idx]=f;else fornecedores.push(f);}
@@ -6785,27 +6792,49 @@ function saveFornecedor(){
   saveFornecedores(fornecedores);closeFornecedorModal();renderFornecedores();
 }
 function deleteFornecedor(id){
-  if(getNotasCompra().some(function(n){return n.fornecedorId===id;})){
-    if(!confirm('Este fornecedor tem notas de compra cadastradas. As notas serão mantidas, mas o fornecedor será excluído. Continuar?'))return;
-  } else if(!confirm('Excluir fornecedor?'))return;
-  saveFornecedores(getFornecedores().filter(function(f){return f.id!==id;}));renderFornecedores();
+  var forn=getFornecedores().find(function(x){return x.id===id;});
+  if(!forn)return;
+  var temNotas=getNotasCompra().some(function(n){return n.fornecedorId===id;});
+  ge('modal-del-fin-id').value='fornecedor:'+id;
+  ge('modal-del-fin-msg').innerHTML=temNotas
+    ?'O fornecedor <strong>'+escHtml(forn.nome)+'</strong> tem notas de compra cadastradas. As notas serão mantidas, mas o fornecedor será excluído. Deseja continuar?'
+    :'Excluir o fornecedor <strong>'+escHtml(forn.nome)+'</strong>? Esta ação não pode ser desfeita.';
+  ge('modal-del-fin-btn').textContent='🗑 Excluir fornecedor';
+  ge('modal-del-fin').className='modal-overlay open';
 }
 
 function renderFornecedores(){
   var fornecedores=getFornecedores(),q=(val('fornec-search')||'').toLowerCase();
   var notas=getNotasCompra();
-  var f=fornecedores.filter(function(x){return!q||x.nome.toLowerCase().includes(q);});
+  var f=fornecedores.filter(function(x){
+    return!q||x.nome.toLowerCase().includes(q)||(x.contato||'').toLowerCase().includes(q)||(x.email||'').toLowerCase().includes(q);
+  });
   var tbody=ge('fornec-body'),empty=ge('fornec-empty'),count=ge('fornec-count');
   if(count)count.textContent='('+fornecedores.length+')';
+
+  // KPI bar
+  var bar=ge('fornec-kpis-bar');
+  if(bar){
+    var totalNotas=notas.length;
+    var totalValor=notas.reduce(function(s,n){return s+(parseFloat(n.total)||0);},0);
+    bar.innerHTML=
+      '<span class="badge bbl" title="Total de fornecedores">🚚 '+fornecedores.length+' fornecedor'+(fornecedores.length===1?'':'es')+'</span>'+
+      (totalNotas?'<span class="badge" style="background:rgba(255,255,255,.08);color:rgba(255,255,255,.7)" title="Notas de compra">📋 '+totalNotas+' nota'+(totalNotas===1?'':'s')+'</span>':'')+
+      (totalValor>0?'<span class="badge" style="background:rgba(255,255,255,.08);color:var(--brand-l)" title="Valor total das notas">💰 '+fmt(totalValor)+' em compras</span>':'');
+  }
+
   if(!f.length){tbody.innerHTML='';if(empty)empty.style.display='block';return;}
   if(empty)empty.style.display='none';
   tbody.innerHTML=f.map(function(x){
     var nNotas=notas.filter(function(n){return n.fornecedorId===x.id;}).length;
+    var valorNotas=notas.filter(function(n){return n.fornecedorId===x.id;}).reduce(function(s,n){return s+(parseFloat(n.total)||0);},0);
     return'<tr>'+
-      '<td><strong>'+x.nome+'</strong></td>'+
+      '<td><strong>'+escHtml(x.nome)+'</strong>'+(x.email?'<br><span style="font-size:11px;color:rgba(255,255,255,.45)">'+escHtml(x.email)+'</span>':'')+'</td>'+
       '<td style="font-size:12px">'+(x.wpp?'<a href="https://wa.me/'+x.wpp.replace(/\D/g,'')+'" target="_blank" style="color:var(--brand)">'+x.wpp+'</a>':'—')+'</td>'+
-      '<td style="font-size:12px;color:rgba(255,255,255,.6)">'+(x.contato||'—')+'</td>'+
-      '<td style="text-align:center;font-weight:700;color:var(--brand)">'+nNotas+'</td>'+
+      '<td style="font-size:12px;color:rgba(255,255,255,.6)">'+(x.contato?escHtml(x.contato):'—')+'</td>'+
+      '<td style="text-align:center">'+
+        (nNotas?'<span class="badge bbl" title="'+fmt(valorNotas)+'">'+nNotas+'</span>':'<span style="color:rgba(255,255,255,.3)">—</span>')+
+      '</td>'+
       '<td style="white-space:nowrap"><button class="btn btn-out btn-sm" onclick="openFornecedorModal(\''+x.id+'\')">✏️</button> <button class="btn btn-danger btn-sm" onclick="deleteFornecedor(\''+x.id+'\')">🗑</button></td>'+
     '</tr>';
   }).join('');
@@ -6967,9 +6996,13 @@ function closeNotaModal(){ge('modal-nota').className='modal-overlay';}
 function saveNota(){
   var data=val('nota-data'),fornecedorId=val('nota-fornecedor');
   var itens=getNotaItens().filter(function(it){return it.nome&&it.qty>0;});
-  if(!data){alert('Informe a data.');return;}
-  if(!fornecedorId){alert('Selecione um fornecedor. Cadastre um em "Fornecedores" se ainda não tiver.');return;}
-  if(!itens.length){alert('Adicione ao menos um item com nome e quantidade.');return;}
+  function _notaErro(msg,focusId){
+    var d=ge('nota-alertas');if(d){d.innerHTML='<div class="warn-box" style="margin-top:8px">'+msg+'</div>';setTimeout(function(){if(d)d.innerHTML='';},5000);}
+    if(focusId){var el=ge(focusId);if(el){el.focus();el.style.borderColor='var(--red)';setTimeout(function(){el.style.borderColor='';},3000);}}
+  }
+  if(!data){_notaErro('Informe a data da nota.','nota-data');return;}
+  if(!fornecedorId){_notaErro('Selecione um fornecedor. Cadastre em "Fornecedores" se ainda não tiver.','nota-fornecedor');return;}
+  if(!itens.length){_notaErro('Adicione ao menos um item com nome e quantidade.');return;}
 
   var fornecedor=getFornecedores().find(function(f){return f.id===fornecedorId;});
   var total=itens.reduce(function(a,it){return a+it.sub;},0);
@@ -7050,14 +7083,19 @@ function saveNota(){
   saveNotasCompra(notas);
 
   closeNotaModal();renderNotas();
-  var msgFinal='✅ Nota salva! Estoque atualizado e despesa lançada no Dashboard MEI.';
+  var linhas=['✅ Nota salva! Estoque atualizado e despesa lançada no Dashboard MEI.'];
   if(produtosNovos.length){
-    msgFinal+='\n\n📦 '+produtosNovos.length+' produto(s) novo(s) cadastrado(s) automaticamente no Catálogo: '+produtosNovos.join(', ')+'.\n\nComplete o cadastro deles (preço de venda, categoria, foto) em "Produtos" quando puder — por enquanto estão com preço de venda zerado.';
+    linhas.push('📦 '+produtosNovos.length+' produto(s) novo(s) cadastrado(s) automaticamente no Catálogo: <strong>'+produtosNovos.map(escHtml).join(', ')+'</strong>. Complete o cadastro (preço de venda, categoria, foto) em "Produtos" quando puder — por enquanto estão com preço de venda zerado.');
   }
   if(variacoesNovas.length){
-    msgFinal+='\n\n🎨 '+variacoesNovas.length+' variação(ões) nova(s) cadastrada(s): '+variacoesNovas.join(', ')+'.';
+    linhas.push('🎨 '+variacoesNovas.length+' variação(ões) nova(s) cadastrada(s): <strong>'+variacoesNovas.map(escHtml).join(', ')+'</strong>.');
   }
-  alert(msgFinal);
+  var alertasDiv=ge('notas-alertas');
+  if(alertasDiv){
+    var cls=linhas.length>1?'warn-box':'success-box';
+    alertasDiv.innerHTML='<div class="'+cls+'" style="margin-top:8px">'+linhas.join('<br><br>')+'</div>';
+    setTimeout(function(){if(alertasDiv)alertasDiv.innerHTML='';},7000);
+  }
 }
 
 function reverterEfeitosNota(nota){
@@ -7083,10 +7121,10 @@ function reverterEfeitosNota(nota){
 function deletarNota(id){
   var nota=getNotasCompra().find(function(n){return n.id===id;});
   if(!nota)return;
-  if(!confirm('Excluir esta nota? Isso vai remover a despesa lançada e reverter a entrada no estoque.'))return;
-  reverterEfeitosNota(nota);
-  saveNotasCompra(getNotasCompra().filter(function(n){return n.id!==id;}));
-  renderNotas();
+  ge('modal-del-fin-id').value='nota:'+id;
+  ge('modal-del-fin-msg').innerHTML='Excluir a nota <strong>'+(nota.numero?'#'+escHtml(nota.numero)+' — ':'')+escHtml(nota.fornecedorNome||'fornecedor')+'</strong> ('+fmt(nota.total||0)+')? A despesa lançada será removida e a entrada no estoque será revertida.';
+  ge('modal-del-fin-btn').textContent='🗑 Excluir nota';
+  ge('modal-del-fin').className='modal-overlay open';
 }
 
 function renderNotas(){
@@ -7560,6 +7598,13 @@ function confirmarDelFin(){
   } else if(raw.startsWith('pagamento:')){
     var id=raw.replace('pagamento:','');
     savePagamentosRH(getPagamentosRH().filter(function(p){return p.id!==id;}));renderMEI();
+  } else if(raw.startsWith('fornecedor:')){
+    var id=raw.replace('fornecedor:','');
+    saveFornecedores(getFornecedores().filter(function(f){return f.id!==id;}));renderFornecedores();
+  } else if(raw.startsWith('nota:')){
+    var id=raw.replace('nota:','');
+    var nota=getNotasCompra().find(function(n){return n.id===id;});
+    if(nota){reverterEfeitosNota(nota);saveNotasCompra(getNotasCompra().filter(function(n){return n.id!==id;}));renderNotas();}
   }
 }
 
