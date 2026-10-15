@@ -618,14 +618,14 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
       <!-- Saudação + resumo do dia -->
       <div id="dash-saudacao" style="margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px"></div>
       <!-- Ações Rápidas -->
-      <div id="dash-acoes-rapidas" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-        <button class="btn" style="flex:1;min-width:120px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;padding:10px 14px" onclick="showView('form')">
+      <div id="dash-acoes-rapidas" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-bottom:14px">
+        <button class="btn" style="display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;padding:10px 8px;white-space:nowrap" onclick="showView('form')">
           <span style="font-size:16px">📝</span> Novo Orçamento
         </button>
-        <button class="btn btn-out" style="flex:1;min-width:120px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;padding:10px 14px" onclick="showView('os')">
+        <button class="btn btn-out" style="display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;padding:10px 8px;white-space:nowrap" onclick="showView('os')">
           <span style="font-size:16px">🔧</span> Nova OS
         </button>
-        <button class="btn btn-out" style="flex:1;min-width:120px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;padding:10px 14px" onclick="showView('venda-rapida')">
+        <button class="btn btn-out" style="display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;padding:10px 8px;white-space:nowrap" onclick="showView('venda-rapida')">
           <span style="font-size:16px">⚡</span> Venda Rápida
         </button>
       </div>
@@ -635,7 +635,10 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
       <!-- Novos painéis: Orçamentos a cobrar + Taxa de conversão -->
       <div class="dash-2col">
         <div class="dash-panel">
-          <div class="dash-panel-title"><span class="dash-panel-title-icon">💰</span>Orçamentos a cobrar <span style="font-size:10px;color:rgba(255,255,255,.35);font-weight:400;text-transform:none;letter-spacing:0">(dinheiro na mesa)</span></div>
+          <div class="dash-panel-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
+            <span><span class="dash-panel-title-icon">💰</span>Orçamentos a cobrar <span style="font-size:10px;color:rgba(255,255,255,.35);font-weight:400;text-transform:none;letter-spacing:0">(dinheiro na mesa)</span></span>
+            <button id="btn-cobrar-todos" class="btn btn-wpp btn-sm" style="font-size:11px;padding:4px 10px;display:none" onclick="cobrarTodosPendentes()">💬 Cobrar todos</button>
+          </div>
           <div id="dash-a-cobrar"></div>
         </div>
         <div class="dash-panel">
@@ -8704,12 +8707,39 @@ function renderDash(){
   renderDashReativar();
 }
 
+// Cobrar todos os pendentes que têm WhatsApp — abre um por um
+function cobrarTodosPendentes(){
+  var hist=getHist();
+  var pendentes=hist.filter(function(h){return (h.status==='Aguardando aprovação'||h.status==='Em revisão')&&h.cliente&&h.cliente.wpp;});
+  if(!pendentes.length){alert('Nenhum orçamento pendente com WhatsApp cadastrado.');return;}
+  var cfg=getCfg();
+  var i=0;
+  function proxMsg(){
+    if(i>=pendentes.length)return;
+    var h=pendentes[i++];
+    var wpp=(h.cliente.wpp||'').replace(/\D/g,'');
+    var nome=h.cliente.nome||'cliente';
+    var total=fmt(calcHistTotal(h));
+    var msg='Olá '+nome+'! 😊 Passando para saber se teve a chance de avaliar o orçamento *#'+h.num+'* no valor de *'+total+'*. Posso ajudar com alguma dúvida?';
+    window.open('https://wa.me/'+wpp+'?text='+encodeURIComponent(msg),'_blank');
+    if(i<pendentes.length)setTimeout(proxMsg,1200);
+  }
+  proxMsg();
+}
+
 // Orçamentos pendentes ordenados por valor — "dinheiro na mesa"
 function renderDashACobrar(){
   var el=ge('dash-a-cobrar');if(!el)return;
   var hist=getHist();
   var pendentes=hist.filter(function(h){return h.status==='Aguardando aprovação'||h.status==='Em revisão';});
   pendentes.sort(function(a,b){return calcHistTotal(b)-calcHistTotal(a);});
+  // Atualiza visibilidade do botão "Cobrar todos"
+  var btnTodos=ge('btn-cobrar-todos');
+  if(btnTodos){
+    var comWpp=pendentes.filter(function(h){return h.cliente&&h.cliente.wpp;}).length;
+    if(comWpp>0){btnTodos.style.display='';btnTodos.textContent='💬 Cobrar todos ('+comWpp+')';}
+    else{btnTodos.style.display='none';}
+  }
   if(!pendentes.length){el.innerHTML='<div style="padding:20px;text-align:center;color:rgba(255,255,255,.35);font-size:12px">Nenhum orçamento pendente. Tudo em dia! 🎉</div>';return;}
   var totalPend=pendentes.reduce(function(a,h){return a+calcHistTotal(h);},0);
   el.innerHTML='<div style="font-size:11px;color:rgba(255,255,255,.5);margin-bottom:10px">Total parado: <strong style="color:var(--brand);font-size:14px">'+fmt(totalPend)+'</strong> em '+pendentes.length+' orçamento(s)</div>'+
