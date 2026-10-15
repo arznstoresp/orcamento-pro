@@ -963,7 +963,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
         <button class="btn btn-out"   onclick="salvarOrcamento()">💾 Salvar</button>
         <button class="btn btn-wpp"   onclick="enviarWpp()">💬 WhatsApp</button>
         <button class="btn btn-email" onclick="enviarEmail()">✉️ E-mail</button>
-        <button class="btn btn-pdf"   onclick="window.print()">🖨️ PDF</button>
+        <button class="btn btn-pdf"   onclick="imprimirPDF()">🖨️ PDF</button>
         <button class="btn btn-green" onclick="gerarLinkPublico()">🔗 Link</button>
         <button class="btn btn-blue" style="background:var(--blue);color:#fff" onclick="gerarOS()">🔧 Gerar OS</button>
       </div>
@@ -3885,6 +3885,15 @@ function _catOpOk(msg){
 }
 function _catOpErro(msg){
   var d=ge('cat-op-alertas');if(d){d.innerHTML='<div class="warn-box" style="margin-top:8px">'+msg+'</div>';setTimeout(function(){if(d)d.innerHTML='';},6000);}
+}
+function imprimirPDF(){
+  var num=(val('orc-num')||'001').replace(/[^\w\d\-]/g,'');
+  var cli=(val('cli-nome')||'').replace(/[^a-zA-Z0-9À-ÿ\s\-]/g,'').trim().replace(/\s+/g,' ');
+  var titulo=cli?'OC-'+num+'-'+cli:'OC-'+num;
+  var ant=document.title;
+  document.title=titulo;
+  window.print();
+  setTimeout(function(){document.title=ant;},1000);
 }
 function _showToastGlobal(msg,tipo,dur){
   // Toast flutuante global — aparece em qualquer view, some sozinho
@@ -10855,7 +10864,7 @@ function showView(name){
   var acts={
     dash:'<button class="btn btn-brand" onclick="showView(\'form\')">✏️ Novo orçamento</button> <button class="btn btn-out" onclick="abrirRelatorioSemanal()">📊 Relatório semanal</button>',
     form:'<button class="btn btn-out" onclick="limparForm()">↺ Novo</button> <button class="btn btn-out" onclick="salvarOrcamento()">💾 Salvar</button> <button class="btn btn-out" onclick="salvarComoTemplate()">⭐ Template</button> <button class="btn btn-brand" onclick="showView(\'preview\')">👁 Pré-visualizar →</button>',
-    preview:'<button class="btn btn-out" onclick="showView(\'form\')">← Editar</button> <button class="btn btn-out" onclick="salvarOrcamento()">💾 Salvar</button> <button class="btn btn-wpp" onclick="enviarWpp()">💬 Enviar</button> <button class="btn btn-wpp" onclick="abrirFollowupPreview()" style="background:#128C7E">💬 Follow-up</button> <button class="btn btn-email" onclick="enviarEmail()">✉️</button> <button class="btn btn-pdf" onclick="window.print()">🖨️</button> <button class="btn btn-green" onclick="gerarLinkPublico()">🔗</button>',
+    preview:'<button class="btn btn-out" onclick="showView(\'form\')">← Editar</button> <button class="btn btn-out" onclick="salvarOrcamento()">💾 Salvar</button> <button class="btn btn-wpp" onclick="enviarWpp()">💬 Enviar</button> <button class="btn btn-wpp" onclick="abrirFollowupPreview()" style="background:#128C7E">💬 Follow-up</button> <button class="btn btn-email" onclick="enviarEmail()">✉️</button> <button class="btn btn-pdf" onclick="imprimirPDF()">🖨️</button> <button class="btn btn-green" onclick="gerarLinkPublico()">🔗</button>',
     hist:'<button class="btn btn-brand" onclick="showView(\'form\')">✏️ Novo</button> <button class="btn btn-out" onclick="exportarHistXls()">📊 Excel</button>',
     os:'',templates:'<button class="btn btn-brand" onclick="salvarComoTemplate()">⭐ Salvar atual como template</button>',
     cat:'<button class="btn btn-brand" onclick="openProdModal()">＋ Produto</button>',
