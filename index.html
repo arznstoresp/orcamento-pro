@@ -1090,6 +1090,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
           </tr></thead><tbody id="cat-body"></tbody></table>
         </div>
         <div id="cat-empty" style="text-align:center;padding:26px;color:rgba(255,255,255,.5);font-size:13px;display:none">Nenhum produto cadastrado.</div>
+        <div id="cat-op-alertas"></div>
       </div>
     </div>
 
@@ -2101,6 +2102,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
       <input type="hidden" id="prod-foto-data">
     </div>
     <div class="mt"><label class="lbl">Descrição</label><textarea id="prod-desc" style="min-height:44px"></textarea></div>
+    <div id="prod-modal-alertas"></div>
     <div class="modal-footer">
       <button class="btn btn-out" onclick="closeProdModal()">Cancelar</button>
       <button class="btn btn-out" id="btn-duplicar-prod" style="display:none" onclick="duplicarProduto()">📋 Duplicar</button>
@@ -3254,8 +3256,8 @@ function renderCat(){
     var variacaoCellHtml=variacaoTxt?'<br><button type="button" onclick="toggleVariacoesProdCat(this)" style="background:none;border:none;cursor:pointer;padding:0;font-family:inherit;font-size:10px;color:var(--brand-l)" title="Clique para ver as variações">🎨 '+totalVariacoesTxt+' variaç'+(totalVariacoesTxt===1?'ão':'ões')+' ▾</button><span style="display:none;font-size:10px;color:var(--brand-l)">🎨 '+variacaoTxt+'</span>':'';
     return'<tr>'+
       '<td>'+foto+'</td>'+
-      '<td><strong>'+p.nome+'</strong>'+variacaoCellHtml+(p.sku?'<br><span style="font-size:10px;color:rgba(255,255,255,.5)">'+p.sku+'</span>':'')+'</td>'+
-      '<td style="font-size:12px;color:rgba(255,255,255,.5)">'+(p.cat||'—')+'</td>'+
+      '<td><strong>'+escHtml(p.nome)+'</strong>'+variacaoCellHtml+(p.sku?'<br><span style="font-size:10px;color:rgba(255,255,255,.5)">'+escHtml(p.sku)+'</span>':'')+'</td>'+
+      '<td style="font-size:12px;color:rgba(255,255,255,.5)">'+(p.cat?escHtml(p.cat):'—')+'</td>'+
       '<td>'+p.unit+'</td>'+
       '<td style="font-size:12px;color:rgba(255,255,255,.5)">'+(p.custo?fmt(p.custo):'—')+'</td>'+
       '<td style="font-weight:600;color:var(--brand)">'+(temVariacoes?'a partir de '+fmt(p.varejo):fmt(p.varejo))+'</td>'+
@@ -3558,7 +3560,7 @@ async function sincronizarXBZ(){
 
 function exportarCatalogoPDF(){
   var produtos=getProdutosCatalogavel();
-  if(!produtos.length){alert('Nenhum produto no catálogo. Cadastre produtos e marque "Exibir no Catálogo".');return;}
+  if(!produtos.length){_catOpErro('Nenhum produto no catálogo. Cadastre produtos e marque "Exibir no Catálogo".');return;}
   var modo=val('catalogo-modo-preco')||'varejo';
   var cfg=getCfg();
   var logo=localStorage.getItem('orcpro_logo')||'';
@@ -3676,7 +3678,7 @@ function exportarCatalogoPDF(){
   '</body></html>';
 
   var w=window.open('','_blank');
-  if(!w){alert('Seu navegador bloqueou a janela. Permita pop-ups para gerar o catálogo PDF.');return;}
+  if(!w){_catOpErro('Seu navegador bloqueou a janela. Permita pop-ups para gerar o catálogo PDF.');return;}
   w.document.write(html);
   w.document.close();
 }
@@ -3843,8 +3845,19 @@ var _prodOpcoes=[];// ex: [{nome:'Cor', valores:['Branco','Preto']}, {nome:'Tama
 var _prodVariacoesGrade=[];// combinações geradas, com estoque/preço de cada
 var _prodCombosComEstoque={};// chaves de combinações salvas com estoque (mantidas mesmo fora do mapa Tamanho x Modelo)
 
+function _prodErro(msg,focusId){
+  var d=ge('prod-modal-alertas');if(d){d.innerHTML='<div class="warn-box" style="margin-top:8px">'+msg+'</div>';setTimeout(function(){if(d)d.innerHTML='';},5000);}
+  if(focusId){var el=ge(focusId);if(el){el.focus();el.style.borderColor='var(--red)';setTimeout(function(){el.style.borderColor='';},3000);}}
+}
+function _catOpOk(msg){
+  var d=ge('cat-op-alertas');if(d){d.innerHTML='<div class="success-box" style="margin-top:8px">'+msg+'</div>';setTimeout(function(){if(d)d.innerHTML='';},5000);}
+}
+function _catOpErro(msg){
+  var d=ge('cat-op-alertas');if(d){d.innerHTML='<div class="warn-box" style="margin-top:8px">'+msg+'</div>';setTimeout(function(){if(d)d.innerHTML='';},6000);}
+}
+
 function addOpcaoProduto(nome,valores){
-  if(_prodOpcoes.length>=3){alert('Máximo de 3 opções (ex: Cor, Tamanho, Modelo).');return;}
+  if(_prodOpcoes.length>=3){_prodErro('Máximo de 3 opções (ex: Cor, Tamanho, Modelo).');return;}
   _prodOpcoes.push({nome:nome||'',valores:valores||[]});
   renderOpcoesProduto();
 }
@@ -4019,13 +4032,11 @@ function editProd(id){openProdModal(id);}
 
 function duplicarProduto(){
   var editId=val('prod-edit-id');
-  if(!editId){alert('Salve o produto primeiro antes de duplicar.');return;}
+  if(!editId){_prodErro('Salve o produto primeiro antes de duplicar.');return;}
   var produtoOrigem=getProdutos().find(function(p){return p.id===editId;});
-  if(!produtoOrigem){alert('Produto não encontrado.');return;}
+  if(!produtoOrigem){_prodErro('Produto não encontrado.');return;}
 
-  var novoNome=prompt('Nome do novo produto (ex: troque a cor/variação):',produtoOrigem.nome+' (cópia)');
-  if(!novoNome)return;
-
+  var novoNome=produtoOrigem.nome+' (cópia)';
   var novoProduto=JSON.parse(JSON.stringify(produtoOrigem));// cópia profunda — independente do original
   novoProduto.id='p'+Date.now();
   novoProduto.nome=novoNome;
@@ -4039,18 +4050,18 @@ function duplicarProduto(){
 
   closeProdModal();
   renderCat();
-  alert('✅ Produto duplicado como "'+novoNome+'"! Ajuste o que for diferente (foto, SKU, cor) e salve.');
+  _catOpOk('✅ Produto duplicado como "'+escHtml(novoNome)+'"! Ajuste o que for diferente (foto, SKU, cor) e salve.');
   openProdModal(novoProduto.id);
 }
 
 async function saveProd(){
-  var nome=val('prod-nome');if(!nome){alert('Informe o nome.');return;}
+  var nome=val('prod-nome');if(!nome){_prodErro('Informe o nome do produto.','prod-nome');return;}
   var variacoes=getVariacoesShopify();
   var varejo=parseFloat(val('prod-varejo'))||0,atacado=parseFloat(val('prod-atacado'))||0,custo=parseFloat(val('prod-custo'))||0;
   // Se não há variações, o preço base é obrigatório. Se há variações, cada uma pode ter o seu próprio (ou herdar o base).
-  if(!variacoes.length&&!varejo&&!atacado){alert('Informe ao menos um preço, ou adicione uma variação com preço próprio.');return;}
+  if(!variacoes.length&&!varejo&&!atacado){_prodErro('Informe ao menos um preço, ou adicione uma variação com preço próprio.');return;}
   if(variacoes.length&&!varejo&&!atacado&&variacoes.some(function(v){return v.varejo==null&&v.atacado==null;})){
-    alert('Pelo menos uma variação está sem preço e o produto não tem preço base. Informe o preço base OU o preço de cada variação.');return;
+    _prodErro('Pelo menos uma variação está sem preço e o produto não tem preço base. Informe o preço base OU o preço de cada variação.');return;
   }
   var prods=getProdutos(),editId=val('prod-edit-id');
   // Garantia final: produto novo salvo sem SKU ganha um automático
@@ -4222,8 +4233,9 @@ function importProdExcel(e){
         var varejo=parseFloat((r[5]||'').toString().replace(',','.'))||0,atacado=parseFloat((r[6]||'').toString().replace(',','.'))||0,custo=parseFloat((r[4]||'').toString().replace(',','.'))||0;
         if(!varejo&&!atacado){ign++;continue;}
         prods.push({id:'p'+Date.now()+i,nome:nome,cat:(r[1]||'').toString().trim(),unit:(r[2]||'un').toString().trim()||'un',sku:(r[3]||'').toString().trim(),custo:custo,varejo:varejo,atacado:atacado||varejo,minAtacado:parseInt(r[7])||10,desc:(r[8]||'').toString().trim(),foto:''});imp++;}
-      saveProdutos(prods);renderCat();ge('import-prod-file').value='';alert('✅ '+imp+' produto(s) importado(s).'+(ign?' '+ign+' ignorado(s).':''));
-    }catch(err){alert('Erro: '+err.message);}
+      saveProdutos(prods);renderCat();ge('import-prod-file').value='';
+      _catOpOk('✅ '+imp+' produto(s) importado(s).'+(ign?' '+ign+' ignorado(s).':''));
+    }catch(err){_catOpErro('Erro ao importar: '+escHtml(err.message));}
   };reader.readAsArrayBuffer(file);
 }
 
@@ -5562,7 +5574,7 @@ function renderRelatorioCompra(){
 
 function exportarRelatorioCompraExcel(){
   var baixos=getProdutosEstoqueBaixo();
-  if(!baixos.length){alert('Nenhum produto com estoque baixo para exportar.');return;}
+  if(!baixos.length){_catOpErro('Nenhum produto com estoque baixo para exportar.');return;}
   var grupos={};
   baixos.forEach(function(b){if(!grupos[b.cat])grupos[b.cat]=[];grupos[b.cat].push(b);});
   var categorias=Object.keys(grupos).sort(function(a,b){return a.localeCompare(b,'pt-BR');});
