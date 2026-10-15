@@ -1013,17 +1013,32 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
       <div class="info-box">🔧 Ordens de Serviço geradas a partir de orçamentos aprovados. Acompanhe o status de produção.</div>
       <div class="card">
         <div class="card-title">Ordens de Serviço <span id="os-count" style="margin-left:6px;font-size:12px;color:var(--brand);font-weight:700"></span></div>
-        <div style="display:flex;gap:7px;margin-bottom:11px;flex-wrap:wrap;align-items:center">
+        <div style="display:flex;gap:7px;margin-bottom:8px;flex-wrap:wrap;align-items:center">
           <input id="os-search" placeholder="🔍 Buscar..." style="max-width:220px" oninput="renderOS()">
           <select id="os-filter" onchange="renderOS()" style="max-width:150px">
             <option value="">Todos</option><option>Aguardando</option><option>Em produção</option><option>Concluído</option><option>Entregue</option>
           </select>
         </div>
+        <div id="os-periodo-row" style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px;align-items:center">
+          <span style="font-size:11px;color:rgba(255,255,255,.4);flex-shrink:0">Período:</span>
+          <button class="btn btn-brand btn-sm os-periodo-btn" onclick="setOSPeriodo('')" data-p="">Todos</button>
+          <button class="btn btn-out btn-sm os-periodo-btn" onclick="setOSPeriodo('semana')" data-p="semana">Semana</button>
+          <button class="btn btn-out btn-sm os-periodo-btn" onclick="setOSPeriodo('mes')" data-p="mes">Este mês</button>
+          <button class="btn btn-out btn-sm os-periodo-btn" onclick="setOSPeriodo('mes_ant')" data-p="mes_ant">Mês passado</button>
+          <button class="btn btn-out btn-sm os-periodo-btn" onclick="setOSPeriodo('custom')" data-p="custom">📅 Personalizado</button>
+          <span id="os-custom-datas" style="display:none;gap:4px;align-items:center">
+            <input type="date" id="os-data-ini" style="font-size:11px;padding:4px 6px" onchange="renderOS()">
+            <span style="font-size:11px;color:rgba(255,255,255,.4)">até</span>
+            <input type="date" id="os-data-fim" style="font-size:11px;padding:4px 6px" onchange="renderOS()">
+          </span>
+        </div>
+        <div id="os-kpis-bar" style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px"></div>
         <div class="items-wrap">
           <table class="cat"><thead><tr>
-            <th style="width:8%">OS</th><th style="width:10%">Orç.</th><th style="width:20%">Cliente</th>
-            <th style="width:10%">Abertura</th><th style="width:12%">Previsão</th>
-            <th style="width:13%">Status</th><th style="width:27%"></th>
+            <th style="width:8%">OS</th><th style="width:10%">Orç.</th><th style="width:18%">Cliente</th>
+            <th style="width:10%;cursor:pointer;user-select:none" onclick="sortOS('abertura')">Abertura <span id="os-sort-abertura" style="opacity:.6">↓</span></th>
+            <th style="width:11%;cursor:pointer;user-select:none" onclick="sortOS('previsao')">Previsão <span id="os-sort-previsao" style="opacity:.6"></span></th>
+            <th style="width:13%">Status</th><th style="width:30%"></th>
           </tr></thead><tbody id="os-body"></tbody></table>
         </div>
         <div id="os-empty" style="text-align:center;padding:26px;color:rgba(255,255,255,.5);font-size:13px;display:none">Nenhuma OS gerada ainda. Aprove um orçamento e clique em "Gerar OS".</div>
@@ -2167,6 +2182,26 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
     <div class="mt"><label class="lbl">Responsável pela produção</label><input id="os-responsavel" placeholder="Nome do responsável"></div>
     <div class="mt"><label class="lbl">Observações da OS</label><textarea id="os-obs" placeholder="Instruções de produção, detalhes do pedido..." style="min-height:64px"></textarea></div>
     <div class="modal-footer"><button class="btn btn-out" onclick="closeOSModal()">Cancelar</button> <button class="btn btn-brand" onclick="confirmarOS()">✅ Criar OS</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-os-ver">
+  <div class="modal" style="width:540px">
+    <div class="modal-title">🔧 Detalhes da OS</div>
+    <div id="modal-os-ver-body" style="font-size:13px;line-height:1.7"></div>
+    <div class="modal-footer"><button class="btn btn-brand" onclick="ge('modal-os-ver').className='modal-overlay'">Fechar</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-os-satisf">
+  <div class="modal" style="width:400px">
+    <div class="modal-title">⭐ Pesquisa de Satisfação</div>
+    <input type="hidden" id="modal-os-satisf-id">
+    <div id="modal-os-satisf-body" style="font-size:13px;line-height:1.7;margin-bottom:4px"></div>
+    <div class="modal-footer">
+      <button class="btn btn-out" onclick="ge('modal-os-satisf').className='modal-overlay'">Agora não</button>
+      <button class="btn btn-brand" onclick="enviarSatisfacao(ge('modal-os-satisf-id').value);ge('modal-os-satisf').className='modal-overlay'">📱 Enviar WhatsApp</button>
+    </div>
   </div>
 </div>
 
@@ -4841,24 +4876,91 @@ function confirmarOS(){
   closeOSModal();alert('✅ OS '+osNum+' criada com sucesso!');
   renderOS();
 }
+var _osSortCol='abertura',_osSortDir=-1,_osPeriodo='';
+function setOSPeriodo(p){
+  _osPeriodo=p;
+  document.querySelectorAll('.os-periodo-btn').forEach(function(b){
+    b.className='btn '+(b.dataset.p===p?'btn-brand':'btn-out')+' btn-sm os-periodo-btn';
+  });
+  var cd=ge('os-custom-datas');
+  if(cd)cd.style.display=(p==='custom'?'flex':'none');
+  renderOS();
+}
+function sortOS(col){
+  if(_osSortCol===col)_osSortDir*=-1;
+  else{_osSortCol=col;_osSortDir=-1;}
+  renderOS();
+}
+function _aplicarSortOS(arr){
+  var col=_osSortCol,dir=_osSortDir;
+  return arr.slice().sort(function(a,b){
+    var va,vb;
+    if(col==='previsao'){va=a.previsao||'9999';vb=b.previsao||'9999';}
+    else{va=a.abertura||'';vb=b.abertura||'';}
+    return va<vb?-dir:va>vb?dir:0;
+  });
+}
+function _aplicarPeriodoOS(all){
+  if(!_osPeriodo)return all;
+  var hoje2=hoje(),ini='',fim='';
+  if(_osPeriodo==='mes'){ini=hoje2.substring(0,7)+'-01';fim=hoje2;}
+  else if(_osPeriodo==='mes_ant'){
+    var dm=new Date(hoje2);dm.setDate(1);dm.setMonth(dm.getMonth()-1);
+    ini=dm.toISOString().substring(0,7)+'-01';
+    var ult=new Date(dm.getFullYear(),dm.getMonth()+1,0);
+    fim=ult.toISOString().substring(0,10);
+  }
+  else if(_osPeriodo==='semana'){
+    var dw=new Date(hoje2),dow=dw.getDay();dw.setDate(dw.getDate()-dow);
+    ini=dw.toISOString().substring(0,10);fim=hoje2;
+  }
+  else if(_osPeriodo==='custom'){
+    ini=val('os-data-ini')||'';fim=val('os-data-fim')||'';
+    if(!ini&&!fim)return all;
+  }
+  return all.filter(function(o){var d=o.abertura||'';return(!ini||d>=ini)&&(!fim||d<=fim);});
+}
+function _renderOSKpis(f){
+  var bar=ge('os-kpis-bar');if(!bar)return;
+  if(!f.length){bar.innerHTML='';return;}
+  var cnt={Aguardando:0,'Em produção':0,Concluído:0,Entregue:0};
+  f.forEach(function(o){if(cnt[o.status]!=null)cnt[o.status]++;});
+  var pill='display:inline-block;font-size:11px;border-radius:6px;padding:3px 9px;';
+  bar.innerHTML=
+    '<span style="'+pill+'color:rgba(255,255,255,.55);background:rgba(255,255,255,.06)">🔧 '+f.length+' OS</span>'+
+    (cnt['Aguardando']?'<span style="'+pill+'color:#fbbf24;background:rgba(251,191,36,.1)">⏳ '+cnt['Aguardando']+' aguardando</span>':'')+
+    (cnt['Em produção']?'<span style="'+pill+'color:var(--blue);background:var(--blue-bg)">⚙️ '+cnt['Em produção']+' em produção</span>':'')+
+    (cnt['Concluído']?'<span style="'+pill+'color:#4ade80;background:rgba(34,197,94,.1)">✅ '+cnt['Concluído']+' concluído</span>':'')+
+    (cnt['Entregue']?'<span style="'+pill+'color:#a78bfa;background:rgba(139,92,246,.1)">📦 '+cnt['Entregue']+' entregue</span>':'');
+}
+function _atualizarSortIndicatorsOS(){
+  ['abertura','previsao'].forEach(function(c){
+    var el=ge('os-sort-'+c);
+    if(el)el.textContent=_osSortCol===c?(_osSortDir>0?' ↑':' ↓'):'';
+  });
+}
 function renderOS(){
   var all=getOS(),q=(val('os-search')||'').toLowerCase(),fs=val('os-filter');
   var f=all.filter(function(o){return(!q||(o.num||'').toLowerCase().includes(q)||(o.cliente.nome||'').toLowerCase().includes(q)||(o.orcNum||'').toLowerCase().includes(q))&&(!fs||o.status===fs);});
+  f=_aplicarPeriodoOS(f);
+  f=_aplicarSortOS(f);
+  _atualizarSortIndicatorsOS();
   var tbody=ge('os-body'),empty=ge('os-empty'),count=ge('os-count');
   if(count)count.textContent='('+all.length+')';
+  _renderOSKpis(f);
   if(!f.length){tbody.innerHTML='';if(empty)empty.style.display='block';return;}
   if(empty)empty.style.display='none';
-  var statusCor={Aguardando:'background:#fef3c7;color:#92400e','Em produção':'background:var(--blue-bg);color:var(--blue)',Concluído:'background:var(--green-bg);color:#166534',Entregue:'background:#ede9fe;color:#5b21b6'};
   tbody.innerHTML=f.map(function(o){
     var selHtml='<select style="font-size:11px;padding:3px 5px;border-radius:5px;max-width:120px" onchange="updateOSStatus(\''+o.id+'\',this.value)">';
     ['Aguardando','Em produção','Concluído','Entregue'].forEach(function(s){selHtml+='<option'+(s===o.status?' selected':'')+'>'+s+'</option>';});
     selHtml+='</select>';
-    return'<tr>'+
+    var atrasada=o.previsao&&o.status!=='Concluído'&&o.status!=='Entregue'&&o.previsao<hoje();
+    return'<tr'+(atrasada?' style="background:rgba(239,68,68,.06)"':'')+'>'+
       '<td><span class="os-badge">'+o.num+'</span></td>'+
       '<td style="font-size:12px;color:var(--brand)">'+(o.orcNum?'#'+o.orcNum:'—')+'</td>'+
       '<td><strong style="font-size:13px">'+(o.cliente.nome||'—')+'</strong></td>'+
       '<td style="font-size:12px">'+fmtDt(o.abertura)+'</td>'+
-      '<td style="font-size:12px">'+(o.previsao?fmtDt(o.previsao):'—')+'</td>'+
+      '<td style="font-size:12px">'+(o.previsao?(atrasada?'<span style="color:#f87171">⚠️ ':'<span>')+fmtDt(o.previsao)+'</span>':'—')+'</td>'+
       '<td>'+selHtml+'</td>'+
       '<td style="white-space:nowrap">'+
         '<button class="btn btn-out btn-sm" onclick="verOS(\''+o.id+'\')">👁 Ver</button>'+
@@ -4868,11 +4970,38 @@ function renderOS(){
     '</tr>';
   }).join('');
 }
-function updateOSStatus(id,status){var all=getOS(),idx=all.findIndex(function(o){return o.id===id;});if(idx>=0){all[idx].status=status;saveOS(all);renderOS();if(status==='Entregue')setTimeout(function(){if(confirm('OS concluída! Deseja enviar pesquisa de satisfação ao cliente?'))enviarSatisfacao(id);},300);}}
+function updateOSStatus(id,status){
+  var all=getOS(),idx=all.findIndex(function(o){return o.id===id;});
+  if(idx<0)return;
+  all[idx].status=status;
+  saveOS(all);
+  renderOS();
+  if(status==='Entregue'){
+    var o=all[idx];
+    if(o.cliente&&o.cliente.wpp){
+      var body=ge('modal-os-satisf-body');
+      if(body)body.innerHTML='<p style="margin:0 0 12px">OS <strong>'+o.num+'</strong> — <strong>'+(o.cliente.nome||'')+'</strong></p><p style="margin:0;color:rgba(255,255,255,.6);font-size:13px">Deseja enviar a pesquisa de satisfação pelo WhatsApp?</p>';
+      ge('modal-os-satisf-id').value=id;
+      ge('modal-os-satisf').className='modal-overlay open';
+    }
+  }
+}
 function deletarOS(id){if(!confirm('Excluir OS?'))return;saveOS(getOS().filter(function(o){return o.id!==id;}));renderOS();}
 function verOS(id){
   var o=getOS().find(function(x){return x.id===id;});if(!o)return;
-  alert('OS: '+o.num+'\nOrçamento: '+(o.orcNum?'#'+o.orcNum:'—')+'\nCliente: '+( o.cliente.nome||'—')+'\nAbertura: '+fmtDt(o.abertura)+'\nPrevisão: '+(o.previsao?fmtDt(o.previsao):'—')+'\nResponsável: '+(o.responsavel||'—')+'\nStatus: '+o.status+'\nTotal: '+fmt(o.total)+'\n\nObs: '+(o.obs||'—'));
+  var atrasada=o.previsao&&o.status!=='Concluído'&&o.status!=='Entregue'&&o.previsao<hoje();
+  var row=function(label,val){return'<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06)"><span style="width:110px;flex-shrink:0;color:rgba(255,255,255,.45);font-size:12px">'+label+'</span><span style="color:#F0F0F5">'+val+'</span></div>';};
+  ge('modal-os-ver-body').innerHTML=
+    row('Nº da OS','<strong>'+o.num+'</strong>')+
+    row('Orçamento',o.orcNum?'<span style="color:var(--brand)">#'+o.orcNum+'</span>':'—')+
+    row('Cliente','<strong>'+(o.cliente.nome||'—')+'</strong>')+
+    row('Abertura',fmtDt(o.abertura))+
+    row('Previsão',o.previsao?(atrasada?'<span style="color:#f87171">⚠️ Atrasada — ':'<span>')+fmtDt(o.previsao)+'</span>':'—')+
+    row('Responsável',o.responsavel||'—')+
+    row('Status','<span style="font-weight:600">'+o.status+'</span>')+
+    row('Total','<strong style="color:var(--brand)">'+fmt(o.total||0)+'</strong>')+
+    (o.obs?row('Observações','<span style="white-space:pre-wrap;font-size:12px">'+o.obs+'</span>'):'');
+  ge('modal-os-ver').className='modal-overlay open';
 }
 function enviarSatisfacao(id){
   var o=getOS().find(function(x){return x.id===id;});if(!o||!o.cliente.wpp)return alert('Cliente sem WhatsApp cadastrado.');
