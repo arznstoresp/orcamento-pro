@@ -10379,9 +10379,12 @@ function obterTokenGoogleValido(callback,silencioso){
       client_id:clientId,scope:GOOGLE_DRIVE_SCOPE,
       callback:function(resp){
         if(resp.error){
-          // Se a renovação silenciosa falhou, guarda o callback para tentar com popup depois
-          if(_googleTokenPendente){var cb=_googleTokenPendente;_googleTokenPendente=null;
-            if(!silencioso)_bkOpErro('Erro de autenticação: '+resp.error);}
+          // Limpa sempre o callback pendente para não travar futuras tentativas
+          var cb=_googleTokenPendente;_googleTokenPendente=null;
+          // interaction_required = Google pediu interação mas estamos em modo silencioso:
+          // descarta sem popup (o usuário reconecta manualmente se precisar).
+          // Outros erros só mostram aviso se for fluxo manual (!silencioso).
+          if(cb&&!silencioso&&resp.error!=='interaction_required')_bkOpErro('Erro de autenticação: '+resp.error);
           return;
         }
         // Guarda quando expira (expires_in vem em segundos, tipicamente 3600 = 1h)
@@ -10392,12 +10395,14 @@ function obterTokenGoogleValido(callback,silencioso){
     });
   }
   _googleTokenPendente=callback;
-  // 3. prompt:'' tenta renovar SILENCIOSAMENTE (sem popup) reaproveitando a sessão do Google no navegador.
-  // Só mostra popup se for a primeira conexão ou se o Google realmente exigir reautenticação.
+  // 3. prompt:'none' força renovação 100% silenciosa (sem account chooser, sem popup).
+  // Se o Google não conseguir renovar silenciosamente, o callback recebe resp.error
+  // e a função desiste sem abrir qualquer UI — o sync só abre popup quando o usuário
+  // clica manualmente no botão "Sincronizar".
   try{
-    googleTokenClient.requestAccessToken({prompt:''});
+    googleTokenClient.requestAccessToken({prompt:'none'});
   }catch(e){
-    if(!silencioso)googleTokenClient.requestAccessToken({});
+    if(!silencioso)googleTokenClient.requestAccessToken({prompt:''});
   }
 }
 
