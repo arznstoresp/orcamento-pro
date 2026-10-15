@@ -1065,8 +1065,9 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
       <div id="cat-alertas"></div>
       <div class="card">
         <div class="card-title">Produtos <span id="cat-count" style="margin-left:6px;font-size:12px;color:var(--brand);font-weight:700"></span></div>
-        <div style="display:flex;gap:7px;margin-bottom:11px;flex-wrap:wrap;align-items:center">
+        <div style="display:flex;gap:7px;margin-bottom:8px;flex-wrap:wrap;align-items:center">
           <input id="cat-search" type="search" name="cat-search-orcpro" data-protegido-autofill="1" placeholder="🔍 Buscar..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="max-width:200px" oninput="renderCat()">
+          <select id="cat-filter-cat" onchange="renderCat()" style="max-width:160px"><option value="">Todas categorias</option></select>
           <label style="font-size:12px;color:rgba(255,255,255,.55);font-weight:400;display:flex;align-items:center;gap:5px;cursor:pointer">
             <input type="checkbox" id="cat-filtro-estoque-baixo" onchange="renderCat()" style="width:auto;padding:0"> Só estoque baixo
           </label>
@@ -1074,12 +1075,18 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
           <button class="btn btn-out btn-sm" onclick="downloadTemplateXlsProd()">📥 Modelo Excel</button>
           <label class="btn btn-out btn-sm" style="cursor:pointer">📤 Importar<input type="file" id="import-prod-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importProdExcel(event)"></label>
         </div>
+        <div id="cat-kpis-bar" style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px"></div>
         <div class="items-wrap">
           <table class="cat"><thead><tr>
-            <th style="width:5%">Foto</th><th style="width:21%">Nome</th><th style="width:10%">Categoria</th>
+            <th style="width:5%">Foto</th>
+            <th style="width:21%;cursor:pointer" onclick="sortCat('nome')">Nome <span id="cat-sort-nome">↑</span></th>
+            <th style="width:10%;cursor:pointer" onclick="sortCat('cat')">Categoria <span id="cat-sort-cat"></span></th>
             <th style="width:5%">Un.</th><th style="width:9%">Custo</th>
-            <th style="width:10%">Varejo</th><th style="width:10%">Atacado</th>
-            <th style="width:8%">Margem</th><th style="width:10%">Estoque</th><th style="width:12%"></th>
+            <th style="width:10%;cursor:pointer" onclick="sortCat('varejo')">Varejo <span id="cat-sort-varejo"></span></th>
+            <th style="width:10%">Atacado</th>
+            <th style="width:8%;cursor:pointer" onclick="sortCat('margem')">Margem <span id="cat-sort-margem"></span></th>
+            <th style="width:10%;cursor:pointer" onclick="sortCat('estoque')">Estoque <span id="cat-sort-estoque"></span></th>
+            <th style="width:12%"></th>
           </tr></thead><tbody id="cat-body"></tbody></table>
         </div>
         <div id="cat-empty" style="text-align:center;padding:26px;color:rgba(255,255,255,.5);font-size:13px;display:none">Nenhum produto cadastrado.</div>
@@ -2211,6 +2218,18 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-del-prod">
+  <div class="modal" style="width:380px">
+    <div class="modal-title">🗑 Excluir Produto</div>
+    <input type="hidden" id="modal-del-prod-id">
+    <p id="modal-del-prod-msg" style="font-size:13px;margin:6px 0 16px"></p>
+    <div class="modal-footer">
+      <button class="btn btn-out" onclick="ge('modal-del-prod').className='modal-overlay'">Cancelar</button>
+      <button class="btn btn-danger" onclick="confirmarDeleteProd()">🗑 Excluir</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-tpl">
   <div class="modal">
     <div class="modal-title">⭐ Salvar como Template</div>
@@ -3077,18 +3096,94 @@ function toggleVariacoesProdCat(btn){
   btn.textContent=btn.textContent.replace(aberto?'▴':'▾',aberto?'▾':'▴');
 }
 
+var _catSortCol='nome',_catSortDir=1;
+function sortCat(col){
+  if(_catSortCol===col)_catSortDir*=-1;
+  else{_catSortCol=col;_catSortDir=(col==='margem'||col==='varejo'||col==='estoque'?-1:1);}
+  renderCat();
+}
+function _aplicarSortCat(arr){
+  var col=_catSortCol,dir=_catSortDir;
+  return arr.slice().sort(function(a,b){
+    var va,vb;
+    if(col==='cat'){va=(a.cat||'').toLowerCase();vb=(b.cat||'').toLowerCase();}
+    else if(col==='varejo'){va=parseFloat(a.varejo)||0;vb=parseFloat(b.varejo)||0;}
+    else if(col==='margem'){va=calcMargem(a.custo,a.varejo)||0;vb=calcMargem(b.custo,b.varejo)||0;}
+    else if(col==='estoque'){va=getEstoqueTotalProduto(a)||0;vb=getEstoqueTotalProduto(b)||0;}
+    else{va=(a.nome||'').toLowerCase();vb=(b.nome||'').toLowerCase();}
+    if(typeof va==='string')return va<vb?-dir:va>vb?dir:0;
+    return(va-vb)*dir;
+  });
+}
+function _atualizarSortIndicatorsCat(){
+  var cols=['nome','cat','varejo','margem','estoque'];
+  cols.forEach(function(c){
+    var el=ge('cat-sort-'+c);
+    if(!el)return;
+    el.textContent=_catSortCol===c?(_catSortDir===1?'↑':'↓'):'';
+  });
+}
+function _renderCatKpis(f,todos){
+  var bar=ge('cat-kpis-bar');if(!bar)return;
+  var cats=new Set(f.map(function(p){return p.cat||'';}).filter(Boolean));
+  var baixos=f.filter(function(p){
+    if(p.variacoes&&p.variacoes.length>0){
+      var min=parseFloat(p.estoqueMin)||0;
+      return p.variacoes.some(function(v){return(parseFloat(v.estoqueQtd)||0)<min;});
+    }
+    return p.controlaEstoque&&(parseFloat(p.estoqueQtd)||0)<=(parseFloat(p.estoqueMin)||0);
+  });
+  var totalValor=f.reduce(function(s,p){
+    var q=getEstoqueTotalProduto(p)||0;
+    var v=parseFloat(p.varejo)||0;
+    return s+q*v;
+  },0);
+  bar.innerHTML=
+    '<span class="badge bbl" title="Produtos filtrados">📦 '+f.length+' produto'+(f.length===1?'':'s')+'</span>'+
+    (cats.size?'<span class="badge" style="background:rgba(255,255,255,.08);color:rgba(255,255,255,.7)" title="Categorias">🏷 '+cats.size+' categoria'+(cats.size===1?'':'s')+'</span>':'')+
+    (baixos.length?'<span class="badge br" title="Estoque baixo">⚠️ '+baixos.length+' estoque baixo'+'</span>':'')+
+    (totalValor>0?'<span class="badge" style="background:rgba(255,255,255,.08);color:var(--brand-l)" title="Valor total em estoque (varejo × qtd)">💰 '+fmt(totalValor)+' em estoque</span>':'');
+}
+function _preencherCatFiltroCategoria(){
+  var sel=ge('cat-filter-cat');if(!sel)return;
+  var prods=getProdutos();
+  var cats=[];prods.forEach(function(p){if(p.cat&&p.cat.trim()&&!cats.includes(p.cat.trim()))cats.push(p.cat.trim());});
+  cats.sort(function(a,b){return a.localeCompare(b,'pt-BR');});
+  var val2=sel.value;
+  sel.innerHTML='<option value="">Todas categorias</option>'+cats.map(function(c){return'<option value="'+c+'"'+(c===val2?' selected':'')+'>'+c+'</option>';}).join('');
+}
+function deleteProd(id){
+  var p=getProdutos().find(function(x){return x.id===id;});
+  if(!p)return;
+  ge('modal-del-prod-id').value=id;
+  ge('modal-del-prod-msg').innerHTML='Tem certeza que deseja excluir <strong>'+escHtml(p.nome)+'</strong>? Esta ação não pode ser desfeita.';
+  ge('modal-del-prod').className='modal-overlay open';
+}
+function confirmarDeleteProd(){
+  var id=ge('modal-del-prod-id').value;
+  if(!id)return;
+  saveProdutos(getProdutos().filter(function(p){return p.id!==id;}));
+  ge('modal-del-prod').className='modal-overlay';
+  renderCat();
+}
 function renderCat(){
   var prods=getProdutos(),q=(val('cat-search')||'').toLowerCase();
   var soBaixo=ge('cat-filtro-estoque-baixo')&&ge('cat-filtro-estoque-baixo').checked;
   // Reaproveita getProdutosEstoqueBaixo() (já considera variações corretamente) em vez de
   // checar só p.controlaEstoque, que produtos com variação não têm.
+  var catFiltro=(val('cat-filter-cat')||'').trim();
   var baixos=getProdutosEstoqueBaixo();
   var idsEstoqueBaixo=soBaixo?new Set(baixos.map(function(b){return b.produtoId;})):null;
   var f=prods.filter(function(p){
     var matchQ=!q||p.nome.toLowerCase().includes(q)||(p.cat||'').toLowerCase().includes(q)||formatarVariacaoProduto(p).toLowerCase().includes(q);
     var matchBaixo=!soBaixo||idsEstoqueBaixo.has(p.id);
-    return matchQ&&matchBaixo;
+    var matchCat=!catFiltro||(p.cat||'').trim()===catFiltro;
+    return matchQ&&matchBaixo&&matchCat;
   });
+  _preencherCatFiltroCategoria();
+  f=_aplicarSortCat(f);
+  _atualizarSortIndicatorsCat();
+  _renderCatKpis(f,prods);
   var tbody=ge('cat-body'),empty=ge('cat-empty'),count=ge('cat-count');
   if(count)count.textContent='('+prods.length+')';
 
@@ -3887,7 +3982,7 @@ function limparProdVariacoes(){_prodOpcoes=[];_prodVariacoesGrade=[];_prodCombos
 
 function closeProdModal(){ge('modal-prod').className='modal-overlay';}
 function editProd(id){openProdModal(id);}
-function deleteProd(id){if(!confirm('Excluir produto?'))return;saveProdutos(getProdutos().filter(function(p){return p.id!==id;}));renderCat();}
+// deleteProd e confirmarDeleteProd definidos acima (antes de renderCat)
 
 function duplicarProduto(){
   var editId=val('prod-edit-id');
