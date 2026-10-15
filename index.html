@@ -1947,7 +1947,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
     <div class="modal-footer">
       <button class="btn btn-out" onclick="closeProdModal()">Cancelar</button>
       <button class="btn btn-out" id="btn-duplicar-prod" style="display:none" onclick="duplicarProduto()">📋 Duplicar</button>
-      <button class="btn btn-brand" onclick="saveProd()">💾 Salvar</button>
+      <button class="btn btn-brand" id="btn-salvar-prod" onclick="saveProd()">💾 Salvar</button>
     </div>
   </div>
 </div>
@@ -3764,7 +3764,7 @@ function duplicarProduto(){
   openProdModal(novoProduto.id);
 }
 
-function saveProd(){
+async function saveProd(){
   var nome=val('prod-nome');if(!nome){alert('Informe o nome.');return;}
   var variacoes=getVariacoesShopify();
   var varejo=parseFloat(val('prod-varejo'))||0,atacado=parseFloat(val('prod-atacado'))||0,custo=parseFloat(val('prod-custo'))||0;
@@ -3799,7 +3799,23 @@ function saveProd(){
   }
   variacoes.forEach(function(v){if(!v.id)v.id='var'+Date.now()+Math.random().toString(36).substr(2,5);});
 
+  var prodId=editId||'p'+Date.now();
+  // Upload fotos para Supabase Storage (se disponível e chave configurada)
   var fotosFinais=prodFotosTemp.filter(function(f){return f;});// remove vazios, mantém ordem
+  if(typeof _uploadFotoStorage==='function'){
+    var btnSalvar=ge('btn-salvar-prod');
+    if(btnSalvar){btnSalvar.disabled=true;btnSalvar.textContent='Enviando fotos…';}
+    try{
+      var fotosUpload=[];
+      for(var fi=0;fi<fotosFinais.length;fi++){
+        var furl=await _uploadFotoStorage(fotosFinais[fi],prodId,fi);
+        fotosUpload.push(furl||fotosFinais[fi]);
+      }
+      fotosFinais=fotosUpload;
+    }catch(e){console.warn('Upload Storage falhou, usando base64:',e);}
+    if(btnSalvar){btnSalvar.disabled=false;btnSalvar.textContent='Salvar';}
+  }
+
   var controlaEstoque=ge('prod-controla-estoque').checked;
   // Desconto por quantidade: só entram as linhas com os dois campos preenchidos
   var atacadoNiveis=[];
@@ -3807,7 +3823,7 @@ function saveProd(){
     var nq=parseFloat(val('prod-atc-qtd-'+ni)),nd=parseFloat(val('prod-atc-desc-'+ni));
     if(!isNaN(nq)&&!isNaN(nd))atacadoNiveis.push({qtd:nq,desconto:nd});
   }
-  var prod={id:editId||'p'+Date.now(),nome:nome,cat:val('prod-cat'),unit:val('prod-unit'),sku:val('prod-sku'),ncm:val('prod-ncm'),cfop:val('prod-cfop'),custo:custo,varejo:varejo,atacado:atacado||varejo,minAtacado:parseInt(val('prod-min'))||10,desc:val('prod-desc'),foto:fotosFinais[0]||'',fotos:fotosFinais,controlaEstoque:controlaEstoque,estoqueQtd:controlaEstoque?(parseFloat(val('prod-estoque-qtd'))||0):0,estoqueMin:controlaEstoque?(parseFloat(val('prod-estoque-min'))||0):0,composicaoCusto:composicaoCusto,exibirCatalogo:ge('prod-exibir-catalogo').checked,variacoes:variacoes,atacadoNiveis:atacadoNiveis};
+  var prod={id:prodId,nome:nome,cat:val('prod-cat'),unit:val('prod-unit'),sku:val('prod-sku'),ncm:val('prod-ncm'),cfop:val('prod-cfop'),custo:custo,varejo:varejo,atacado:atacado||varejo,minAtacado:parseInt(val('prod-min'))||10,desc:val('prod-desc'),foto:fotosFinais[0]||'',fotos:fotosFinais,controlaEstoque:controlaEstoque,estoqueQtd:controlaEstoque?(parseFloat(val('prod-estoque-qtd'))||0):0,estoqueMin:controlaEstoque?(parseFloat(val('prod-estoque-min'))||0):0,composicaoCusto:composicaoCusto,exibirCatalogo:ge('prod-exibir-catalogo').checked,variacoes:variacoes,atacadoNiveis:atacadoNiveis};
   if(editId){var idx=prods.findIndex(function(x){return x.id===editId;});if(idx>=0)prods[idx]=prod;else prods.push(prod);}
   else prods.push(prod);
   saveProdutos(prods);closeProdModal();renderCat();
@@ -9090,9 +9106,30 @@ function renderStorageMeter(){
       }).join('')+'</div>':'')+
     (pct>=60||qtdFotos>0?
       '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--dark-border2)">'+
-        '<button class="btn btn-brand btn-sm" onclick="otimizarImagensExistentes()">🗜️ Otimizar imagens agora ('+qtdFotos+' foto(s))</button>'+
-        '<div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:6px;line-height:1.5">Comprime todas as fotos de produtos e o logo já salvos, liberando espaço sem perder qualidade visível. Faça um backup antes, por segurança.</div>'+
+        '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
+          '<button class="btn btn-brand btn-sm" onclick="otimizarImagensExistentes()">🗜️ Otimizar imagens ('+qtdFotos+' foto(s))</button>'+
+          (localStorage.getItem('orcpro_chave_nuvem')?'<button class="btn btn-out btn-sm" onclick="migrarFotosStorageManual()" id="btn-migrar-storage">☁️ Mover fotos para nuvem</button>':'')+
+        '</div>'+
+        '<div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:6px;line-height:1.5">Comprime todas as fotos de produtos e o logo já salvos, liberando espaço sem perder qualidade visível. Faça um backup antes, por segurança. <strong style="color:rgba(255,255,255,.6)">Mover para nuvem</strong> envia as fotos para o Supabase Storage — libera o armazenamento local definitivamente.</div>'+
       '</div>':'');
+}
+
+// Migra fotos base64 para Supabase Storage manualmente (botão no medidor de armazenamento)
+async function migrarFotosStorageManual(){
+  var chave=localStorage.getItem('orcpro_chave_nuvem')||'';
+  if(!chave){alert('Configure a Chave de Acesso em Sincronização em Nuvem antes de usar esta função.');return;}
+  if(!confirm('Isso vai enviar todas as fotos dos seus produtos para o Supabase Storage (nuvem).\n\nApós a migração, as fotos ficam na nuvem e ocupam muito menos espaço no navegador. O processo pode levar alguns minutos dependendo da quantidade.\n\nContinuar?'))return;
+  var btn=ge('btn-migrar-storage');if(btn){btn.disabled=true;btn.textContent='⏳ Enviando...';}
+  // Força remigração
+  try{localStorage.removeItem('orcpro_fotos_migradas_v1');}catch(e){}
+  try{
+    await _migrarFotosStorage();
+    renderStorageMeter();
+    alert('✅ Fotos migradas para a nuvem! As fotos agora são carregadas diretamente da nuvem e o espaço local foi liberado.');
+  }catch(e){
+    alert('❌ Erro durante a migração: '+e.message+'\n\nTente novamente ou contacte o suporte.');
+  }
+  if(btn){btn.disabled=false;btn.textContent='☁️ Mover fotos para nuvem';}
 }
 
 // Comprime todas as imagens JÁ salvas (fotos de produtos + logo) para liberar espaço
@@ -10255,6 +10292,95 @@ function aplicarProtecaoAutofill(){
     pendente=setTimeout(aplicarProtecaoAutofill,50);
   });
   observer.observe(document.body,{childList:true,subtree:true});
+})();
+
+// ═══════════════════════════════════════════════════
+// STORAGE FOTOS — Supabase Storage para imagens
+// ═══════════════════════════════════════════════════
+(function(){
+  var SUPA_URL='https://edztcoebgllqrkrkormc.supabase.co';
+  var SUPA_KEY='sb_publishable_s6MSdF0rhidpCpddqTzNRg_1ajwnxIc';
+  var BUCKET='fotos-produtos';
+  var CHAVE_KEY='orcpro_chave_nuvem';
+
+  function getChave(){return localStorage.getItem(CHAVE_KEY)||'';}
+
+  // Converte base64 dataURL para Blob
+  function dataUrlToBlob(dataUrl){
+    var arr=dataUrl.split(','),mime=(arr[0].match(/:(.*?);/)||[])[1]||'image/jpeg';
+    var bstr=atob(arr[1]),n=bstr.length,u8=new Uint8Array(n);
+    for(var i=0;i<n;i++)u8[i]=bstr.charCodeAt(i);
+    return new Blob([u8],{type:mime});
+  }
+
+  // Verifica se é base64 dataURL
+  function isBase64(s){return typeof s==='string'&&s.startsWith('data:');}
+
+  // Upload de uma foto para o Storage. Retorna a URL pública ou null em caso de falha.
+  window._uploadFotoStorage=async function(fotoData,prodId,idx){
+    if(!fotoData)return fotoData;
+    if(!isBase64(fotoData))return fotoData;// já é URL — não precisa subir de novo
+    var chave=getChave();
+    if(!chave)return fotoData;// sem chave: guarda base64 normalmente
+    try{
+      var ext='jpg';
+      var blob=dataUrlToBlob(fotoData);
+      // caminho: orcpro/<chave_hash>/<prodId>/<idx>.jpg — isolado por usuário
+      var chaveHash=btoa(chave).replace(/[^a-zA-Z0-9]/g,'').substring(0,16);
+      var path='orcpro/'+chaveHash+'/'+prodId+'/'+idx+'.'+ext;
+      var r=await fetch(SUPA_URL+'/storage/v1/object/'+BUCKET+'/'+path,{
+        method:'POST',
+        headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Content-Type':blob.type,'x-upsert':'true'},
+        body:blob
+      });
+      if(!r.ok){var t=await r.text();console.warn('Storage upload falhou:',r.status,t);return fotoData;}
+      // URL pública
+      return SUPA_URL+'/storage/v1/object/public/'+BUCKET+'/'+path;
+    }catch(e){console.warn('_uploadFotoStorage erro:',e);return fotoData;}
+  };
+
+  // Migração: percorre produtos com base64 e sobe as fotos para o Storage em background.
+  // Roda silenciosamente ao abrir o app se tiver chave configurada.
+  window._migrarFotosStorage=async function(){
+    var chave=getChave();
+    if(!chave)return;
+    if(localStorage.getItem('orcpro_fotos_migradas_v1'))return;
+    var prods=getProdutos();
+    var alterado=0;
+    for(var i=0;i<prods.length;i++){
+      var p=prods[i];
+      var mudou=false;
+      // foto principal
+      if(isBase64(p.foto)){
+        var url=await window._uploadFotoStorage(p.foto,p.id,0);
+        if(url&&!isBase64(url)){p.foto=url;mudou=true;}
+      }
+      // array fotos
+      if(p.fotos&&p.fotos.length){
+        for(var fi=0;fi<p.fotos.length;fi++){
+          if(isBase64(p.fotos[fi])){
+            var furl=await window._uploadFotoStorage(p.fotos[fi],p.id,fi);
+            if(furl&&!isBase64(furl)){p.fotos[fi]=furl;mudou=true;}
+          }
+        }
+        // Garante que foto principal está sincronizada com fotos[0]
+        if(mudou&&p.fotos[0]&&!isBase64(p.fotos[0]))p.foto=p.fotos[0];
+      }
+      if(mudou)alterado++;
+    }
+    if(alterado>0){
+      saveProdutos(prods);
+      console.log('[Storage] '+alterado+' produto(s) com fotos migradas para Supabase Storage.');
+    }
+    try{localStorage.setItem('orcpro_fotos_migradas_v1','1');}catch(e){}
+  };
+
+  // Inicia migração em background 8s após o carregamento (não bloqueia a UI)
+  document.addEventListener('DOMContentLoaded',function(){
+    setTimeout(function(){
+      if(typeof _migrarFotosStorage==='function')_migrarFotosStorage();
+    },8000);
+  });
 })();
 
 // ═══════════════════════════════════════════════════
