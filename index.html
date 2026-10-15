@@ -840,6 +840,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
           <div class="field-row"><input id="cli-cep" placeholder="00000-000" oninput="maskCep(this)" maxlength="9" style="max-width:130px"><button type="button" class="btn btn-out btn-sm" onclick="buscaCep()">🔍 Buscar</button></div>
         </div>
         <div class="mt"><label class="lbl">Endereço</label><input id="cli-end" data-permite-autofill="1" placeholder="Rua, número, bairro, cidade — UF"></div>
+        <div id="form-cep-alertas"></div>
       </div>
 
       <div class="card">
@@ -1005,6 +1006,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
           </tr></thead><tbody id="hist-body"></tbody></table>
         </div>
         <div id="hist-empty" style="text-align:center;padding:26px;color:rgba(255,255,255,.5);font-size:13px;display:none">Nenhum orçamento salvo.</div>
+        <div id="hist-op-alertas"></div>
       </div>
     </div>
 
@@ -1057,6 +1059,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
           </tr></thead><tbody id="tpl-body"></tbody></table>
         </div>
         <div id="tpl-empty" style="text-align:center;padding:26px;color:rgba(255,255,255,.5);font-size:13px;display:none">Nenhum template salvo. Crie um orçamento e clique em "⭐ Salvar como template".</div>
+        <div id="tpl-op-alertas"></div>
       </div>
     </div>
 
@@ -2268,6 +2271,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
     <div class="modal-title">⭐ Salvar como Template</div>
     <div><label class="lbl">Nome do template *</label><input id="tpl-nome" placeholder="Ex: Orçamento Camiseta Personalizada"></div>
     <div class="mt"><label class="lbl">Descrição (opcional)</label><input id="tpl-desc" placeholder="Breve descrição do template"></div>
+    <div id="tpl-modal-alertas"></div>
     <div class="modal-footer"><button class="btn btn-out" onclick="closeTplModal()">Cancelar</button> <button class="btn btn-brand" onclick="confirmarSalvarTemplate()">⭐ Salvar</button></div>
   </div>
 </div>
@@ -2488,6 +2492,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
       <button class="btn btn-out btn-sm" onclick="aplicarTemplateFU('aprovado')">✅ Aprovado</button>
       <button class="btn btn-out btn-sm" onclick="aplicarTemplateFU('agradecimento')">🙏 Agradecimento</button>
     </div>
+    <div id="fu-modal-alertas"></div>
     <div class="modal-footer">
       <button class="btn btn-out" onclick="closeFollowupModal()">Cancelar</button>
       <button class="btn btn-wpp" onclick="enviarFollowupWpp()">💬 Abrir WhatsApp</button>
@@ -2514,6 +2519,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
       </div>
       <div class="meta-bar"><div class="meta-bar-fill" id="fu-massa-progresso-bar" style="width:0%"></div></div>
     </div>
+    <div id="fu-massa-alertas"></div>
     <div class="modal-footer">
       <button class="btn btn-out" onclick="closeFollowupMassaModal()">Cancelar</button>
       <button class="btn btn-wpp" id="fu-massa-btn-iniciar" onclick="enviarFollowupMassa()">💬 Iniciar envios</button>
@@ -2658,11 +2664,11 @@ function maskCep(el){var v=el.value.replace(/\D/g,'').substring(0,8);el.value=v.
 // VIACEP
 // ═══════════════════════════════════════════════════
 function buscaCep(){
-  var cep=val('cli-cep').replace(/\D/g,'');if(cep.length!==8){alert('CEP inválido.');return;}
+  var cep=val('cli-cep').replace(/\D/g,'');if(cep.length!==8){_formCepAlerta('CEP inválido.',false);return;}
   var btn=document.querySelector('[onclick="buscaCep()"]');if(btn){btn.textContent='⏳';btn.disabled=true;}
   fetch('https://viacep.com.br/ws/'+cep+'/json/').then(function(r){return r.json();})
-    .then(function(d){if(d.erro)alert('CEP não encontrado.');else setVal('cli-end',d.logradouro+(d.complemento?' '+d.complemento:'')+', '+d.bairro+' — '+d.localidade+' — '+d.uf);})
-    .catch(function(){alert('Erro ao buscar CEP.');})
+    .then(function(d){if(d.erro)_formCepAlerta('CEP não encontrado.',false);else{setVal('cli-end',d.logradouro+(d.complemento?' '+d.complemento:'')+', '+d.bairro+' — '+d.localidade+' — '+d.uf);_formCepAlerta('✅ Endereço preenchido.',true);}})
+    .catch(function(){_formCepAlerta('Erro ao buscar CEP. Verifique sua conexão.',false);})
     .finally(function(){if(btn){btn.textContent='🔍 Buscar';btn.disabled=false;}});
 }
 
@@ -3855,6 +3861,28 @@ function _catOpOk(msg){
 function _catOpErro(msg){
   var d=ge('cat-op-alertas');if(d){d.innerHTML='<div class="warn-box" style="margin-top:8px">'+msg+'</div>';setTimeout(function(){if(d)d.innerHTML='';},6000);}
 }
+function _histOpOk(msg){
+  var d=ge('hist-op-alertas');if(d){d.innerHTML='<div class="success-box" style="margin-top:8px">'+msg+'</div>';setTimeout(function(){if(d)d.innerHTML='';},5000);}
+}
+function _histOpErro(msg){
+  var d=ge('hist-op-alertas');if(d){d.innerHTML='<div class="warn-box" style="margin-top:8px">'+msg+'</div>';setTimeout(function(){if(d)d.innerHTML='';},6000);}
+}
+function _formCepAlerta(msg,ok){
+  var d=ge('form-cep-alertas');if(d){d.innerHTML='<div class="'+(ok?'success-box':'warn-box')+'" style="margin-top:6px">'+msg+'</div>';setTimeout(function(){if(d)d.innerHTML='';},5000);}
+}
+function _tplErro(msg,focusId){
+  var d=ge('tpl-modal-alertas');if(d){d.innerHTML='<div class="warn-box" style="margin-top:8px">'+msg+'</div>';setTimeout(function(){if(d)d.innerHTML='';},5000);}
+  if(focusId){var el=ge(focusId);if(el){el.focus();el.style.borderColor='var(--red)';setTimeout(function(){el.style.borderColor='';},3000);}}
+}
+function _tplOpOk(msg){
+  var d=ge('tpl-op-alertas');if(d){d.innerHTML='<div class="success-box" style="margin-top:8px">'+msg+'</div>';setTimeout(function(){if(d)d.innerHTML='';},5000);}
+}
+function _fuErro(msg){
+  var d=ge('fu-modal-alertas');if(d){d.innerHTML='<div class="warn-box" style="margin-top:8px">'+msg+'</div>';setTimeout(function(){if(d)d.innerHTML='';},5000);}
+}
+function _fuMassaErro(msg){
+  var d=ge('fu-massa-alertas');if(d){d.innerHTML='<div class="warn-box" style="margin-top:8px">'+msg+'</div>';setTimeout(function(){if(d)d.innerHTML='';},5000);}
+}
 
 function addOpcaoProduto(nome,valores){
   if(_prodOpcoes.length>=3){_prodErro('Máximo de 3 opções (ex: Cor, Tamanho, Modelo).');return;}
@@ -4263,7 +4291,7 @@ function autoRegistrarCliente(){
 function prepararNotaFiscal(orcId){
   var hist=getHist();
   var h=hist.find(function(x){return x.id===orcId;});
-  if(!h){alert('Orçamento não encontrado.');return;}
+  if(!h){_histOpErro('Orçamento não encontrado.');return;}
   var cfg=getCfg();
   var itens=(h.items||[]).filter(function(it){return it.desc;});
   var total=calcHistTotal(h);
@@ -4570,7 +4598,7 @@ function salvarOrcamento(){
   var temCliente=!!val('cli-nome').trim();
   var itensAtuais=getItems().filter(function(it){return it.desc&&it.desc.trim();});
   if(!temCliente&&!itensAtuais.length){
-    alert('Preencha o nome do cliente ou adicione ao menos um item antes de salvar.');
+    _histOpErro('Preencha o nome do cliente ou adicione ao menos um item antes de salvar.');
     return;
   }
 
@@ -4581,7 +4609,14 @@ function salvarOrcamento(){
   var hist=getHist();
   var idx=hist.findIndex(function(h){return h.num===num;});
   if(idx>=0){
-    if(!confirm('Já existe um orçamento #'+num+'. Deseja sobrescrever?'))return;
+    if(!window._confirmarSobrescrever){
+      // Pede confirmação inline — não usa confirm() pois não funciona em PWA
+      window._confirmarSobrescrever=true;
+      _histOpErro('⚠️ Já existe um orçamento #'+num+'. <button class="btn btn-brand btn-sm" style="margin-left:8px" onclick="window._confirmarSobrescrever=true;salvarOrcamento()">Sobrescrever</button>');
+      setTimeout(function(){window._confirmarSobrescrever=false;},8000);
+      return;
+    }
+    window._confirmarSobrescrever=false;
     // Preserva o id original ao sobrescrever (mantém rastreabilidade)
     estado.id=hist[idx].id||estado.id;
     hist[idx]=estado;
@@ -4610,7 +4645,7 @@ function salvarOrcamento(){
   ge('tb-actions').querySelectorAll('.btn-out').forEach(function(b){
     if(b.textContent.trim().startsWith('💾')){btnFound=true;b.textContent='✅ Salvo!';setTimeout(function(){b.innerHTML='💾 Salvar';},1800);}
   });
-  if(!btnFound)alert('✅ Orçamento #'+num+' salvo com sucesso!');
+  if(!btnFound)_histOpOk('✅ Orçamento #'+num+' salvo com sucesso!');
 }
 
 function calcItemSub(x){
@@ -4787,7 +4822,7 @@ function renderHist(){
 function renumerarUm(id){
   var hist=getHist();
   var h=hist.find(function(x){return x.id===id;});
-  if(!h){alert('Orçamento não encontrado.');return;}
+  if(!h){_histOpErro('Orçamento não encontrado.');return;}
 
   // Descobre o próximo número livre (maior de todos + 1)
   var pfx=(getCfg().prefixo||new Date().getFullYear().toString());
@@ -4799,12 +4834,19 @@ function renumerarUm(id){
   var novoNum=pfx+'-'+String(maiorNum+1).padStart(3,'0');
 
   var nomeCliente=(h.cliente&&h.cliente.nome)?h.cliente.nome:'—';
-  if(!confirm('Renumerar este orçamento?\n\nCliente: '+nomeCliente+'\nValor: '+fmt(calcHistTotal(h))+'\n\nNúmero atual: #'+h.num+'\nNúmero novo: #'+novoNum+'\n\nNada é apagado — só o número muda. Continuar?'))return;
+  var msgConf='Renumerar #'+h.num+' → #'+novoNum+' ('+escHtml(nomeCliente)+')? Nada é apagado.';
+  if(!window._confirmarRenumerar||window._confirmarRenumerar!==id){
+    window._confirmarRenumerar=id;
+    _histOpErro('⚠️ '+msgConf+' <button class="btn btn-brand btn-sm" style="margin-left:8px" onclick="renumerarUm(\''+id+'\')">Confirmar</button>');
+    setTimeout(function(){if(window._confirmarRenumerar===id)window._confirmarRenumerar=null;},8000);
+    return;
+  }
+  window._confirmarRenumerar=null;
 
   h._renumeradoDe=h.num;// registra o número antigo (rastreabilidade)
   h.num=novoNum;
   try{localStorage.setItem('orcpro_cnt',String(maiorNum+1));}catch(e){}
-  if(!saveHist(hist)){alert('Erro ao salvar. Tente novamente.');return;}
+  if(!saveHist(hist)){_histOpErro('Erro ao salvar. Tente novamente.');return;}
   renderHist();
 }
 
@@ -4815,10 +4857,16 @@ function resolverDuplicadosAuto(){
   var contagem={};
   hist.forEach(function(h){var n=h.num||'';contagem[n]=(contagem[n]||0)+1;});
   var duplicados=Object.keys(contagem).filter(function(n){return n&&contagem[n]>1;});
-  if(!duplicados.length){alert('Não há números duplicados.');return;}
+  if(!duplicados.length){_histOpOk('✅ Não há números duplicados.');return;}
 
   var qtdRenumerar=hist.filter(function(h){return h.num&&contagem[h.num]>1;}).length-duplicados.length;
-  if(!confirm('Isto vai dar um número novo a '+qtdRenumerar+' orçamento(s) duplicado(s), mantendo o primeiro de cada número.\n\nNADA será apagado — todos os orçamentos continuam. Recomendo exportar um backup antes.\n\nContinuar?'))return;
+  if(!window._confirmarResolverDup){
+    window._confirmarResolverDup=true;
+    _histOpErro('⚠️ Renumerar '+qtdRenumerar+' orçamento(s) duplicado(s)? Nada será apagado. <button class="btn btn-brand btn-sm" style="margin-left:8px" onclick="resolverDuplicadosAuto()">Confirmar</button>');
+    setTimeout(function(){window._confirmarResolverDup=false;},8000);
+    return;
+  }
+  window._confirmarResolverDup=false;
 
   // Descobre o maior número já usado, para os novos começarem a partir dali
   var pfx=(getCfg().prefixo||new Date().getFullYear().toString());
@@ -4851,8 +4899,8 @@ function resolverDuplicadosAuto(){
   });
   // Atualiza o contador para o novo maior número
   try{localStorage.setItem('orcpro_cnt',String(proximoNum));}catch(e){}
-  if(!saveHist(hist)){alert('Erro ao salvar. Tente novamente.');return;}
-  alert('✅ Pronto! '+renumerados+' orçamento(s) receberam números novos.\n\nNenhum orçamento foi apagado. Os duplicados agora têm números únicos.');
+  if(!saveHist(hist)){_histOpErro('Erro ao salvar. Tente novamente.');return;}
+  _histOpOk('✅ '+renumerados+' orçamento(s) receberam números novos. Nenhum orçamento foi apagado.');
   renderHist();
 }
 
@@ -4870,10 +4918,16 @@ function removerDuplicadosIdenticos(){
     if(vistos[assinatura]){removidos++;}// é cópia idêntica, não mantém
     else{vistos[assinatura]=true;manter.push(h);}
   });
-  if(!removidos){alert('Não encontrei cópias 100% idênticas.\n\nSeus duplicados têm clientes ou valores diferentes — nesse caso, use "Renumerar duplicados" para não perder nenhuma venda.');return;}
-  if(!confirm('Encontrei '+removidos+' cópia(s) idêntica(s) (mesmo número, cliente, valor e data).\n\nVou manter uma de cada e remover as repetições exatas. Recomendo backup antes.\n\nContinuar?'))return;
-  if(!saveHist(manter)){alert('Erro ao salvar.');return;}
-  alert('✅ '+removidos+' cópia(s) idêntica(s) removida(s). As originais foram mantidas.');
+  if(!removidos){_histOpOk('✅ Nenhuma cópia 100% idêntica encontrada. Se há duplicados com clientes/valores diferentes, use "Renumerar duplicados".');return;}
+  if(!window._confirmarRemoverDup){
+    window._confirmarRemoverDup=true;
+    _histOpErro('⚠️ Encontrei '+removidos+' cópia(s) idêntica(s). Manter uma de cada e remover o restante? <button class="btn btn-danger btn-sm" style="margin-left:8px" onclick="removerDuplicadosIdenticos()">Confirmar remoção</button>');
+    setTimeout(function(){window._confirmarRemoverDup=false;},8000);
+    return;
+  }
+  window._confirmarRemoverDup=false;
+  if(!saveHist(manter)){_histOpErro('Erro ao salvar.');return;}
+  _histOpOk('✅ '+removidos+' cópia(s) idêntica(s) removida(s). As originais foram mantidas.');
   renderHist();
 }
 
@@ -4921,7 +4975,7 @@ function renderHistComDados(f,isFilter,filterLabel){
     var rowStyle=ehDuplicado?'background:rgba(251,146,60,.08);':(vencido?'background:#fff5f5;':'');
     return'<tr style="'+rowStyle+'">'+
       '<td style="font-weight:700;color:var(--brand)">'+(ehDuplicado?'<span title="Número duplicado">🔶</span> ':'')+'#'+h.num+(vencido?' <span title="Vencido" style="color:var(--red)">⚠️</span>':'')+(ehDuplicado?' <button class="btn btn-brand btn-sm" style="padding:2px 7px;font-size:10px;margin-left:4px" onclick="renumerarUm(\''+h.id+'\')" title="Dar um número novo a este orçamento">🔢 Renumerar</button>':'')+'</td>'+
-      '<td><strong style="font-size:13px">'+(h.cliente.nome||'—')+'</strong></td>'+
+      '<td><strong style="font-size:13px">'+escHtml(h.cliente.nome||'—')+'</strong></td>'+
       '<td style="font-size:12px">'+fmtDt(h.data)+'</td>'+
       '<td style="font-size:12px;'+(vencido?'color:var(--red);font-weight:600':'')+'">'+addDays(h.data,h.validade)+(vencido?' ⚠️':'')+'</td>'+
       '<td style="font-weight:700;color:var(--brand)">'+fmt(total)+'</td>'+
@@ -4965,7 +5019,9 @@ function updateHistStatus(id,status){
     }
   }
 }
-function ofereceOS(id){if(confirm('Orçamento aprovado! Deseja gerar uma Ordem de Serviço agora?'))previewOrcamento(id);}
+function ofereceOS(id){
+  _histOpOk('✅ Orçamento aprovado! <button class="btn btn-brand btn-sm" style="margin-left:8px" onclick="previewOrcamento(\''+id+'\')">Gerar OS agora</button>');
+}
 
 function editarOrcamento(id){
   var h=getHist().find(function(x){return x.id===id;});if(!h)return;
@@ -4988,14 +5044,18 @@ function editarOrcamento(id){
   recalc();showView('form');
 }
 function previewOrcamento(id){editarOrcamento(id);setTimeout(function(){showView('preview');},60);}
-function deletarOrcamento(id){if(!confirm('Excluir do histórico?'))return;saveHist(getHist().filter(function(h){return h.id!==id;}));renderHist();}
+function deletarOrcamento(id){
+  var h=getHist().find(function(x){return x.id===id;});
+  var nome=h&&h.num?'#'+h.num+(h.cliente&&h.cliente.nome?' — '+h.cliente.nome:''):'este orçamento';
+  abrirDelFin('orcamento:'+id,'Excluir orçamento '+escHtml(nome)+'? Esta ação não pode ser desfeita.','⚠️ Excluir do histórico','btn btn-danger');
+}
 function duplicarOrcamento(id){
   var h=getHist().find(function(x){return x.id===id;});if(!h)return;
   var novo=JSON.parse(JSON.stringify(h));novo.id='orc_'+Date.now();novo.num=nextNum();novo.data=hoje();novo.status='Aguardando aprovação';novo.savedAt=new Date().toLocaleString('pt-BR');
   var hist=getHist();hist.unshift(novo);saveHist(hist);editarOrcamento(novo.id);
 }
 function exportarHistXls(){
-  var hist=getHist();if(!hist.length){alert('Nenhum orçamento.');return;}
+  var hist=getHist();if(!hist.length){_histOpErro('Nenhum orçamento para exportar.');return;}
   var rows=[['Nº','Cliente','WhatsApp','E-mail','Data','Válido até','Itens','Total','Custo','Margem%','Status','Tabela','Pagamento','Prazo','Vendedor']];
   hist.forEach(function(h){
     var total=calcHistTotal(h);
@@ -5013,11 +5073,11 @@ function saveTemplates(arr){return gravarSeguro('orcpro_templates',JSON.stringif
 function salvarComoTemplate(){ge('modal-tpl').className='modal-overlay open';setVal('tpl-nome','');setVal('tpl-desc','');}
 function closeTplModal(){ge('modal-tpl').className='modal-overlay';}
 function confirmarSalvarTemplate(){
-  var nome=val('tpl-nome');if(!nome){alert('Informe o nome do template.');return;}
+  var nome=val('tpl-nome');if(!nome){_tplErro('Informe o nome do template.','tpl-nome');return;}
   var estado=capturarEstado();
   var tpl={id:'tpl_'+Date.now(),nome:nome,desc:val('tpl-desc'),itens:estado.items,pgto:estado.pgto,prazo:estado.prazo,entrega:estado.entrega,obs:estado.obs,termos:estado.termos,descGeral:estado.descGeral,frete:estado.frete,tipo:estado.tipoPreco,savedAt:new Date().toLocaleString('pt-BR')};
   var tpls=getTemplates();tpls.unshift(tpl);saveTemplates(tpls);closeTplModal();renderTemplates();
-  alert('✅ Template "'+nome+'" salvo!');
+  _tplOpOk('✅ Template "'+escHtml(nome)+'" salvo!');
 }
 function renderTemplates(){
   var tpls=getTemplates(),tbody=ge('tpl-body'),empty=ge('tpl-empty'),count=ge('tpl-count');
@@ -5027,8 +5087,8 @@ function renderTemplates(){
   tbody.innerHTML=tpls.map(function(t){
     var sub=t.itens?t.itens.reduce(function(a,x){return a+calcItemSub(x);},0):0;
     return'<tr>'+
-      '<td><strong>'+t.nome+'</strong><br><span style="font-size:10px;color:rgba(255,255,255,.5)">Salvo: '+t.savedAt+'</span></td>'+
-      '<td style="font-size:12px;color:rgba(255,255,255,.5)">'+(t.desc||'—')+'</td>'+
+      '<td><strong>'+escHtml(t.nome)+'</strong><br><span style="font-size:10px;color:rgba(255,255,255,.5)">Salvo: '+escHtml(t.savedAt)+'</span></td>'+
+      '<td style="font-size:12px;color:rgba(255,255,255,.5)">'+escHtml(t.desc||'—')+'</td>'+
       '<td style="text-align:center">'+(t.itens?t.itens.length:0)+'</td>'+
       '<td style="font-weight:600;color:var(--brand)">'+fmt(sub)+'</td>'+
       '<td style="white-space:nowrap"><button class="btn btn-brand btn-sm" onclick="carregarTemplate(\''+t.id+'\')">📥 Usar</button> <button class="btn btn-danger btn-sm" onclick="deletarTemplate(\''+t.id+'\')">🗑</button></td>'+
@@ -5037,7 +5097,13 @@ function renderTemplates(){
 }
 function carregarTemplate(id){
   var t=getTemplates().find(function(x){return x.id===id;});if(!t)return;
-  if(!confirm('Carregar o template "'+t.nome+'"? Os itens atuais serão substituídos.'))return;
+  if(!window._confirmarCarregarTpl||window._confirmarCarregarTpl!==id){
+    window._confirmarCarregarTpl=id;
+    _tplOpOk('⚠️ Carregar "'+escHtml(t.nome)+'"? Os itens atuais serão substituídos. <button class="btn btn-brand btn-sm" style="margin-left:8px" onclick="carregarTemplate(\''+id+'\')">Confirmar</button>');
+    setTimeout(function(){if(window._confirmarCarregarTpl===id)window._confirmarCarregarTpl=null;},8000);
+    return;
+  }
+  window._confirmarCarregarTpl=null;
   setVal('pgto',t.pgto||'À vista');setVal('prazo',t.prazo||'');setVal('entrega',t.entrega||'A definir');
   setVal('obs',t.obs||'');setVal('termos',t.termos||'');setVal('inp-desc',t.descGeral||'0');setVal('inp-frete',t.frete||'0');
   setVal('tipo-preco',t.tipo||'varejo');
@@ -5045,7 +5111,11 @@ function carregarTemplate(id){
   (t.itens||[]).forEach(function(it){addItem(it.desc,it.qty,it.unit,it.price,it.di,it.prazoItem,it.cat,it.custo/Math.max(it.qty,1));});
   recalc();showView('form');
 }
-function deletarTemplate(id){if(!confirm('Excluir template?'))return;saveTemplates(getTemplates().filter(function(t){return t.id!==id;}));renderTemplates();}
+function deletarTemplate(id){
+  var t=getTemplates().find(function(x){return x.id===id;});
+  var nome=t?escHtml(t.nome):'este template';
+  abrirDelFin('template:'+id,'Excluir template "'+nome+'"? Esta ação não pode ser desfeita.','⚠️ Excluir template','btn btn-danger');
+}
 
 // ═══════════════════════════════════════════════════
 // ORDENS DE SERVIÇO
@@ -5070,8 +5140,9 @@ function confirmarOS(){
   var hist=getHist(),h=orcId?hist.find(function(x){return x.id===orcId;}):null;
   var os={id:'os_'+Date.now(),num:osNum,orcNum:h?h.num:'',orcId:orcId,cliente:h?h.cliente:{nome:val('cli-nome'),wpp:val('cli-wpp')},itens:h?h.items:[],abertura:hoje(),previsao:val('os-previsao'),responsavel:val('os-responsavel'),obs:val('os-obs'),status:'Aguardando',total:h?calcHistTotal(h):0};
   var all=getOS();all.unshift(os);saveOS(all);
-  closeOSModal();alert('✅ OS '+osNum+' criada com sucesso!');
+  closeOSModal();
   renderOS();
+  _histOpOk('✅ OS '+escHtml(osNum)+' criada com sucesso!');
 }
 var _osSortCol='abertura',_osSortDir=-1,_osPeriodo='';
 function setOSPeriodo(p){
@@ -7657,6 +7728,17 @@ function confirmarDelFin(){
   } else if(raw.startsWith('func:')){
     var id=raw.replace('func:','');
     saveFuncs(getFuncs().filter(function(f){return f.id!==id;}));renderFuncs();atualizarVendedoresList();
+  } else if(raw.startsWith('produto:')){
+    var id=raw.replace('produto:','');
+    saveProdutos(getProdutos().filter(function(p){return p.id!==id;}));renderProdutos();
+  } else if(raw.startsWith('orcamento:')){
+    var id=raw.replace('orcamento:','');
+    saveHist(getHist().filter(function(h){return h.id!==id;}));renderHist();
+    _histOpOk('✅ Orçamento excluído.');
+  } else if(raw.startsWith('template:')){
+    var id=raw.replace('template:','');
+    saveTemplates(getTemplates().filter(function(t){return t.id!==id;}));renderTemplates();
+    _tplOpOk('✅ Template excluído.');
   } else if(raw.startsWith('pagar-comissao:')){
     var partes=raw.replace('pagar-comissao:','').split(':');
     var funcId=partes[0],mesAlvo=partes[1];
@@ -9189,7 +9271,7 @@ function renderDash(){
         '<span style="font-size:11px;font-weight:800;color:'+cor+';width:18px;flex-shrink:0">'+(i+1)+'</span>'+
         fotoHtml+
         '<div style="flex:1;min-width:0">'+
-          '<div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:rgba(255,255,255,.85)">'+p[0]+'</div>'+
+          '<div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:rgba(255,255,255,.85)">'+escHtml(p[0])+'</div>'+
           '<div style="height:4px;background:rgba(255,255,255,.08);border-radius:99px;margin-top:5px"><div style="height:100%;width:'+pct+'%;background:'+cor+';border-radius:99px;transition:width .4s"></div></div>'+
         '</div>'+
         '<span style="font-size:12px;font-weight:700;color:rgba(255,255,255,.5);flex-shrink:0;margin-left:8px">'+p[1]+' un</span>'+
@@ -9209,7 +9291,7 @@ function renderDash(){
       return'<div class="followup-item '+cls+'">'+
         '<div class="avatar" style="background:'+cor+';width:30px;height:30px;font-size:12px;flex-shrink:0">'+ini+'</div>'+
         '<div style="flex:1;margin-left:8px;min-width:0">'+
-          '<div style="font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:rgba(255,255,255,.85)">'+c.nome+'</div>'+
+          '<div style="font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:rgba(255,255,255,.85)">'+escHtml(c.nome)+'</div>'+
           '<div style="font-size:10px;color:'+(c.followup<hoje2?'var(--red)':'rgba(255,255,255,.4)')+'">'+fmtDt(c.followup)+(c.followup<hoje2?' · Atrasado':' · Hoje')+'</div>'+
         '</div>'+
         '<div style="display:flex;gap:4px;flex-shrink:0">'+
@@ -9247,7 +9329,7 @@ function renderDash(){
           return'<div class="followup-item">'+
             '<div class="avatar" style="background:'+cor+';width:30px;height:30px;font-size:12px;flex-shrink:0">'+ini+'</div>'+
             '<div style="flex:1;margin-left:8px;min-width:0">'+
-              '<div style="font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:rgba(255,255,255,.85)">'+c.nome+'</div>'+
+              '<div style="font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:rgba(255,255,255,.85)">'+escHtml(c.nome)+'</div>'+
               '<div style="font-size:10px;color:rgba(255,255,255,.4)">Sem contato há '+diasInativo+' dias</div>'+
             '</div>'+
             '<div style="display:flex;gap:4px;flex-shrink:0">'+
@@ -9324,7 +9406,7 @@ function renderDash(){
 function cobrarTodosPendentes(){
   var hist=getHist();
   var pendentes=hist.filter(function(h){return (h.status==='Aguardando aprovação'||h.status==='Em revisão')&&h.cliente&&h.cliente.wpp;});
-  if(!pendentes.length){alert('Nenhum orçamento pendente com WhatsApp cadastrado.');return;}
+  if(!pendentes.length){_histOpErro('Nenhum orçamento pendente com WhatsApp cadastrado.');return;}
   var cfg=getCfg();
   var i=0;
   function proxMsg(){
@@ -9360,7 +9442,7 @@ function renderDashACobrar(){
       var nome=(h.cliente&&h.cliente.nome)?h.cliente.nome:(h.cliente||'Sem nome');
       var dias=diasDesde(h.data);
       return'<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:rgba(255,255,255,.03);border-radius:8px;margin-bottom:5px">'+
-        '<div style="min-width:0;flex:1"><div style="font-size:12px;color:#F0F0F5;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+nome+'</div>'+
+        '<div style="min-width:0;flex:1"><div style="font-size:12px;color:#F0F0F5;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(nome)+'</div>'+
         '<div style="font-size:10px;color:'+(dias>7?'var(--red)':'rgba(255,255,255,.4)')+'">'+(dias>0?'há '+dias+' dia(s)':'hoje')+'</div></div>'+
         '<div style="text-align:right;margin-left:8px"><div style="font-size:13px;font-weight:700;color:var(--brand)">'+fmt(calcHistTotal(h))+'</div>'+
         '<button class="btn btn-wpp btn-sm" style="padding:3px 8px;font-size:10px;margin-top:2px" onclick="abrirFollowup(\''+h.id+'\')">💬 Cobrar</button></div>'+
@@ -9655,7 +9737,16 @@ function gerarLinkPublico(){
   ge('link-publico-box').setAttribute('data-link',link);
   ge('modal-link').className='modal-overlay open';
 }
-function copiarLink(){var link=ge('link-publico-box').getAttribute('data-link')||'';navigator.clipboard.writeText(link).then(function(){alert('✅ Copiado!');}).catch(function(){prompt('Copie:',link);});}
+function copiarLink(){
+  var link=ge('link-publico-box').getAttribute('data-link')||'';
+  var btn=document.querySelector('[onclick="copiarLink()"]');
+  navigator.clipboard.writeText(link).then(function(){
+    if(btn){var orig=btn.textContent;btn.textContent='✅ Copiado!';setTimeout(function(){btn.textContent=orig;},2500);}
+  }).catch(function(){
+    var box=ge('link-publico-box');
+    if(box){var inp=document.createElement('input');inp.value=link;inp.style.cssText='position:fixed;top:-99px;left:0';document.body.appendChild(inp);inp.select();try{document.execCommand('copy');if(btn){var orig=btn.textContent;btn.textContent='✅ Copiado!';setTimeout(function(){btn.textContent=orig;},2500);}}catch(e){}document.body.removeChild(inp);}
+  });
+}
 function enviarLinkWpp(){var link=ge('link-publico-box').getAttribute('data-link')||'';var num=val('cli-wpp').replace(/\D/g,'');var msg=encodeURIComponent('Olá! Segue o seu orçamento: '+link);window.open(num?'https://wa.me/'+num+'?text='+msg:'https://wa.me/?text='+msg,'_blank');}
 function closeLinkModal(){ge('modal-link').className='modal-overlay';}
 
@@ -9663,7 +9754,13 @@ function closeLinkModal(){ge('modal-link').className='modal-overlay';}
 // LIMPAR FORM
 // ═══════════════════════════════════════════════════
 function limparForm(){
-  if(!confirm('Limpar o orçamento atual?'))return;
+  if(!window._confirmarLimparForm){
+    window._confirmarLimparForm=true;
+    _histOpErro('⚠️ Limpar o orçamento atual? <button class="btn btn-danger btn-sm" style="margin-left:8px" onclick="limparForm()">Confirmar</button>');
+    setTimeout(function(){window._confirmarLimparForm=false;},8000);
+    return;
+  }
+  window._confirmarLimparForm=false;
   ['cli-nome','cli-doc','cli-wpp','cli-email','cli-cep','cli-end','orc-desc','prazo','obs','orc-vendedor'].forEach(function(id){setVal(id,'');});
   setVal('inp-desc','0');setVal('inp-frete','0');setVal('num-parcelas','');
   setVal('orc-status','Aguardando aprovação');setVal('pgto','À vista');setVal('entrega','A definir');
@@ -9722,8 +9819,8 @@ function montarMsgFollowup(h,tipo){
 
 function abrirFollowup(id){
   var h=getHist().find(function(x){return x.id===id;});
-  if(!h){alert('Orçamento não encontrado.');return;}
-  if(!h.cliente.wpp){alert('Este cliente não tem WhatsApp cadastrado.');return;}
+  if(!h){_histOpErro('Orçamento não encontrado.');return;}
+  if(!h.cliente.wpp){_histOpErro('Este cliente não tem WhatsApp cadastrado.');return;}
   ge('fu-orc-id').value=id;
   ge('fu-cliente-nome').textContent=h.cliente.nome||'—';
   ge('fu-cliente-wpp').textContent=h.cliente.wpp||'';
@@ -9749,7 +9846,7 @@ function abrirFollowupPreview(){
       cliente:{nome:val('cli-nome'),wpp:val('cli-wpp')},
       items:getItems(),descGeral:val('inp-desc'),frete:val('inp-frete')};
   }
-  if(!h.cliente.wpp&&!val('cli-wpp')){alert('Cliente sem WhatsApp cadastrado.');return;}
+  if(!h.cliente.wpp&&!val('cli-wpp')){_histOpErro('Cliente sem WhatsApp cadastrado.');return;}
   ge('fu-orc-id').value='preview';
   ge('fu-cliente-nome').textContent=h.cliente.nome||val('cli-nome')||'—';
   ge('fu-cliente-wpp').textContent=h.cliente.wpp||val('cli-wpp')||'';
@@ -9770,7 +9867,7 @@ function aplicarTemplateFU(tipo){
 }
 
 function enviarFollowupWpp(){
-  var msg=val('fu-mensagem');if(!msg){alert('Mensagem vazia.');return;}
+  var msg=val('fu-mensagem');if(!msg){_fuErro('A mensagem está vazia.');return;}
   var wpp=ge('fu-cliente-wpp').textContent.replace(/\D/g,'');
   window.open(wpp?'https://wa.me/'+wpp+'?text='+encodeURIComponent(msg):'https://wa.me/?text='+encodeURIComponent(msg),'_blank');
   closeFollowupModal();
@@ -9788,7 +9885,7 @@ function abrirFollowupMassa(){
     valDate.setDate(valDate.getDate()+(parseInt(h.validade)||3));
     return valDate<new Date();
   });
-  if(!_fuOrcamentos.length){alert('Nenhum orçamento vencido com WhatsApp cadastrado.');return;}
+  if(!_fuOrcamentos.length){_histOpErro('Nenhum orçamento vencido com WhatsApp cadastrado.');return;}
   var semWpp=hist.filter(function(h){
     if(h.status!=='Aguardando aprovação'&&h.status!=='Em revisão')return false;
     var valDate=new Date((h.data||hoje2)+'T12:00');
@@ -9813,21 +9910,27 @@ function renderFuMassaLista(){
   lista.innerHTML=_fuOrcamentos.map(function(h,i){
     return'<label style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.04);border-radius:7px;padding:7px 10px;font-size:12px;cursor:pointer">'+
       '<input type="checkbox" class="fu-massa-check" data-idx="'+i+'" checked style="width:auto;padding:0">'+
-      '<span style="flex:1">'+h.cliente.nome+' — #'+h.num+' ('+fmt(calcHistTotal(h))+')</span>'+
+      '<span style="flex:1">'+escHtml(h.cliente.nome)+' — #'+escHtml(h.num)+' ('+fmt(calcHistTotal(h))+')</span>'+
       '<span id="fu-massa-status-'+i+'" style="font-size:11px;color:rgba(255,255,255,.4)">aguardando</span>'+
     '</label>';
   }).join('');
 }
 
 function enviarFollowupMassa(){
-  var msgBase=val('fu-massa-msg');if(!msgBase){alert('Mensagem vazia.');return;}
+  var msgBase=val('fu-massa-msg');if(!msgBase){_fuMassaErro('A mensagem está vazia.');return;}
   var selecionados=[];
   document.querySelectorAll('.fu-massa-check:checked').forEach(function(cb){
     var idx=parseInt(cb.getAttribute('data-idx'));
     selecionados.push(_fuOrcamentos[idx]);
   });
-  if(!selecionados.length){alert('Selecione ao menos um cliente.');return;}
-  if(!confirm('Confirma o envio para '+selecionados.length+' cliente(s)? O WhatsApp abrirá uma janela por vez.'))return;
+  if(!selecionados.length){_fuMassaErro('Selecione ao menos um cliente.');return;}
+  if(!window._confirmarEnvioMassa){
+    window._confirmarEnvioMassa=true;
+    _fuMassaErro('⚠️ Confirma o envio para '+selecionados.length+' cliente(s)? O WhatsApp abrirá uma janela por vez. <button class="btn btn-wpp btn-sm" style="margin-left:8px" onclick="enviarFollowupMassa()">Confirmar</button>');
+    setTimeout(function(){window._confirmarEnvioMassa=false;},8000);
+    return;
+  }
+  window._confirmarEnvioMassa=false;
 
   ge('fu-massa-btn-iniciar').disabled=true;
   ge('fu-massa-progresso').style.display='block';
