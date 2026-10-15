@@ -1775,6 +1775,18 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
             <input id="receber-search" placeholder="🔍 Cliente ou nº..." style="max-width:200px" oninput="renderContasReceber()">
           </span>
         </div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px;align-items:center">
+          <span style="font-size:11px;color:rgba(255,255,255,.45)">Período:</span>
+          <button class="btn btn-brand btn-sm receber-periodo-btn" onclick="setReceberPeriodo('')" data-p="">Todos</button>
+          <button class="btn btn-out btn-sm receber-periodo-btn" onclick="setReceberPeriodo('mes')" data-p="mes">Este mês</button>
+          <button class="btn btn-out btn-sm receber-periodo-btn" onclick="setReceberPeriodo('mes_ant')" data-p="mes_ant">Mês passado</button>
+          <button class="btn btn-out btn-sm receber-periodo-btn" onclick="setReceberPeriodo('custom')" data-p="custom">📅 Personalizado</button>
+          <span id="receber-custom-datas" style="display:none;gap:4px;align-items:center">
+            <input type="date" id="receber-data-ini" style="font-size:12px;padding:3px 6px" onchange="renderContasReceber()">
+            <span style="font-size:11px;color:rgba(255,255,255,.4)">até</span>
+            <input type="date" id="receber-data-fim" style="font-size:12px;padding:3px 6px" onchange="renderContasReceber()">
+          </span>
+        </div>
         <p style="font-size:12px;color:rgba(255,255,255,.45);margin-bottom:11px;line-height:1.5">Gerado automaticamente quando um orçamento é aprovado. Marque as parcelas conforme o cliente for pagando.</p>
         <div class="items-wrap">
           <table class="cat"><thead><tr>
@@ -1795,6 +1807,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
         <div class="card-title">
           Contas a Pagar — Próximos vencimentos
           <span style="margin-left:auto;display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+            <input id="pagar-search" type="search" placeholder="🔍 Buscar…" oninput="renderContasPagar()" style="max-width:160px;padding:5px 9px;border-radius:7px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:inherit;font-size:12px">
             <select id="pagar-filtro-tipo" onchange="renderContasPagar()" style="max-width:160px">
               <option value="">Todos os tipos</option>
               <option value="rh">RH</option>
@@ -2226,6 +2239,17 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
     <div class="modal-footer">
       <button class="btn btn-out" onclick="ge('modal-del-prod').className='modal-overlay'">Cancelar</button>
       <button class="btn btn-danger" onclick="confirmarDeleteProd()">🗑 Excluir</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-del-fin">
+  <div class="modal" style="width:400px">
+    <div class="modal-title">⚠️ Confirmar ação</div>
+    <input type="hidden" id="modal-del-fin-id">
+    <p id="modal-del-fin-msg" style="font-size:13px;margin:6px 0 16px"></p>
+    <div class="modal-footer">
+      <button class="btn btn-out" onclick="ge('modal-del-fin').className='modal-overlay'">Cancelar</button>
+      <button id="modal-del-fin-btn" class="btn btn-danger" onclick="confirmarDelFin()">Confirmar</button>
     </div>
   </div>
 </div>
@@ -7469,11 +7493,74 @@ function confirmarPagamentoRecebido(){
   closeMarcarPagoModal();renderContasReceber();
 }
 function desmarcarPago(id){
-  if(!confirm('Marcar esta parcela como pendente novamente?'))return;
-  var contas=getContasReceber();
-  var idx=contas.findIndex(function(c){return c.id===id;});
-  if(idx>=0){contas[idx].status='pendente';contas[idx].dataPgto='';saveContasReceber(contas);}
+  var c=getContasReceber().find(function(x){return x.id===id;});
+  if(!c)return;
+  ge('modal-del-fin-id').value='desmarcar:'+id;
+  ge('modal-del-fin-msg').innerHTML='Marcar a parcela <strong>'+escHtml(c.parcela)+'</strong> do orçamento <strong>#'+escHtml(c.orcNum)+'</strong> como pendente novamente?';
+  ge('modal-del-fin-btn').textContent='↺ Desfazer pagamento';
+  ge('modal-del-fin').className='modal-overlay open';
+}
+
+var _receberPeriodo='';
+function setReceberPeriodo(p){
+  _receberPeriodo=p;
+  document.querySelectorAll('.receber-periodo-btn').forEach(function(b){
+    b.className='btn btn-sm receber-periodo-btn '+(b.dataset.p===p?'btn-brand':'btn-out');
+  });
+  var custom=ge('receber-custom-datas');
+  if(custom)custom.style.display=p==='custom'?'flex':'none';
   renderContasReceber();
+}
+function _aplicarPeriodoReceber(arr){
+  if(!_receberPeriodo)return arr;
+  var hoje2=hoje();
+  var mesAtual=hoje2.substring(0,7);
+  if(_receberPeriodo==='mes'){
+    return arr.filter(function(c){
+      var d=c.vencimento||c.dataPgto||'';
+      return d.substring(0,7)===mesAtual;
+    });
+  }
+  if(_receberPeriodo==='mes_ant'){
+    var d2=new Date(hoje2);d2.setMonth(d2.getMonth()-1);
+    var mesAnt=d2.toISOString().substring(0,7);
+    return arr.filter(function(c){
+      var d=c.vencimento||c.dataPgto||'';
+      return d.substring(0,7)===mesAnt;
+    });
+  }
+  if(_receberPeriodo==='custom'){
+    var ini=val('receber-data-ini'),fim=val('receber-data-fim');
+    return arr.filter(function(c){
+      var d=c.vencimento||c.dataPgto||'';
+      if(ini&&d<ini)return false;
+      if(fim&&d>fim)return false;
+      return true;
+    });
+  }
+  return arr;
+}
+
+function confirmarDelFin(){
+  var raw=ge('modal-del-fin-id').value;
+  if(!raw)return;
+  ge('modal-del-fin').className='modal-overlay';
+  if(raw.startsWith('desmarcar:')){
+    var id=raw.replace('desmarcar:','');
+    var contas=getContasReceber();
+    var idx=contas.findIndex(function(c){return c.id===id;});
+    if(idx>=0){contas[idx].status='pendente';contas[idx].dataPgto='';saveContasReceber(contas);}
+    renderContasReceber();
+  } else if(raw.startsWith('despesa:')){
+    var id=raw.replace('despesa:','');
+    saveDespesas(getDespesas().filter(function(d){return d.id!==id;}));renderMEI();
+  } else if(raw.startsWith('custo:')){
+    var id=raw.replace('custo:','');
+    saveCustos(getCustos().filter(function(c){return c.id!==id;}));renderMEI();
+  } else if(raw.startsWith('pagamento:')){
+    var id=raw.replace('pagamento:','');
+    savePagamentosRH(getPagamentosRH().filter(function(p){return p.id!==id;}));renderMEI();
+  }
 }
 
 function renderContasReceber(){
@@ -7485,6 +7572,7 @@ function renderContasReceber(){
     var matchQ=!q||c.clienteNome.toLowerCase().includes(q)||c.orcNum.toLowerCase().includes(q);
     return matchStatus&&matchQ;
   });
+  f=_aplicarPeriodoReceber(f);
   f.sort(function(a,b){return a.vencimento<b.vencimento?-1:1;});
 
   var totalPendente=0,totalVencido=0,totalPago=0,totalRecebidoMes=0;
@@ -7552,8 +7640,8 @@ function nextReciboNum(){
 
 function gerarReciboPagamento(contaId){
   var conta=getContasReceber().find(function(c){return c.id===contaId;});
-  if(!conta){alert('Conta a receber não encontrada.');return;}
-  if(conta.status!=='pago'){alert('Esta conta ainda não está marcada como paga.');return;}
+  if(!conta){var el=ge('receber-alertas');if(el){el.innerHTML='<div class="warn-box">⚠️ Conta a receber não encontrada.</div>';setTimeout(function(){el.innerHTML='';},4000);}return;}
+  if(conta.status!=='pago'){var el2=ge('receber-alertas');if(el2){el2.innerHTML='<div class="warn-box">⚠️ Esta conta ainda não está marcada como paga.</div>';setTimeout(function(){el2.innerHTML='';},4000);}return;}
 
   var cfg=getCfg();
   var logo=localStorage.getItem('orcpro_logo')||'';
@@ -7705,7 +7793,12 @@ function marcarContaPagarPago(id,pago){
 function renderContasPagar(){
   var lista=montarListaContasPagar();
   var filtroTipo=val('pagar-filtro-tipo');
-  var f=filtroTipo?lista.filter(function(l){return l.tipo===filtroTipo;}):lista;
+  var q=(val('pagar-search')||'').toLowerCase();
+  var f=lista.filter(function(l){
+    var matchTipo=!filtroTipo||l.tipo===filtroTipo;
+    var matchQ=!q||l.desc.toLowerCase().includes(q)||(l.tipoLabel||'').toLowerCase().includes(q);
+    return matchTipo&&matchQ;
+  });
 
   var totalAPagar=0,totalVencido=0,totalPago=0;
   var hojeStr=hoje();
@@ -8127,7 +8220,14 @@ function saveDespesa(){
   else despesas.push(d);
   saveDespesas(despesas);closeDespesaModal();renderMEI();
 }
-function deleteDespesa(id){if(!confirm('Excluir despesa?'))return;saveDespesas(getDespesas().filter(function(d){return d.id!==id;}));renderMEI();}
+function deleteDespesa(id){
+  var d=getDespesas().find(function(x){return x.id===id;});
+  if(!d)return;
+  ge('modal-del-fin-id').value='despesa:'+id;
+  ge('modal-del-fin-msg').innerHTML='Excluir a despesa <strong>'+escHtml(d.desc||'sem descrição')+'</strong> ('+fmt(d.valor)+')?';
+  ge('modal-del-fin-btn').textContent='🗑 Excluir despesa';
+  ge('modal-del-fin').className='modal-overlay open';
+}
 function marcarDespesaPaga(id,pago){
   var despesas=getDespesas();
   var idx=despesas.findIndex(function(d){return d.id===id;});
@@ -8280,7 +8380,14 @@ function saveCusto(){
   else custos.push(c);
   saveCustos(custos);closeCustoModal();renderMEI();
 }
-function deleteCusto(id){if(!confirm('Excluir este custo (todos os meses e anos)?'))return;saveCustos(getCustos().filter(function(c){return c.id!==id;}));renderMEI();}
+function deleteCusto(id){
+  var c=getCustos().find(function(x){return x.id===id;});
+  if(!c)return;
+  ge('modal-del-fin-id').value='custo:'+id;
+  ge('modal-del-fin-msg').innerHTML='Excluir o custo <strong>'+escHtml(c.nome||'sem nome')+'</strong>? Isso remove todos os meses e anos.';
+  ge('modal-del-fin-btn').textContent='🗑 Excluir custo';
+  ge('modal-del-fin').className='modal-overlay open';
+}
 
 // Edição rápida do valor do mês atual direto na tabela
 function quickEditCustoMes(id,ano,mesIdx,novoValor){
@@ -8364,7 +8471,14 @@ function savePagamento(){
   else pagamentos.push(p);
   savePagamentosRH(pagamentos);closePagamentoModal();renderMEI();
 }
-function deletePagamento(id){if(!confirm('Excluir este pagamento?'))return;savePagamentosRH(getPagamentosRH().filter(function(p){return p.id!==id;}));renderMEI();}
+function deletePagamento(id){
+  var p=getPagamentosRH().find(function(x){return x.id===id;});
+  if(!p)return;
+  ge('modal-del-fin-id').value='pagamento:'+id;
+  ge('modal-del-fin-msg').innerHTML='Excluir o pagamento de <strong>'+escHtml(p.funcNome||'funcionário')+'</strong> ('+fmt(p.valor)+')?';
+  ge('modal-del-fin-btn').textContent='🗑 Excluir pagamento';
+  ge('modal-del-fin').className='modal-overlay open';
+}
 function getTotalRHMensal(){return getPagamentosRH().reduce(function(a,p){return a+p.valor;},0);}
 
 // ═══════════════════════════════════════════════════
