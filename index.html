@@ -9609,6 +9609,8 @@ function restaurarDoGoogleDrive(){
 }
 
 function verificarAutoSyncGoogleDrive(){
+  // Se Supabase está ativo, não dispara sync do Google Drive automaticamente (evita popup)
+  try{var _s=getSession&&getSession();if(_s&&_s.access_token)return;}catch(e){}
   var cfg=getCfg();
   if(!cfg.googleAutoSync)return;
   var status=getGoogleDriveStatus();
@@ -9626,6 +9628,8 @@ function agendarAutoSyncSafe(){if(typeof agendarAutoSync==='function'){try{agend
 // ── SINCRONIZAÇÃO AUTOMÁTICA (silenciosa, sem alertas) ──
 var _autoSyncTimer=null;
 function sincronizarGoogleDriveSilencioso(callback){
+  // Se Supabase está ativo, não dispara sync do Google Drive automaticamente (evita popup)
+  try{var _s=getSession&&getSession();if(_s&&_s.access_token){if(callback)callback(false);return;}}catch(e){}
   var cfg=getCfg();
   var status=getGoogleDriveStatus();
   if(!cfg.googleAutoSync||!status.conectado){if(callback)callback(false);return;}
@@ -9658,6 +9662,8 @@ function _enviarBackupParaDrive(status,callback){
 // Chamada após salvar qualquer dado — agenda um sync com atraso (debounce de 3s)
 // para não disparar a cada tecla, mas garantir que o dado suba pouco depois de salvar.
 function agendarAutoSync(){
+  // Se Supabase está ativo, não dispara sync do Google Drive automaticamente (evita popup)
+  try{var _s=getSession&&getSession();if(_s&&_s.access_token)return;}catch(e){}
   var cfg=getCfg();
   if(!cfg.googleAutoSync)return;
   atualizarIndicadorSync('pendente');
