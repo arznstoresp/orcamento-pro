@@ -1436,6 +1436,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
           </tr></thead><tbody id="cli-body"></tbody></table>
         </div>
         <div id="cli-empty" style="text-align:center;padding:26px;color:rgba(255,255,255,.5);font-size:13px;display:none">Nenhum cliente cadastrado.</div>
+        <div id="cli-import-alertas"></div>
       </div>
     </div>
 
@@ -2198,6 +2199,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
       <div id="cli-historico-resumo" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:6px"></div>
       <div id="cli-historico-lista" style="margin-top:8px;max-height:140px;overflow-y:auto;display:flex;flex-direction:column;gap:5px"></div>
     </div>
+    <div id="cli-modal-alertas"></div>
     <div class="modal-footer"><button class="btn btn-out" onclick="closeClienteModal()">Cancelar</button> <button class="btn btn-brand" onclick="saveCliente()">💾 Salvar</button></div>
   </div>
 </div>
@@ -4411,7 +4413,7 @@ function renderClientes(){
     var fuVenc=c.followup&&c.followup<hoje2;
     var fu=c.followup?fmtDt(c.followup):'—',fuS=fuVenc?'color:var(--red);font-weight:700':'';
     return'<tr>'+
-      '<td><strong>'+c.nome+'</strong>'+(c.doc?'<br><span style="font-size:10px;color:rgba(255,255,255,.5)">'+c.doc+'</span>':'')+'</td>'+
+      '<td><strong>'+escHtml(c.nome)+'</strong>'+(c.doc?'<br><span style="font-size:10px;color:rgba(255,255,255,.5)">'+escHtml(c.doc)+'</span>':'')+'</td>'+
       '<td style="font-size:12px">'+(c.wpp?'<a href="https://wa.me/'+c.wpp.replace(/\D/g,'')+'" target="_blank" style="color:var(--brand)">'+c.wpp+'</a>':'—')+'</td>'+
       '<td style="font-size:12px">'+(c.email||'—')+'</td>'+
       '<td><span class="badge" style="'+(sc[c.status]||'')+'">'+c.status+'</span></td>'+
@@ -4467,10 +4469,16 @@ function montarHistoricoCliente(cliente){
 
 function closeClienteModal(){ge('modal-cliente').className='modal-overlay';}
 function editCliente(id){openClienteModal(id);}
-function deleteCliente(id){if(!confirm('Excluir?'))return;saveClientes(getClientes().filter(function(c){return c.id!==id;}));renderClientes();}
+function deleteCliente(id){
+  var c=getClientes().find(function(x){return x.id===id;});if(!c)return;
+  ge('modal-del-fin-id').value='cliente:'+id;
+  ge('modal-del-fin-msg').innerHTML='Excluir o cliente <strong>'+escHtml(c.nome)+'</strong>? Esta ação não pode ser desfeita.';
+  ge('modal-del-fin-btn').textContent='🗑 Excluir cliente';
+  ge('modal-del-fin').className='modal-overlay open';
+}
 function wppCliente(id){var c=getClientes().find(function(x){return x.id===id;});if(!c||!c.wpp)return;window.open('https://wa.me/'+c.wpp.replace(/\D/g,''),'_blank');}
 function saveCliente(){
-  var nome=val('mc-nome');if(!nome){alert('Informe o nome.');return;}
+  var nome=val('mc-nome');if(!nome){var inp=ge('mc-nome');if(inp){inp.focus();inp.style.borderColor='var(--red)';setTimeout(function(){inp.style.borderColor='';},3000);}var d=ge('cli-modal-alertas');if(d){d.innerHTML='<div class="warn-box" style="margin-top:8px">Informe o nome do cliente.</div>';setTimeout(function(){if(d)d.innerHTML='';},4000);}return;}
   var clientes=getClientes(),editId=val('cli-edit-id');
   var cli={id:editId||'c'+Date.now(),nome:nome,doc:val('mc-doc'),wpp:val('mc-wpp'),email:val('mc-email'),status:val('mc-status'),followup:val('mc-followup'),obs:val('mc-obs'),ultimoContato:hoje(),orcamentos:[]};
   if(editId){var idx=clientes.findIndex(function(x){return x.id===editId;});if(idx>=0){cli.orcamentos=clientes[idx].orcamentos||[];clientes[idx]=cli;}else clientes.push(cli);}
@@ -4488,8 +4496,9 @@ function importCliExcel(e){
     try{var data=new Uint8Array(ev.target.result),wb=XLSX.read(data,{type:'array'}),ws=wb.Sheets[wb.SheetNames[0]],rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''}),clientes=getClientes(),imp=0,ign=0;
       for(var i=1;i<rows.length;i++){var r=rows[i],nome=(r[0]||'').toString().trim();if(!nome){ign++;continue;}var st=(r[5]||'').toString().trim();if(!validS.includes(st))st='Novo';
         clientes.push({id:'c'+Date.now()+i,nome:nome,doc:(r[1]||'').toString().trim(),wpp:(r[2]||'').toString().trim(),email:(r[3]||'').toString().trim(),end:(r[4]||'').toString().trim(),status:st,followup:(r[6]||'').toString().trim(),obs:(r[7]||'').toString().trim(),ultimoContato:hoje(),orcamentos:[]});imp++;}
-      saveClientes(clientes);renderClientes();ge('import-cli-file').value='';alert('✅ '+imp+' importado(s).'+(ign?' '+ign+' ignorado(s).':''));
-    }catch(err){alert('Erro: '+err.message);}
+      saveClientes(clientes);renderClientes();ge('import-cli-file').value='';
+      var d=ge('cli-import-alertas');if(d){d.innerHTML='<div class="success-box" style="margin-top:8px">✅ '+imp+' cliente(s) importado(s).'+(ign?' '+ign+' ignorado(s).':'')+'</div>';setTimeout(function(){if(d)d.innerHTML='';},5000);}
+    }catch(err){var d=ge('cli-import-alertas');if(d){d.innerHTML='<div class="warn-box" style="margin-top:8px">Erro ao importar: '+escHtml(err.message)+'</div>';setTimeout(function(){if(d)d.innerHTML='';},6000);}}
   };reader.readAsArrayBuffer(file);
 }
 
@@ -7627,6 +7636,9 @@ function confirmarDelFin(){
     var id=raw.replace('nota:','');
     var nota=getNotasCompra().find(function(n){return n.id===id;});
     if(nota){reverterEfeitosNota(nota);saveNotasCompra(getNotasCompra().filter(function(n){return n.id!==id;}));renderNotas();}
+  } else if(raw.startsWith('cliente:')){
+    var id=raw.replace('cliente:','');
+    saveClientes(getClientes().filter(function(c){return c.id!==id;}));renderClientes();
   } else if(raw.startsWith('maquina:')){
     var id=raw.replace('maquina:','');
     saveMaquinarios(getMaquinarios().filter(function(m){return m.id!==id;}));renderMaquinarios();
