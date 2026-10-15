@@ -3886,11 +3886,30 @@ function _catOpOk(msg){
 function _catOpErro(msg){
   var d=ge('cat-op-alertas');if(d){d.innerHTML='<div class="warn-box" style="margin-top:8px">'+msg+'</div>';setTimeout(function(){if(d)d.innerHTML='';},6000);}
 }
+function _showToastGlobal(msg,tipo,dur){
+  // Toast flutuante global — aparece em qualquer view, some sozinho
+  var t=ge('_toast-global');
+  if(!t){
+    t=document.createElement('div');t.id='_toast-global';
+    t.style.cssText='position:fixed;top:68px;left:50%;transform:translateX(-50%);z-index:99999;max-width:92vw;min-width:220px;pointer-events:auto;transition:opacity .25s';
+    document.body.appendChild(t);
+  }
+  clearTimeout(t._timer);
+  t.innerHTML='<div class="'+(tipo==='ok'?'success-box':'warn-box')+'" style="box-shadow:0 4px 18px rgba(0,0,0,.55);border-radius:10px;padding:11px 16px;font-size:13px;line-height:1.5">'+msg+'</div>';
+  t.style.opacity='1';
+  t._timer=setTimeout(function(){t.style.opacity='0';setTimeout(function(){if(t)t.innerHTML='';},260);},dur||5000);
+}
 function _histOpOk(msg){
-  var d=ge('hist-op-alertas');if(d){d.innerHTML='<div class="success-box" style="margin-top:8px">'+msg+'</div>';setTimeout(function(){if(d)d.innerHTML='';},5000);}
+  var d=ge('hist-op-alertas');
+  var viewHist=ge('view-hist');
+  if(d&&viewHist&&viewHist.style.display!=='none'){d.innerHTML='<div class="success-box" style="margin-top:8px">'+msg+'</div>';setTimeout(function(){if(d)d.innerHTML='';},5000);}
+  else{_showToastGlobal(msg,'ok',5000);}
 }
 function _histOpErro(msg){
-  var d=ge('hist-op-alertas');if(d){d.innerHTML='<div class="warn-box" style="margin-top:8px">'+msg+'</div>';setTimeout(function(){if(d)d.innerHTML='';},6000);}
+  var d=ge('hist-op-alertas');
+  var viewHist=ge('view-hist');
+  if(d&&viewHist&&viewHist.style.display!=='none'){d.innerHTML='<div class="warn-box" style="margin-top:8px">'+msg+'</div>';setTimeout(function(){if(d)d.innerHTML='';},6000);}
+  else{_showToastGlobal(msg,'erro',6000);}
 }
 function _formCepAlerta(msg,ok){
   var d=ge('form-cep-alertas');if(d){d.innerHTML='<div class="'+(ok?'success-box':'warn-box')+'" style="margin-top:6px">'+msg+'</div>';setTimeout(function(){if(d)d.innerHTML='';},5000);}
