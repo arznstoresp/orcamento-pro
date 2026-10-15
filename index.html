@@ -10707,7 +10707,8 @@ function aplicarProtecaoAutofill(){
     aplicarProtecaoAutofill();
     var bg=ge('busca-global');
     if(bg){bg.value='';setTimeout(function(){bg.value='';},300);setTimeout(function(){bg.value='';},1000);}
-    setTimeout(function(){if(typeof autoBaixarDoDriveAoAbrir==='function')autoBaixarDoDriveAoAbrir();},2000);
+    // Drive auto-sync desativado: Supabase Auth já garante sync entre dispositivos
+    // setTimeout(function(){if(typeof autoBaixarDoDriveAoAbrir==='function')autoBaixarDoDriveAoAbrir();},2000);
     setTimeout(function(){if(typeof _autoNuvemAoAbrir==='function')_autoNuvemAoAbrir();},1500);
     setTimeout(function(){if(typeof _migrarFotosStorage==='function')_migrarFotosStorage();},8000);
   }
