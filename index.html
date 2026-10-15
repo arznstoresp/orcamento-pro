@@ -146,7 +146,7 @@ table.itens td input,table.itens td select{padding:6px 7px;font-size:12px}
 .logo-preview{max-height:72px;max-width:200px;border-radius:6px;margin:0 auto;display:block}
 .logo-upload-hint{font-size:12px;color:rgba(255,255,255,.4);margin-top:5px}
 /* DASH */
-.dash-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.dash-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:14px;margin-bottom:18px}
 .dash-card{background:var(--dark-card);border:1px solid var(--dark-border);border-radius:16px;padding:18px 20px;position:relative;overflow:hidden;transition:border-color .2s,box-shadow .2s}
 .dash-card:hover{border-color:var(--dark-border2);box-shadow:var(--shadow-dark)}
 .dash-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:16px 16px 0 0;background:var(--brand);box-shadow:0 0 12px var(--brand-glow)}
@@ -165,6 +165,9 @@ table.itens td input,table.itens td select{padding:6px 7px;font-size:12px}
 .dash-val.green{color:var(--green);text-shadow:0 0 20px rgba(34,197,94,.3)}
 .dash-val.blue{color:var(--blue)}.dash-val.red{color:var(--red)}
 .dash-val.yellow{color:var(--yellow);text-shadow:0 0 20px rgba(245,158,11,.25)}
+.dash-card.purple::before{background:#a855f7;box-shadow:0 0 12px rgba(168,85,247,.3)}
+.dash-lbl-dot.purple{background:#a855f7;box-shadow:0 0 6px rgba(168,85,247,.6)}
+.dash-val.purple{color:#a855f7;text-shadow:0 0 20px rgba(168,85,247,.3)}
 .dash-sub{font-size:11px;color:rgba(255,255,255,.5);margin-top:6px;display:flex;align-items:center;gap:5px}
 .dash-2col{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
 .dash-3col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px}
@@ -612,6 +615,18 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
     <!-- DASHBOARD -->
     <div id="view-dash">
       <div id="dash-alertas"></div>
+      <!-- Ações Rápidas -->
+      <div id="dash-acoes-rapidas" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+        <button class="btn" style="flex:1;min-width:120px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;padding:10px 14px" onclick="showView('form')">
+          <span style="font-size:16px">📝</span> Novo Orçamento
+        </button>
+        <button class="btn btn-out" style="flex:1;min-width:120px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;padding:10px 14px" onclick="showView('os')">
+          <span style="font-size:16px">🔧</span> Nova OS
+        </button>
+        <button class="btn btn-out" style="flex:1;min-width:120px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;padding:10px 14px" onclick="showView('venda-rapida')">
+          <span style="font-size:16px">⚡</span> Venda Rápida
+        </button>
+      </div>
       <div class="dash-grid" id="dash-kpis"></div>
       <div style="margin-bottom:14px" id="dash-meta-wrap"></div>
 
@@ -8335,9 +8350,26 @@ function exportarMEIExcel(){
 // ═══════════════════════════════════════════════════
 // DASHBOARD
 // ═══════════════════════════════════════════════════
+function mostrarTooltipGrafico(evt,texto){
+  var tip=ge('dash-chart-tooltip');
+  if(!tip){
+    tip=document.createElement('div');
+    tip.id='dash-chart-tooltip';
+    tip.style.cssText='position:fixed;background:var(--dark-card);border:1px solid var(--dark-border2);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#F0F0F5;pointer-events:none;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.5);white-space:nowrap;transition:opacity .15s';
+    document.body.appendChild(tip);
+  }
+  tip.textContent=texto;
+  tip.style.opacity='1';
+  tip.style.left=(evt.clientX-tip.offsetWidth/2)+'px';
+  tip.style.top=(evt.clientY-42)+'px';
+  clearTimeout(tip._t);
+  tip._t=setTimeout(function(){tip.style.opacity='0';},2200);
+}
+
 function renderDash(){
   var hist=getHist(),clientes=getClientes(),hoje2=hoje(),mes=hoje2.substring(0,7);
   var totalMes=0,totalMesAprovado=0,totalPend=0,totalAprov=0,countMes=0,countAprov=0,countPerd=0,countExp=0;
+  var lucroMes=0;
   var meses={},mesesAprov={},prods={};
   // mês anterior para comparação
   var d=new Date();d.setMonth(d.getMonth()-1);
@@ -8347,7 +8379,7 @@ function renderDash(){
   hist.forEach(function(h){
     var total=calcHistTotal(h);
     var hm=(h.data||'').substring(0,7);
-    if(hm===mes){totalMes+=total;countMes++;if(h.status==='Aprovado')totalMesAprovado+=total;}
+    if(hm===mes){totalMes+=total;countMes++;if(h.status==='Aprovado'){totalMesAprovado+=total;(h.items||[]).forEach(function(it){var qty=parseFloat(it.qty)||0;var price=parseFloat(it.price)||0;var custo=parseFloat(it.custo)||0;lucroMes+=(qty*price)-custo;});}}
     if(hm===mesAnterior)totalMesAnt+=total;
     if(h.status==='Aguardando aprovação'||h.status==='Em revisão')totalPend+=total;
     if(h.status==='Aprovado'){totalAprov+=total;countAprov++;}
@@ -8368,10 +8400,12 @@ function renderDash(){
   var varMes=totalMesAnt>0?((totalMes-totalMesAnt)/totalMesAnt)*100:null;
 
   // ── KPI CARDS ──
+  var countPend=hist.filter(function(h){return h.status==='Aguardando aprovação'||h.status==='Em revisão';}).length;
   ge('dash-kpis').innerHTML=
-    dkv('Total do mês','orange','💰',fmt(totalMes),countMes+' orçamento'+(countMes===1?'':'s'),varMes)+
-    dkv('Aguardando','yellow','⏳',fmt(totalPend),(countPend=hist.filter(function(h){return h.status==='Aguardando aprovação'||h.status==='Em revisão';}).length)+' orçamento'+(countPend===1?'':'s'),null)+
-    dkv('Aprovados','green','✅',fmt(totalAprov),countAprov+' — Taxa '+fmtPct(taxa),null)+
+    dkv('Faturado no mês','orange','💰',fmt(totalMesAprovado),countMes+' orçamento'+(countMes===1?'':'s'),varMes)+
+    dkv('Aguardando','yellow','⏳',fmt(totalPend),countPend+' orçamento'+(countPend===1?'':'s'),null)+
+    dkv('Total aprovado','green','✅',fmt(totalAprov),countAprov+' — Taxa '+fmtPct(taxa),null)+
+    dkv('Lucro do mês','purple','📊',fmt(lucroMes),'Receita − custo (aprovados)',null)+
     dkv('Ticket médio','blue','📈',fmt(ticket),'Por orçamento aprovado',null);
 
   function dkv(l,cls,ico,v,sub,vari){
@@ -8447,7 +8481,7 @@ function renderDash(){
     var label=m.substring(5)+'/'+m.substring(2,4);
     var fill=isCur?'url(#gbar)':'url(#gbarpast)';
     if(v>0){
-      bars+='<rect class="chart-bar" x="'+x+'" y="'+y+'" width="'+bW+'" height="'+bh+'" fill="'+fill+'" rx="6" onclick="alert(\''+label+': '+fmt(v)+'\')"/>';
+      bars+='<rect class="chart-bar" x="'+x+'" y="'+y+'" width="'+bW+'" height="'+bh+'" fill="'+fill+'" rx="6" onclick="mostrarTooltipGrafico(event,\''+label+': '+fmt(v).replace(/'/g,'')+'\')" style="cursor:pointer"><title>'+label+': '+fmt(v)+'</title></rect>';
     } else {
       bars+='<rect x="'+x+'" y="'+(baseY-4)+'" width="'+bW+'" height="4" fill="rgba(255,255,255,.06)" rx="2"/>';
     }
@@ -8470,7 +8504,7 @@ function renderDash(){
   segmentos.forEach(function(s){
     var pctS=s.v/totH;var arc=pctS*circum;
     var offset=circum-arc;
-    arcs+='<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+s.c+'" stroke-width="12" stroke-dasharray="'+arc+' '+( circum-arc)+'" stroke-dashoffset="'+(circum*(1-start))+'" transform="rotate(-90 '+cx+' '+cy+')" style="transition:stroke-dasharray .5s"/>';
+    arcs+='<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+s.c+'" stroke-width="12" stroke-dasharray="'+arc+' '+(circum-arc)+'" stroke-dashoffset="'+(circum*(1-start))+'" transform="rotate(-90 '+cx+' '+cy+')" style="transition:stroke-dasharray .5s"><title>'+s.l+': '+s.v+' ('+Math.round((s.v/totH)*100)+'%)</title></circle>';
     start+=pctS;
   });
   var legendItems=segmentos.map(function(s){
