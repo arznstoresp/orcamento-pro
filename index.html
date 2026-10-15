@@ -974,15 +974,33 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
         <div style="display:flex;gap:7px;margin-bottom:11px;flex-wrap:wrap;align-items:center">
           <input id="hist-search" placeholder="🔍 Nº, cliente ou descrição..." style="max-width:240px" oninput="renderHist()">
           <select id="hist-filter" onchange="renderHist()" style="max-width:150px">
-            <option value="">Todos</option><option>Aguardando aprovação</option><option>Aprovado</option><option>Recusado</option><option>Em revisão</option>
+            <option value="">Todos</option><option>Aguardando aprovação</option><option>Aprovado</option><option>Recusado</option><option>Em revisão</option><option value="Vencido">⚠️ Vencido</option>
           </select>
           <button class="btn btn-out btn-sm" onclick="exportarHistXls()">📊 Excel</button>
           <button class="btn btn-brand btn-sm" id="btn-resolver-dup" onclick="resolverDuplicadosAuto()" style="display:none" title="Dá um número novo a todos os orçamentos duplicados de uma vez (nada é apagado)">🔢 Resolver todos os duplicados</button>
         </div>
+        <div id="hist-periodo-row" style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px;align-items:center">
+          <span style="font-size:11px;color:rgba(255,255,255,.4);flex-shrink:0">Período:</span>
+          <button class="btn btn-brand btn-sm hist-periodo-btn" onclick="setHistPeriodo('')" data-p="">Todos</button>
+          <button class="btn btn-out btn-sm hist-periodo-btn" onclick="setHistPeriodo('semana')" data-p="semana">Semana</button>
+          <button class="btn btn-out btn-sm hist-periodo-btn" onclick="setHistPeriodo('mes')" data-p="mes">Este mês</button>
+          <button class="btn btn-out btn-sm hist-periodo-btn" onclick="setHistPeriodo('mes_ant')" data-p="mes_ant">Mês passado</button>
+          <button class="btn btn-out btn-sm hist-periodo-btn" onclick="setHistPeriodo('custom')" data-p="custom">📅 Personalizado</button>
+          <span id="hist-custom-datas" style="display:none;gap:4px;align-items:center">
+            <input type="date" id="hist-data-ini" style="font-size:11px;padding:4px 6px" onchange="renderHist()">
+            <span style="font-size:11px;color:rgba(255,255,255,.4)">até</span>
+            <input type="date" id="hist-data-fim" style="font-size:11px;padding:4px 6px" onchange="renderHist()">
+          </span>
+        </div>
+        <div id="hist-kpis-bar" style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px"></div>
         <div class="items-wrap">
           <table class="cat"><thead><tr>
-            <th style="width:9%">Nº</th><th style="width:18%">Cliente</th><th style="width:9%">Data</th>
-            <th style="width:10%">Validade</th><th style="width:12%">Total</th><th style="width:10%">Margem</th>
+            <th style="width:9%;cursor:pointer;user-select:none" onclick="sortHist('num')">Nº <span id="hist-sort-num" style="opacity:.6"></span></th>
+            <th style="width:18%">Cliente</th>
+            <th style="width:9%;cursor:pointer;user-select:none" onclick="sortHist('data')">Data <span id="hist-sort-data" style="opacity:.6">↓</span></th>
+            <th style="width:10%">Validade</th>
+            <th style="width:12%;cursor:pointer;user-select:none" onclick="sortHist('total')">Total <span id="hist-sort-total" style="opacity:.6"></span></th>
+            <th style="width:10%;cursor:pointer;user-select:none" onclick="sortHist('margem')">Margem <span id="hist-sort-margem" style="opacity:.6"></span></th>
             <th style="width:16%">Status</th><th style="width:16%"></th>
           </tr></thead><tbody id="hist-body"></tbody></table>
         </div>
@@ -4401,6 +4419,81 @@ function ordenarHistPorData(lista){
   });
 }
 
+var _histSortCol='data',_histSortDir=-1,_histPeriodo='';
+
+function setHistPeriodo(p){
+  _histPeriodo=p;
+  document.querySelectorAll('.hist-periodo-btn').forEach(function(b){
+    b.className='btn '+(b.dataset.p===p?'btn-brand':'btn-out')+' btn-sm hist-periodo-btn';
+  });
+  var cd=ge('hist-custom-datas');
+  if(cd)cd.style.display=(p==='custom'?'flex':'none');
+  renderHist();
+}
+
+function sortHist(col){
+  if(_histSortCol===col)_histSortDir*=-1;
+  else{_histSortCol=col;_histSortDir=(col==='data'?-1:1);}
+  renderHist();
+}
+
+function _aplicarSortHist(arr){
+  var col=_histSortCol,dir=_histSortDir;
+  return arr.slice().sort(function(a,b){
+    var va,vb;
+    if(col==='data'){va=a.data||'';vb=b.data||'';}
+    else if(col==='total'){va=calcHistTotal(a);vb=calcHistTotal(b);}
+    else if(col==='margem'){va=a.margemCalc==null?-9999:a.margemCalc;vb=b.margemCalc==null?-9999:b.margemCalc;}
+    else{var ma=String(a.num||'').match(/(\d+)$/),mb=String(b.num||'').match(/(\d+)$/);va=ma?parseInt(ma[1]):0;vb=mb?parseInt(mb[1]):0;}
+    return va<vb?-dir:va>vb?dir:0;
+  });
+}
+
+function _aplicarPeriodoHist(hist){
+  if(!_histPeriodo)return hist;
+  var hoje2=hoje(),ini='',fim='';
+  if(_histPeriodo==='mes'){ini=hoje2.substring(0,7)+'-01';fim=hoje2;}
+  else if(_histPeriodo==='mes_ant'){
+    var dm=new Date(hoje2);dm.setDate(1);dm.setMonth(dm.getMonth()-1);
+    ini=dm.toISOString().substring(0,7)+'-01';
+    var ult=new Date(dm.getFullYear(),dm.getMonth()+1,0);
+    fim=ult.toISOString().substring(0,10);
+  }
+  else if(_histPeriodo==='semana'){
+    var dw=new Date(hoje2),dow=dw.getDay();dw.setDate(dw.getDate()-dow);
+    ini=dw.toISOString().substring(0,10);fim=hoje2;
+  }
+  else if(_histPeriodo==='custom'){
+    ini=val('hist-data-ini')||'';fim=val('hist-data-fim')||'';
+    if(!ini&&!fim)return hist;
+  }
+  return hist.filter(function(h){var d=h.data||'';return(!ini||d>=ini)&&(!fim||d<=fim);});
+}
+
+function _renderHistKpis(f){
+  var bar=ge('hist-kpis-bar');if(!bar)return;
+  if(!f.length){bar.innerHTML='';return;}
+  var total=0,aprovado=0,qtdAprov=0,pendentes=0;
+  f.forEach(function(h){
+    var t=calcHistTotal(h);total+=t;
+    if(h.status==='Aprovado'){aprovado+=t;qtdAprov++;}
+    if(h.status==='Aguardando aprovação'||h.status==='Em revisão')pendentes++;
+  });
+  var pill='display:inline-block;font-size:11px;border-radius:6px;padding:3px 9px;';
+  bar.innerHTML=
+    '<span style="'+pill+'color:rgba(255,255,255,.55);background:rgba(255,255,255,.06)">📋 '+f.length+' orç.</span>'+
+    ' <span style="'+pill+'color:var(--brand);background:rgba(255,255,255,.06)">💰 '+fmt(total)+'</span>'+
+    (qtdAprov?'<span style="'+pill+'color:#4ade80;background:rgba(34,197,94,.1)">✅ '+qtdAprov+' aprovado'+(qtdAprov>1?'s':'')+' · '+fmt(aprovado)+'</span>':'')+
+    (pendentes?'<span style="'+pill+'color:#fbbf24;background:rgba(251,191,36,.1)">⏳ '+pendentes+' pendente'+(pendentes>1?'s':'')+'</span>':'');
+}
+
+function _atualizarSortIndicatorsHist(){
+  ['num','data','total','margem'].forEach(function(c){
+    var el=ge('hist-sort-'+c);
+    if(el)el.textContent=_histSortCol===c?(_histSortDir>0?' ↑':' ↓'):'';
+  });
+}
+
 function renderHist(){
   var hist=getHist(),hoje2=hoje();
 
@@ -4440,8 +4533,21 @@ function renderHist(){
   }
 
   var q=(val('hist-search')||'').toLowerCase(),fs=val('hist-filter');
-  var f=hist.filter(function(h){return(!q||h.num.toLowerCase().includes(q)||(h.cliente.nome||'').toLowerCase().includes(q)||(h.desc||'').toLowerCase().includes(q))&&(!fs||h.status===fs);});
-  renderHistComDados(ordenarHistPorData(f),false,'');
+  var f;
+  if(fs==='Vencido'){
+    f=hist.filter(function(h){
+      if(h.status!=='Aguardando aprovação'&&h.status!=='Em revisão')return false;
+      var valDate=new Date((h.data||hoje2)+'T12:00');valDate.setDate(valDate.getDate()+(parseInt(h.validade)||3));
+      return valDate<new Date();
+    });
+    if(q)f=f.filter(function(h){return h.num.toLowerCase().includes(q)||(h.cliente.nome||'').toLowerCase().includes(q)||(h.desc||'').toLowerCase().includes(q);});
+  } else {
+    f=hist.filter(function(h){return(!q||h.num.toLowerCase().includes(q)||(h.cliente.nome||'').toLowerCase().includes(q)||(h.desc||'').toLowerCase().includes(q))&&(!fs||h.status===fs);});
+  }
+  f=_aplicarPeriodoHist(f);
+  f=_aplicarSortHist(f);
+  _atualizarSortIndicatorsHist();
+  renderHistComDados(f,false,'');
 }
 
 // Renumera UM orçamento específico, dando a ele o próximo número livre.
@@ -4543,6 +4649,7 @@ function renderHistComDados(f,isFilter,filterLabel){
   var tbody=ge('hist-body'),empty=ge('hist-empty'),count=ge('hist-count');
   var hist=getHist();
   if(count)count.textContent='('+hist.length+')'+(isFilter?' — '+filterLabel+': '+f.length:'');
+  _renderHistKpis(f);
 
   // Detecção de duplicidade: números que aparecem mais de uma vez
   var contagem={};
