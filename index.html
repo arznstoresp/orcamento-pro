@@ -219,6 +219,25 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
 .modal-title{font-size:15px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px;color:var(--dark-text)}
 .modal-title::before{content:'';width:4px;height:16px;background:var(--brand);border-radius:2px;box-shadow:0 0 8px var(--brand-glow)}
 .modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+/* LOGIN */
+.login-screen{position:fixed;inset:0;background:var(--dark-bg);display:flex;align-items:center;justify-content:center;z-index:10000;flex-direction:column}
+.login-box{background:var(--dark-surface);border:1px solid var(--dark-border2);border-radius:20px;padding:36px;width:340px;box-shadow:0 0 60px rgba(255,107,0,.1),0 24px 80px rgba(0,0,0,.6)}
+.login-logo{display:flex;align-items:center;gap:12px;margin-bottom:28px;justify-content:center}
+.login-logo-icon{width:44px;height:44px;background:linear-gradient(135deg,var(--brand),var(--brand-d));border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 0 20px var(--brand-glow)}
+.login-logo-text{font-size:22px;font-weight:800;color:var(--dark-text);letter-spacing:-.4px}
+.login-logo-sub{font-size:11px;color:var(--dark-text3);letter-spacing:1px;margin-top:1px}
+.login-tab{display:flex;gap:4px;background:var(--dark-card);border-radius:10px;padding:4px;margin-bottom:22px}
+.login-tab-btn{flex:1;padding:7px;border:none;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s;background:transparent;color:var(--dark-text3)}
+.login-tab-btn.active{background:var(--brand);color:#fff}
+.login-field{margin-bottom:14px}
+.login-field label{display:block;font-size:11px;font-weight:600;color:var(--dark-text3);letter-spacing:.5px;margin-bottom:5px;text-transform:uppercase}
+.login-field input{width:100%;background:var(--dark-card2);border:1px solid var(--dark-border2);border-radius:9px;padding:10px 13px;color:var(--dark-text);font-size:14px;font-family:inherit;outline:none;transition:.15s}
+.login-field input:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-glow)}
+.login-btn{width:100%;background:var(--brand);color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:4px;transition:.15s;box-shadow:0 4px 16px rgba(255,107,0,.3)}
+.login-btn:hover{background:var(--brand-d)}
+.login-btn:disabled{opacity:.6;cursor:not-allowed}
+.login-msg{font-size:13px;text-align:center;margin-top:12px;min-height:18px}
+.login-sep{text-align:center;font-size:11px;color:var(--dark-text3);margin:10px 0}
 /* PIN */
 .pin-screen{position:fixed;inset:0;background:var(--dark-bg);display:flex;align-items:center;justify-content:center;z-index:9999;flex-direction:column;gap:16px}
 .pin-box{background:var(--dark-surface);border:1px solid var(--dark-border2);border-radius:20px;padding:36px;width:320px;text-align:center;box-shadow:0 0 60px rgba(255,107,0,.1),0 24px 80px rgba(0,0,0,.6)}
@@ -448,6 +467,40 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
 <body>
 
 <!-- PIN SCREEN -->
+<div id="login-screen" class="login-screen" style="display:none">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="login-logo-icon">📋</div>
+      <div>
+        <div class="login-logo-text">Orçamento Pro</div>
+        <div class="login-logo-sub">GESTÃO PARA MEI</div>
+      </div>
+    </div>
+    <div class="login-tab">
+      <button class="login-tab-btn active" id="ltab-login" onclick="loginTabSwitch('login')">Entrar</button>
+      <button class="login-tab-btn" id="ltab-signup" onclick="loginTabSwitch('signup')">Criar conta</button>
+    </div>
+    <div id="login-form-login">
+      <div class="login-field"><label>E-mail</label><input type="email" id="login-email" placeholder="seu@email.com" autocomplete="email"></div>
+      <div class="login-field"><label>Senha</label><input type="password" id="login-senha" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')fazerLogin()"></div>
+      <button class="login-btn" id="btn-fazer-login" onclick="fazerLogin()">Entrar</button>
+      <div class="login-sep">ou</div>
+      <button class="login-btn" style="background:var(--dark-card2);color:var(--dark-text2);box-shadow:none;border:1px solid var(--dark-border2)" onclick="loginTabSwitch('reset')">Esqueci minha senha</button>
+    </div>
+    <div id="login-form-signup" style="display:none">
+      <div class="login-field"><label>E-mail</label><input type="email" id="signup-email" placeholder="seu@email.com" autocomplete="email"></div>
+      <div class="login-field"><label>Senha (mín. 6 caracteres)</label><input type="password" id="signup-senha" placeholder="••••••••" autocomplete="new-password" onkeydown="if(event.key==='Enter')fazerCadastro()"></div>
+      <button class="login-btn" id="btn-fazer-signup" onclick="fazerCadastro()">Criar conta</button>
+    </div>
+    <div id="login-form-reset" style="display:none">
+      <div class="login-field"><label>E-mail</label><input type="email" id="reset-email" placeholder="seu@email.com" autocomplete="email"></div>
+      <button class="login-btn" onclick="fazerReset()">Enviar link de redefinição</button>
+      <div class="login-sep"><a href="#" style="color:var(--brand);font-size:13px" onclick="loginTabSwitch('login');return false">← Voltar ao login</a></div>
+    </div>
+    <div class="login-msg" id="login-msg"></div>
+  </div>
+</div>
+
 <div id="pin-screen" class="pin-screen" style="display:none">
   <div class="pin-box">
     <div class="pin-title">🔐 Orçamento Pro</div>
@@ -516,7 +569,11 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
     <button class="nb" id="nb-usuarios"   onclick="showView('usuarios')"> 🔐 Usuários</button>
     <button class="nb" id="nb-config"    onclick="showView('config')">   ⚙️ Minha empresa</button>
   </nav>
-  <div class="sb-foot">Orçamento Pro v6.9</div>
+  <div class="sb-foot" style="padding:8px 14px 10px;display:flex;flex-direction:column;gap:6px">
+    <div id="sb-user-email" style="font-size:10px;color:var(--dark-text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center"></div>
+    <button onclick="fazerLogout()" style="width:100%;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);color:var(--red);border-radius:8px;padding:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;display:none" id="btn-logout">↩ Sair da conta</button>
+    <div style="font-size:10px;color:var(--dark-text3);text-align:center">Orçamento Pro v6.9</div>
+  </div>
 </aside>
 
 <!-- MAIN -->
@@ -10527,20 +10584,157 @@ function aplicarProtecaoAutofill(){
   };
 })();
 
+// ═══════════════════════════════════════════════════
+// AUTH — LOGIN COM SUPABASE
+// ═══════════════════════════════════════════════════
+(function(){
+  var SUPA_URL='https://edztcoebgllqrkrkormc.supabase.co';
+  var SUPA_KEY='sb_publishable_s6MSdF0rhidpCpddqTzNRg_1ajwnxIc';
+  var SESSION_KEY='orcpro_auth_session';
+
+  function getSession(){try{return JSON.parse(localStorage.getItem(SESSION_KEY)||'null');}catch(e){return null;}}
+  function saveSession(s){if(s)localStorage.setItem(SESSION_KEY,JSON.stringify(s));else localStorage.removeItem(SESSION_KEY);}
+
+  function setLoginMsg(msg,cor){var el=ge('login-msg');if(el){el.textContent=msg;el.style.color=cor||'var(--dark-text2)';}}
+
+  window.loginTabSwitch=function(tab){
+    ge('login-form-login').style.display=tab==='login'?'':'none';
+    ge('login-form-signup').style.display=tab==='signup'?'':'none';
+    ge('login-form-reset').style.display=tab==='reset'?'':'none';
+    ge('ltab-login').className='login-tab-btn'+(tab==='login'?' active':'');
+    ge('ltab-signup').className='login-tab-btn'+(tab==='signup'?' active':'');
+    setLoginMsg('');
+  };
+
+  async function supaAuth(endpoint,body){
+    var r=await fetch(SUPA_URL+'/auth/v1/'+endpoint,{
+      method:'POST',
+      headers:{'apikey':SUPA_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify(body)
+    });
+    return {ok:r.ok,data:await r.json()};
+  }
+
+  function aplicarSessao(session){
+    if(!session||!session.access_token)return false;
+    saveSession(session);
+    // Usa o user.id como chave da nuvem — único por conta, imutável
+    var uid=session.user&&session.user.id;
+    if(uid)localStorage.setItem('orcpro_chave_nuvem',uid);
+    // Mostra e-mail e botão sair na sidebar
+    var email=session.user&&session.user.email;
+    var elEmail=ge('sb-user-email');if(elEmail)elEmail.textContent=email||'';
+    var btnLogout=ge('btn-logout');if(btnLogout)btnLogout.style.display='';
+    return true;
+  }
+
+  window.fazerLogin=async function(){
+    var email=val('login-email').trim(),senha=val('login-senha');
+    if(!email||!senha){setLoginMsg('Preencha e-mail e senha.','var(--yellow)');return;}
+    var btn=ge('btn-fazer-login');btn.disabled=true;btn.textContent='Entrando…';
+    setLoginMsg('');
+    var res=await supaAuth('token?grant_type=password',{email:email,password:senha});
+    btn.disabled=false;btn.textContent='Entrar';
+    if(!res.ok){
+      var msg=res.data&&res.data.error_description||res.data&&res.data.msg||'Erro ao entrar.';
+      if(msg.toLowerCase().includes('invalid login'))msg='E-mail ou senha incorretos.';
+      setLoginMsg(msg,'var(--red)');return;
+    }
+    aplicarSessao(res.data);
+    fecharLoginEIniciar();
+  };
+
+  window.fazerCadastro=async function(){
+    var email=val('signup-email').trim(),senha=val('signup-senha');
+    if(!email||!senha){setLoginMsg('Preencha e-mail e senha.','var(--yellow)');return;}
+    if(senha.length<6){setLoginMsg('Senha deve ter pelo menos 6 caracteres.','var(--yellow)');return;}
+    var btn=ge('btn-fazer-signup');btn.disabled=true;btn.textContent='Criando…';
+    setLoginMsg('');
+    var res=await supaAuth('signup',{email:email,password:senha});
+    btn.disabled=false;btn.textContent='Criar conta';
+    if(!res.ok){
+      var msg=res.data&&res.data.msg||res.data&&res.data.error_description||'Erro ao criar conta.';
+      if(msg.toLowerCase().includes('already registered'))msg='Este e-mail já está cadastrado.';
+      setLoginMsg(msg,'var(--red)');return;
+    }
+    // Supabase pode retornar sessão direto ou pedir confirmação por e-mail
+    if(res.data&&res.data.access_token){
+      aplicarSessao(res.data);
+      fecharLoginEIniciar();
+    }else{
+      setLoginMsg('Conta criada! Verifique seu e-mail para confirmar o cadastro.','var(--green)');
+    }
+  };
+
+  window.fazerReset=async function(){
+    var email=val('reset-email').trim();
+    if(!email){setLoginMsg('Informe seu e-mail.','var(--yellow)');return;}
+    setLoginMsg('Enviando…');
+    var r=await fetch(SUPA_URL+'/auth/v1/recover',{
+      method:'POST',
+      headers:{'apikey':SUPA_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({email:email})
+    });
+    setLoginMsg(r.ok?'Link enviado! Verifique seu e-mail.':'Erro ao enviar. Tente novamente.',r.ok?'var(--green)':'var(--red)');
+  };
+
+  window.fazerLogout=function(){
+    if(!confirm('Sair da conta? Os dados locais permanecem no dispositivo.'))return;
+    saveSession(null);
+    localStorage.removeItem('orcpro_chave_nuvem');
+    location.reload();
+  };
+
+  async function refreshSession(session){
+    try{
+      var r=await fetch(SUPA_URL+'/auth/v1/token?grant_type=refresh_token',{
+        method:'POST',
+        headers:{'apikey':SUPA_KEY,'Content-Type':'application/json'},
+        body:JSON.stringify({refresh_token:session.refresh_token})
+      });
+      if(!r.ok)return null;
+      return await r.json();
+    }catch(e){return null;}
+  }
+
+  function fecharLoginEIniciar(){
+    ge('login-screen').style.display='none';
+    // Inicia o app normal
+    migrarSkusUmaVez();
+    corrigirValoresCanecasUmaVez();
+    initPIN();
+    desregistrarServiceWorkerAntigo();
+    aplicarProtecaoAutofill();
+    var bg=ge('busca-global');
+    if(bg){bg.value='';setTimeout(function(){bg.value='';},300);setTimeout(function(){bg.value='';},1000);}
+    setTimeout(function(){if(typeof autoBaixarDoDriveAoAbrir==='function')autoBaixarDoDriveAoAbrir();},2000);
+    setTimeout(function(){if(typeof _autoNuvemAoAbrir==='function')_autoNuvemAoAbrir();},1500);
+    setTimeout(function(){if(typeof _migrarFotosStorage==='function')_migrarFotosStorage();},8000);
+  }
+
+  // Inicialização: verifica sessão salva
+  window._initAuth=async function(){
+    var session=getSession();
+    if(!session){ge('login-screen').style.display='flex';return;}
+    // Verifica se o token ainda é válido (expira em ~1h)
+    var exp=session.expires_at||(session.expires_in?Math.floor(Date.now()/1000)+session.expires_in:0);
+    var agora=Math.floor(Date.now()/1000);
+    if(exp>0&&agora>exp-60){
+      // Token expirado ou prestes a expirar: renova
+      var nova=await refreshSession(session);
+      if(!nova||!nova.access_token){ge('login-screen').style.display='flex';return;}
+      session=nova;
+    }
+    aplicarSessao(session);
+    fecharLoginEIniciar();
+  };
+})();
+
 window.onload=function(){
   if(checkLinkPublico())return;
-  migrarSkusUmaVez();
-  corrigirValoresCanecasUmaVez();
-  initPIN();
-  desregistrarServiceWorkerAntigo();
-  aplicarProtecaoAutofill();
-  // Garante que o campo de busca começa sempre vazio, mesmo se o navegador tentar preencher (autofill)
-  var bg=ge('busca-global');
-  if(bg){bg.value='';setTimeout(function(){bg.value='';},300);setTimeout(function(){bg.value='';},1000);}
-  // Sincronização automática: baixa a versão do Drive se for mais recente (ex: salvou no PC)
-  setTimeout(function(){if(typeof autoBaixarDoDriveAoAbrir==='function')autoBaixarDoDriveAoAbrir();},2000);
-  // Sincronização em nuvem (Supabase multi-dispositivo)
-  setTimeout(function(){if(typeof _autoNuvemAoAbrir==='function')_autoNuvemAoAbrir();},3000);
+  // Auth verifica sessão salva; se válida, inicia o app; se não, mostra tela de login.
+  // Toda a inicialização (initPIN, sync, etc.) acontece dentro de fecharLoginEIniciar().
+  window._initAuth();
 };
 
 function desregistrarServiceWorkerAntigo(){
