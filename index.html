@@ -1581,6 +1581,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
         <p style="font-size:12px;color:rgba(255,255,255,.45);margin-bottom:12px">Comissões calculadas automaticamente por mês calendário (1 a 30/31). Clique em <strong>✅ Pagar</strong> ao efetuar o pagamento — o mês fecha e aparece no histórico.</p>
         <div id="func-lista-comissoes"></div>
         <div id="func-empty" style="text-align:center;padding:18px;color:rgba(255,255,255,.5);font-size:13px;display:none">Nenhum funcionário cadastrado.</div>
+        <div id="func-alertas"></div>
       </div>
 
       <div class="card">
@@ -1966,6 +1967,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
     <input type="hidden" id="func-edit-id">
     <div class="g2"><div><label class="lbl">Nome *</label><input id="func-nome"></div><div><label class="lbl">Cargo</label><input id="func-cargo" placeholder="Ex: Vendedor"></div></div>
     <div class="g2 mt"><div><label class="lbl">WhatsApp</label><input id="func-wpp" oninput="maskPhone(this)" maxlength="15"></div><div><label class="lbl">Comissão (%)</label><input type="number" id="func-comissao" value="5" min="0" max="100" step="0.1"></div></div>
+    <div id="func-modal-alertas"></div>
     <div class="modal-footer"><button class="btn btn-out" onclick="closeFuncModal()">Cancelar</button> <button class="btn btn-brand" onclick="saveFunc()">💾 Salvar</button></div>
   </div>
 </div>
@@ -2250,7 +2252,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
     <input type="hidden" id="modal-del-fin-id">
     <p id="modal-del-fin-msg" style="font-size:13px;margin:6px 0 16px"></p>
     <div class="modal-footer">
-      <button class="btn btn-out" onclick="ge('modal-del-fin').className='modal-overlay'">Cancelar</button>
+      <button class="btn btn-out" onclick="ge('modal-del-fin').className='modal-overlay';ge('modal-del-fin-btn').className='btn btn-danger'">Cancelar</button>
       <button id="modal-del-fin-btn" class="btn btn-danger" onclick="confirmarDelFin()">Confirmar</button>
     </div>
   </div>
@@ -5277,20 +5279,18 @@ function pagarComissao(funcId){
   var totalVendido=vendasMes.reduce(function(a,h){return a+calcHistTotal(h);},0);
   var valorComissao=totalVendido*(pct/100);
 
-  if(valorComissao<=0){alert('Não há comissão a pagar para '+f.nome+' em '+mesNome+'.');return;}
+  if(valorComissao<=0){
+    var d=ge('func-alertas');if(d){d.innerHTML='<div class="warn-box" style="margin-top:8px">Não há comissão a pagar para <strong>'+escHtml(f.nome)+'</strong> em '+mesNome+'.</div>';setTimeout(function(){if(d)d.innerHTML='';},4000);}
+    return;
+  }
 
-  if(!confirm('Confirmar pagamento de '+fmt(valorComissao)+' de comissão para '+f.nome+' ('+mesNome+')?'))return;
-
-  // Registra no histórico de pagamentos do funcionário
-  if(!funcs[idx].comissoesPagas)funcs[idx].comissoesPagas=[];
-  funcs[idx].comissoesPagas.push({
-    mes:mesAtual,mesNome:mesNome,
-    totalVendido:totalVendido,valor:valorComissao,pct:pct,
-    paguEm:new Date().toLocaleDateString('pt-BR'),paguEm_iso:hoje()
-  });
-  saveFuncs(funcs);
-  renderFuncs();
-  alert('✅ Pagamento de '+fmt(valorComissao)+' registrado para '+f.nome+'!\n\nO mês de '+mesNome+' foi fechado e o histórico foi atualizado.');
+  ge('modal-del-fin-id').value='pagar-comissao:'+funcId+':'+mesAtual;
+  ge('modal-del-fin-msg').innerHTML='Confirmar pagamento de <strong>'+fmt(valorComissao)+'</strong> de comissão para <strong>'+escHtml(f.nome)+'</strong> ('+mesNome+')?';
+  ge('modal-del-fin-btn').textContent='✅ Confirmar pagamento';
+  ge('modal-del-fin-btn').className='btn btn-brand';
+  ge('modal-del-fin').className='modal-overlay open';
+  return;
+  // (continua em confirmarDelFin via prefixo pagar-comissao:)
 }
 
 function openFuncModal(id){
@@ -5300,9 +5300,22 @@ function openFuncModal(id){
   ge('modal-func').className='modal-overlay open';
 }
 function closeFuncModal(){ge('modal-func').className='modal-overlay';}
-function deleteFunc(id){if(!confirm('Excluir?'))return;saveFuncs(getFuncs().filter(function(f){return f.id!==id;}));renderFuncs();}
+function deleteFunc(id){
+  var f=getFuncs().find(function(x){return x.id===id;});if(!f)return;
+  var temPagas=(f.comissoesPagas||[]).length;
+  ge('modal-del-fin-id').value='func:'+id;
+  ge('modal-del-fin-msg').innerHTML=temPagas
+    ?'Excluir o funcionário <strong>'+escHtml(f.nome)+'</strong>? O histórico de '+temPagas+' pagamento(s) de comissão será perdido. Esta ação não pode ser desfeita.'
+    :'Excluir o funcionário <strong>'+escHtml(f.nome)+'</strong>? Esta ação não pode ser desfeita.';
+  ge('modal-del-fin-btn').textContent='🗑 Excluir funcionário';
+  ge('modal-del-fin').className='modal-overlay open';
+}
 function saveFunc(){
-  var nome=val('func-nome');if(!nome){alert('Informe o nome.');return;}
+  var nome=val('func-nome');
+  if(!nome){var inp=ge('func-nome');if(inp){inp.focus();inp.style.borderColor='var(--red)';}
+    var d=ge('func-modal-alertas');if(d){d.innerHTML='<div class="warn-box" style="margin-top:8px">Informe o nome do funcionário.</div>';setTimeout(function(){if(d)d.innerHTML='';},4000);}
+    return;
+  }
   var funcs=getFuncs(),editId=val('func-edit-id');
   var funcExist=editId?funcs.find(function(x){return x.id===editId;}):null;
   // Preserva o histórico de comissões pagas ao editar
@@ -5312,7 +5325,7 @@ function saveFunc(){
   saveFuncs(funcs);closeFuncModal();renderFuncs();atualizarVendedoresList();
 }
 function exportarRelComissoes(){
-  var funcs=getFuncs(),hist=getHist();if(!funcs.length){alert('Nenhum funcionário.');return;}
+  var funcs=getFuncs(),hist=getHist();if(!funcs.length){var d=ge('func-alertas');if(d){d.innerHTML='<div class="warn-box" style="margin-top:8px">Nenhum funcionário cadastrado.</div>';setTimeout(function(){if(d)d.innerHTML='';},4000);}return;}
   var mesAtual=mesAtualLocal();
   var mesNome=new Date().toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
   var rows=[['Funcionário','Cargo','Comissão%','Total Vendido Mês','Comissão Mês Atual','Status','Mês']];
@@ -7605,7 +7618,31 @@ function confirmarDelFin(){
     var id=raw.replace('nota:','');
     var nota=getNotasCompra().find(function(n){return n.id===id;});
     if(nota){reverterEfeitosNota(nota);saveNotasCompra(getNotasCompra().filter(function(n){return n.id!==id;}));renderNotas();}
+  } else if(raw.startsWith('func:')){
+    var id=raw.replace('func:','');
+    saveFuncs(getFuncs().filter(function(f){return f.id!==id;}));renderFuncs();atualizarVendedoresList();
+  } else if(raw.startsWith('pagar-comissao:')){
+    var partes=raw.replace('pagar-comissao:','').split(':');
+    var funcId=partes[0],mesAlvo=partes[1];
+    var funcs=getFuncs();
+    var idx=funcs.findIndex(function(f){return f.id===funcId;});
+    if(idx>=0){
+      var f=funcs[idx];
+      var pct=parseFloat(f.comissao)||5;
+      var hist=getHist();
+      var mesNome=new Date().toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+      var vendasMes=hist.filter(function(h){var hm=(h.data||'').substring(0,7);return hm===mesAlvo&&h.status==='Aprovado'&&(h.vendedor||'').toLowerCase()===f.nome.toLowerCase();});
+      var totalVendido=vendasMes.reduce(function(a,h){return a+calcHistTotal(h);},0);
+      var valorComissao=totalVendido*(pct/100);
+      if(!funcs[idx].comissoesPagas)funcs[idx].comissoesPagas=[];
+      funcs[idx].comissoesPagas.push({mes:mesAlvo,mesNome:mesNome,totalVendido:totalVendido,valor:valorComissao,pct:pct,paguEm:new Date().toLocaleDateString('pt-BR'),paguEm_iso:hoje()});
+      saveFuncs(funcs);renderFuncs();
+      var d=ge('func-alertas');
+      if(d){d.innerHTML='<div class="success-box" style="margin-top:8px">✅ Pagamento de <strong>'+fmt(valorComissao)+'</strong> registrado para '+escHtml(f.nome)+'! O mês de '+mesNome+' foi fechado.</div>';setTimeout(function(){if(d)d.innerHTML='';},6000);}
+    }
   }
+  // reset button style for non-danger actions
+  ge('modal-del-fin-btn').className='btn btn-danger';
 }
 
 function renderContasReceber(){
