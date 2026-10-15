@@ -1405,6 +1405,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
           </tr></thead><tbody id="maquinas-body"></tbody></table>
         </div>
         <div id="maquinas-empty" style="text-align:center;padding:26px;color:rgba(255,255,255,.5);font-size:13px;display:none">Nenhuma máquina cadastrada.</div>
+        <div id="maquinas-alertas"></div>
       </div>
     </div>
 
@@ -2349,6 +2350,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
       <div><label class="lbl">Vida útil (peças) *</label><input type="number" id="maq-vida" min="1" step="1" placeholder="Ex: 10000"></div>
     </div>
     <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:6px">Quantas peças a máquina produz antes de precisar ser trocada. O custo por peça é o preço dividido por esse número.</div>
+    <div id="maq-modal-alertas"></div>
     <div class="modal-footer">
       <button class="btn btn-out" onclick="closeMaquinarioModal()">Cancelar</button>
       <button class="btn btn-brand" onclick="salvarMaquinario()">💾 Salvar</button>
@@ -6903,9 +6905,13 @@ function openMaquinarioModal(id){
   ge('modal-maquinario').className='modal-overlay open';
 }
 function closeMaquinarioModal(){ge('modal-maquinario').className='modal-overlay';}
+function _maqErro(msg,focusId){
+  var d=ge('maq-modal-alertas');if(d){d.innerHTML='<div class="warn-box" style="margin-top:8px">'+msg+'</div>';setTimeout(function(){if(d)d.innerHTML='';},5000);}
+  if(focusId){var el=ge(focusId);if(el){el.focus();el.style.borderColor='var(--red)';setTimeout(function(){el.style.borderColor='';},3000);}}
+}
 function salvarMaquinario(){
-  var nome=val('maq-nome');if(!nome){alert('Informe o nome da máquina.');return;}
-  var vida=parseInt(val('maq-vida'))||0;if(vida<1){alert('Informe a vida útil em peças (maior que zero).');return;}
+  var nome=val('maq-nome');if(!nome){_maqErro('Informe o nome da máquina.','maq-nome');return;}
+  var vida=parseInt(val('maq-vida'))||0;if(vida<1){_maqErro('Informe a vida útil em peças (número maior que zero).','maq-vida');return;}
   var maquinas=getMaquinarios(),editId=val('maquinario-edit-id');
   var m={id:editId||'maq'+Date.now(),nome:nome,preco:parseFloat(val('maq-preco'))||0,vidaUtilPecas:vida};
   if(editId){var idx=maquinas.findIndex(function(x){return x.id===editId;});if(idx>=0)maquinas[idx]=m;else maquinas.push(m);}
@@ -6914,8 +6920,11 @@ function salvarMaquinario(){
   closeMaquinarioModal();renderMaquinarios();
 }
 function deleteMaquinario(id){
-  if(!confirm('Excluir esta máquina? Cálculos já salvos na calculadora não são alterados.'))return;
-  saveMaquinarios(getMaquinarios().filter(function(m){return m.id!==id;}));renderMaquinarios();
+  var m=getMaquinarios().find(function(x){return x.id===id;});if(!m)return;
+  ge('modal-del-fin-id').value='maquina:'+id;
+  ge('modal-del-fin-msg').innerHTML='Excluir a máquina <strong>'+escHtml(m.nome)+'</strong>? Cálculos já salvos na Calculadora de Precificação não são alterados. Esta ação não pode ser desfeita.';
+  ge('modal-del-fin-btn').textContent='🗑 Excluir máquina';
+  ge('modal-del-fin').className='modal-overlay open';
 }
 function renderMaquinarios(){
   var maquinas=getMaquinarios();
@@ -6925,7 +6934,7 @@ function renderMaquinarios(){
   if(empty)empty.style.display='none';
   tbody.innerHTML=maquinas.map(function(m){
     return'<tr>'+
-      '<td><strong>'+m.nome+'</strong></td>'+
+      '<td><strong>'+escHtml(m.nome)+'</strong></td>'+
       '<td>'+fmt(m.preco||0)+'</td>'+
       '<td>'+(m.vidaUtilPecas||0).toLocaleString('pt-BR')+'</td>'+
       '<td style="font-weight:700;color:var(--brand)">'+fmt(custoPorPecaMaquina(m))+'</td>'+
@@ -7618,6 +7627,9 @@ function confirmarDelFin(){
     var id=raw.replace('nota:','');
     var nota=getNotasCompra().find(function(n){return n.id===id;});
     if(nota){reverterEfeitosNota(nota);saveNotasCompra(getNotasCompra().filter(function(n){return n.id!==id;}));renderNotas();}
+  } else if(raw.startsWith('maquina:')){
+    var id=raw.replace('maquina:','');
+    saveMaquinarios(getMaquinarios().filter(function(m){return m.id!==id;}));renderMaquinarios();
   } else if(raw.startsWith('func:')){
     var id=raw.replace('func:','');
     saveFuncs(getFuncs().filter(function(f){return f.id!==id;}));renderFuncs();atualizarVendedoresList();
