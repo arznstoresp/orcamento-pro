@@ -1403,20 +1403,26 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
     <div id="view-clientes" style="display:none;min-height:100%">
       <div class="card">
         <div class="card-title">Clientes <span id="cli-count" style="margin-left:6px;font-size:12px;color:var(--brand);font-weight:700"></span></div>
-        <div style="display:flex;gap:7px;margin-bottom:11px;flex-wrap:wrap;align-items:center">
+        <div style="display:flex;gap:7px;margin-bottom:8px;flex-wrap:wrap;align-items:center">
           <input id="cli-search" placeholder="🔍 Buscar..." style="max-width:200px" oninput="renderClientes()">
-          <select id="cli-filter-status" onchange="renderClientes()" style="max-width:140px">
+          <select id="cli-filter-status" onchange="renderClientes()" style="max-width:160px">
             <option value="">Todos</option><option>Novo</option><option>Em contato</option>
             <option>Proposta enviada</option><option>Negociando</option><option>Fechado</option><option>Perdido</option>
+            <option value="followup_vencido">⚠️ Follow-up vencido</option>
           </select>
           <button class="btn btn-brand btn-sm" onclick="openClienteModal()">＋ Novo</button>
           <button class="btn btn-out btn-sm" onclick="downloadTemplateXlsCli()">📥 Modelo</button>
           <label class="btn btn-out btn-sm" style="cursor:pointer">📤 Importar<input type="file" id="import-cli-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importCliExcel(event)"></label>
         </div>
+        <div id="cli-kpis-bar" style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px"></div>
         <div class="items-wrap">
           <table class="cat"><thead><tr>
-            <th style="width:20%">Nome</th><th style="width:12%">WhatsApp</th><th style="width:16%">E-mail</th>
-            <th style="width:10%">Status</th><th style="width:11%">Follow-up</th><th style="width:6%">Orç.</th><th style="width:25%"></th>
+            <th style="width:19%;cursor:pointer;user-select:none" onclick="sortCli('nome')">Nome <span id="cli-sort-nome" style="opacity:.6"></span></th>
+            <th style="width:12%">WhatsApp</th><th style="width:15%">E-mail</th>
+            <th style="width:10%">Status</th>
+            <th style="width:11%;cursor:pointer;user-select:none" onclick="sortCli('followup')">Follow-up <span id="cli-sort-followup" style="opacity:.6"></span></th>
+            <th style="width:6%;cursor:pointer;user-select:none" onclick="sortCli('orc')">Orç. <span id="cli-sort-orc" style="opacity:.6"></span></th>
+            <th style="width:27%"></th>
           </tr></thead><tbody id="cli-body"></tbody></table>
         </div>
         <div id="cli-empty" style="text-align:center;padding:26px;color:rgba(255,255,255,.5);font-size:13px;display:none">Nenhum cliente cadastrado.</div>
@@ -4224,24 +4230,68 @@ function fallbackCopiar(t,btn){
   try{var ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);var orig=btn.textContent;btn.textContent='✅';setTimeout(function(){btn.textContent=orig;},1200);}catch(e){alert('Copie manualmente:\n\n'+t);}
 }
 
+var _cliSortCol='nome',_cliSortDir=1;
+function sortCli(col){
+  if(_cliSortCol===col)_cliSortDir*=-1;
+  else{_cliSortCol=col;_cliSortDir=(col==='followup'?1:col==='orc'?-1:1);}
+  renderClientes();
+}
+function _aplicarSortCli(arr){
+  var col=_cliSortCol,dir=_cliSortDir;
+  return arr.slice().sort(function(a,b){
+    var va,vb;
+    if(col==='followup'){va=a.followup||'9999';vb=b.followup||'9999';}
+    else if(col==='orc'){va=(a.orcamentos?a.orcamentos.length:0);vb=(b.orcamentos?b.orcamentos.length:0);}
+    else{va=(a.nome||'').toLowerCase();vb=(b.nome||'').toLowerCase();}
+    return va<vb?-dir:va>vb?dir:0;
+  });
+}
+function _atualizarSortIndicatorsCli(){
+  ['nome','followup','orc'].forEach(function(c){
+    var el=ge('cli-sort-'+c);
+    if(el)el.textContent=_cliSortCol===c?(_cliSortDir>0?' ↑':' ↓'):'';
+  });
+}
+function _renderCliKpis(f,todos){
+  var bar=ge('cli-kpis-bar');if(!bar)return;
+  if(!f.length){bar.innerHTML='';return;}
+  var hoje2=hoje();
+  var vencidos=f.filter(function(c){return c.followup&&c.followup<hoje2;}).length;
+  var fechados=f.filter(function(c){return c.status==='Fechado';}).length;
+  var pill='display:inline-block;font-size:11px;border-radius:6px;padding:3px 9px;';
+  bar.innerHTML=
+    '<span style="'+pill+'color:rgba(255,255,255,.55);background:rgba(255,255,255,.06)">👥 '+f.length+' cliente'+(f.length!==1?'s':'')+'</span>'+
+    (fechados?'<span style="'+pill+'color:#4ade80;background:rgba(34,197,94,.1)">✅ '+fechados+' fechado'+(fechados!==1?'s':'')+'</span>':'')+
+    (vencidos?'<span style="'+pill+'color:#f87171;background:rgba(239,68,68,.1)">⚠️ '+vencidos+' follow-up vencido'+(vencidos!==1?'s':'')+'</span>':'');
+}
 function renderClientes(){
   var clientes=getClientes(),q=(val('cli-search')||'').toLowerCase(),fs=val('cli-filter-status'),hoje2=hoje();
-  var f=clientes.filter(function(c){return(!q||c.nome.toLowerCase().includes(q)||(c.wpp||'').includes(q)||(c.email||'').toLowerCase().includes(q))&&(!fs||c.status===fs);});
+  var f;
+  if(fs==='followup_vencido'){
+    f=clientes.filter(function(c){return c.followup&&c.followup<hoje2;});
+    if(q)f=f.filter(function(c){return c.nome.toLowerCase().includes(q)||(c.wpp||'').includes(q)||(c.email||'').toLowerCase().includes(q);});
+  } else {
+    f=clientes.filter(function(c){return(!q||c.nome.toLowerCase().includes(q)||(c.wpp||'').includes(q)||(c.email||'').toLowerCase().includes(q))&&(!fs||c.status===fs);});
+  }
+  f=_aplicarSortCli(f);
+  _atualizarSortIndicatorsCli();
   var tbody=ge('cli-body'),empty=ge('cli-empty'),count=ge('cli-count');
   if(count)count.textContent='('+clientes.length+')';
+  _renderCliKpis(f,clientes);
   if(!f.length){tbody.innerHTML='';if(empty)empty.style.display='block';return;}
   if(empty)empty.style.display='none';
   var sc={'Novo':'background:#e0f2fe;color:#0369a1','Em contato':'background:#fef3c7;color:#92400e','Proposta enviada':'background:#ede9fe;color:#5b21b6','Negociando':'background:var(--brand-bg);color:var(--brand-d)','Fechado':'background:var(--green-bg);color:#166534','Perdido':'background:var(--red-bg);color:#991b1b'};
   tbody.innerHTML=f.map(function(c){
-    var fu=c.followup?fmtDt(c.followup):'—',fuS=c.followup&&c.followup<hoje2?'color:var(--red);font-weight:700':'';
+    var fuVenc=c.followup&&c.followup<hoje2;
+    var fu=c.followup?fmtDt(c.followup):'—',fuS=fuVenc?'color:var(--red);font-weight:700':'';
     return'<tr>'+
       '<td><strong>'+c.nome+'</strong>'+(c.doc?'<br><span style="font-size:10px;color:rgba(255,255,255,.5)">'+c.doc+'</span>':'')+'</td>'+
       '<td style="font-size:12px">'+(c.wpp?'<a href="https://wa.me/'+c.wpp.replace(/\D/g,'')+'" target="_blank" style="color:var(--brand)">'+c.wpp+'</a>':'—')+'</td>'+
       '<td style="font-size:12px">'+(c.email||'—')+'</td>'+
       '<td><span class="badge" style="'+(sc[c.status]||'')+'">'+c.status+'</span></td>'+
-      '<td style="font-size:12px;'+fuS+'">'+fu+(c.followup&&c.followup<hoje2?' ⚠️':'')+'</td>'+
+      '<td style="font-size:12px;'+fuS+'">'+fu+(fuVenc?' ⚠️':'')+'</td>'+
       '<td style="text-align:center;font-weight:700;color:var(--brand)">'+(c.orcamentos?c.orcamentos.length:0)+'</td>'+
-      '<td style="white-space:nowrap"><button class="btn btn-out btn-sm" onclick="editCliente(\''+c.id+'\')">✏️</button> <button class="btn btn-wpp btn-sm" onclick="wppCliente(\''+c.id+'\')">💬</button> <button class="btn btn-danger btn-sm" onclick="deleteCliente(\''+c.id+'\')">🗑</button></td>'+
+      '<td style="white-space:nowrap"><button class="btn btn-out btn-sm" onclick="editCliente(\''+c.id+'\')">✏️</button>'+(c.wpp?' <button class="btn btn-wpp btn-sm" onclick="wppCliente(\''+c.id+'\')">💬</button>':'')+' <button class="btn btn-danger btn-sm" onclick="deleteCliente(\''+c.id+'\')">🗑</button></td>'+
     '</tr>';
   }).join('');
 }
@@ -4292,7 +4342,7 @@ function montarHistoricoCliente(cliente){
 function closeClienteModal(){ge('modal-cliente').className='modal-overlay';}
 function editCliente(id){openClienteModal(id);}
 function deleteCliente(id){if(!confirm('Excluir?'))return;saveClientes(getClientes().filter(function(c){return c.id!==id;}));renderClientes();}
-function wppCliente(id){var c=getClientes().find(function(x){return x.id===id;});if(!c||!c.wpp)return alert('Sem WhatsApp.');window.open('https://wa.me/'+c.wpp.replace(/\D/g,''),'_blank');}
+function wppCliente(id){var c=getClientes().find(function(x){return x.id===id;});if(!c||!c.wpp)return;window.open('https://wa.me/'+c.wpp.replace(/\D/g,''),'_blank');}
 function saveCliente(){
   var nome=val('mc-nome');if(!nome){alert('Informe o nome.');return;}
   var clientes=getClientes(),editId=val('cli-edit-id');
