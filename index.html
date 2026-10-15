@@ -467,6 +467,19 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
 <body>
 
 <!-- PIN SCREEN -->
+<!-- MODAL LOGOUT -->
+<div id="modal-logout" class="modal-overlay" onclick="if(event.target===this)ge('modal-logout').className='modal-overlay'">
+  <div class="modal" style="max-width:340px;text-align:center">
+    <div style="font-size:32px;margin-bottom:12px">↩</div>
+    <h3 style="margin:0 0 8px;font-size:17px">Sair da conta?</h3>
+    <p style="margin:0 0 20px;font-size:13px;color:var(--dark-text3)">Os dados locais permanecem neste dispositivo. Para acessar de outro lugar, faça login novamente.</p>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-out" style="flex:1" onclick="ge('modal-logout').className='modal-overlay'">Cancelar</button>
+      <button class="btn" style="flex:1;background:var(--red);border-color:var(--red)" onclick="_confirmarLogout()">Sair</button>
+    </div>
+  </div>
+</div>
+
 <div id="login-screen" class="login-screen" style="display:none">
   <div class="login-box">
     <div class="login-logo">
@@ -571,7 +584,9 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
   </nav>
   <div class="sb-foot" style="padding:8px 14px 10px;display:flex;flex-direction:column;gap:6px">
     <div id="sb-user-email" style="font-size:10px;color:var(--dark-text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center"></div>
+    <div id="sb-sync-status" style="display:none;font-size:10px;text-align:center;padding:2px 0"></div>
     <button onclick="fazerLogout()" style="width:100%;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);color:var(--red);border-radius:8px;padding:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;display:none" id="btn-logout">↩ Sair da conta</button>
+
     <div style="font-size:10px;color:var(--dark-text3);text-align:center">Orçamento Pro v6.9</div>
   </div>
 </aside>
@@ -1527,8 +1542,8 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
         <div id="storage-meter" style="margin-top:14px"></div>
       </div>
 
-      <div class="card">
-        <div class="card-title">☁️ Backup Automático no Google Drive</div>
+      <div class="card" style="opacity:.45;pointer-events:none" title="Funcionalidade substituída pelo sync automático via login Supabase">
+        <div class="card-title">☁️ Backup Automático no Google Drive <span style="font-size:10px;color:var(--dark-text3);font-weight:400">(substituído pelo sync Supabase)</span></div>
         <p style="font-size:13px;color:rgba(255,255,255,.5);margin-bottom:11px;line-height:1.6">Conecte sua conta Google uma vez. O sistema salva uma cópia de segurança no seu Google Drive (pasta privada do app) sempre que você clicar em "Sincronizar agora", ou automaticamente uma vez por dia ao abrir o sistema.</p>
         <div class="g2">
           <div><label class="lbl">Google Client ID <span class="lbl-hint">— crie gratuitamente no Google Cloud Console</span></label><input id="cfg-google-client-id" placeholder="xxxxx.apps.googleusercontent.com" oninput="autoSave()"></div>
@@ -10563,10 +10578,11 @@ function aplicarProtecaoAutofill(){
   window._autoNuvemAoAbrir=async function(){
     var chave=getChave();
     if(!chave)return;
+    if(typeof window._setSyncStatus==='function')window._setSyncStatus('sync');
     try{
       // Só sincroniza se a nuvem tiver dados mais recentes
       var empNuvem=await window._supaLoad('orcpro_emp');
-      if(!empNuvem)return;// Nuvem vazia, não sobrescreve
+      if(!empNuvem){if(typeof window._setSyncStatus==='function')window._setSyncStatus('');return;}
       // Compara timestamp se existir
       var empLocal=JSON.parse(localStorage.getItem('orcpro_emp')||'{}');
       var tsNuvem=empNuvem.atualizadoEm||0;
@@ -10580,7 +10596,13 @@ function aplicarProtecaoAutofill(){
         }
         console.log('[Nuvem] Dados sincronizados do servidor.');
       }
-    }catch(e){console.warn('[Nuvem] Auto-sync falhou:',e);}
+      if(typeof window._setSyncStatus==='function')window._setSyncStatus('ok');
+      setTimeout(function(){if(typeof window._setSyncStatus==='function')window._setSyncStatus('');},4000);
+    }catch(e){
+      console.warn('[Nuvem] Auto-sync falhou:',e);
+      if(typeof window._setSyncStatus==='function')window._setSyncStatus('erro');
+      setTimeout(function(){if(typeof window._setSyncStatus==='function')window._setSyncStatus('');},6000);
+    }
   };
 })();
 
@@ -10591,6 +10613,22 @@ function aplicarProtecaoAutofill(){
   var SUPA_URL='https://edztcoebgllqrkrkormc.supabase.co';
   var SUPA_KEY='sb_publishable_s6MSdF0rhidpCpddqTzNRg_1ajwnxIc';
   var SESSION_KEY='orcpro_auth_session';
+  // E-mails autorizados — apenas estes conseguem acessar o sistema
+  var EMAILS_PERMITIDOS=['arznstore22@gmail.com'];
+
+  function _traduzirErroAuth(msg,ctx){
+    var m=(msg||'').toLowerCase();
+    if(m.includes('invalid login')||m.includes('invalid credentials'))return 'E-mail ou senha incorretos.';
+    if(m.includes('email not confirmed'))return 'Confirme seu e-mail antes de entrar.';
+    if(m.includes('already registered')||m.includes('user already registered'))return 'Este e-mail já está cadastrado.';
+    if(m.includes('weak password')||m.includes('password should'))return 'Senha muito fraca. Use pelo menos 6 caracteres.';
+    if(m.includes('rate limit')||m.includes('too many'))return 'Muitas tentativas. Aguarde alguns minutos.';
+    if(m.includes('network')||m.includes('fetch'))return 'Sem conexão. Verifique sua internet.';
+    if(m.includes('invalid email'))return 'E-mail inválido.';
+    if(ctx==='login')return 'Erro ao entrar. Tente novamente.';
+    if(ctx==='signup')return 'Erro ao criar conta. Tente novamente.';
+    return msg||'Erro desconhecido.';
+  }
 
   function getSession(){try{return JSON.parse(localStorage.getItem(SESSION_KEY)||'null');}catch(e){return null;}}
   function saveSession(s){if(s)localStorage.setItem(SESSION_KEY,JSON.stringify(s));else localStorage.removeItem(SESSION_KEY);}
@@ -10617,6 +10655,10 @@ function aplicarProtecaoAutofill(){
 
   function aplicarSessao(session){
     if(!session||!session.access_token)return false;
+    var emailSessao=session.user&&session.user.email;
+    if(EMAILS_PERMITIDOS.length&&emailSessao&&!EMAILS_PERMITIDOS.includes(emailSessao.toLowerCase())){
+      saveSession(null);return false;
+    }
     saveSession(session);
     // Usa o user.id como chave da nuvem — único por conta, imutável
     var uid=session.user&&session.user.id;
@@ -10631,13 +10673,16 @@ function aplicarProtecaoAutofill(){
   window.fazerLogin=async function(){
     var email=val('login-email').trim(),senha=val('login-senha');
     if(!email||!senha){setLoginMsg('Preencha e-mail e senha.','var(--yellow)');return;}
+    if(EMAILS_PERMITIDOS.length&&!EMAILS_PERMITIDOS.includes(email.toLowerCase())){
+      setLoginMsg('Acesso não autorizado para este e-mail.','var(--red)');return;
+    }
     var btn=ge('btn-fazer-login');btn.disabled=true;btn.textContent='Entrando…';
     setLoginMsg('');
     var res=await supaAuth('token?grant_type=password',{email:email,password:senha});
     btn.disabled=false;btn.textContent='Entrar';
     if(!res.ok){
-      var msg=res.data&&res.data.error_description||res.data&&res.data.msg||'Erro ao entrar.';
-      if(msg.toLowerCase().includes('invalid login'))msg='E-mail ou senha incorretos.';
+      var msg=res.data&&res.data.error_description||res.data&&res.data.msg||'';
+      msg=_traduzirErroAuth(msg,'login');
       setLoginMsg(msg,'var(--red)');return;
     }
     aplicarSessao(res.data);
@@ -10647,14 +10692,17 @@ function aplicarProtecaoAutofill(){
   window.fazerCadastro=async function(){
     var email=val('signup-email').trim(),senha=val('signup-senha');
     if(!email||!senha){setLoginMsg('Preencha e-mail e senha.','var(--yellow)');return;}
+    if(EMAILS_PERMITIDOS.length&&!EMAILS_PERMITIDOS.includes(email.toLowerCase())){
+      setLoginMsg('Cadastro não permitido para este e-mail.','var(--red)');return;
+    }
     if(senha.length<6){setLoginMsg('Senha deve ter pelo menos 6 caracteres.','var(--yellow)');return;}
     var btn=ge('btn-fazer-signup');btn.disabled=true;btn.textContent='Criando…';
     setLoginMsg('');
     var res=await supaAuth('signup',{email:email,password:senha});
     btn.disabled=false;btn.textContent='Criar conta';
     if(!res.ok){
-      var msg=res.data&&res.data.msg||res.data&&res.data.error_description||'Erro ao criar conta.';
-      if(msg.toLowerCase().includes('already registered'))msg='Este e-mail já está cadastrado.';
+      var msg=res.data&&res.data.msg||res.data&&res.data.error_description||'';
+      msg=_traduzirErroAuth(msg,'signup');
       setLoginMsg(msg,'var(--red)');return;
     }
     // Supabase pode retornar sessão direto ou pedir confirmação por e-mail
@@ -10679,7 +10727,10 @@ function aplicarProtecaoAutofill(){
   };
 
   window.fazerLogout=function(){
-    if(!confirm('Sair da conta? Os dados locais permanecem no dispositivo.'))return;
+    ge('modal-logout').className='modal-overlay open';
+  };
+  window._confirmarLogout=function(){
+    ge('modal-logout').className='modal-overlay';
     saveSession(null);
     localStorage.removeItem('orcpro_chave_nuvem');
     location.reload();
@@ -10697,6 +10748,31 @@ function aplicarProtecaoAutofill(){
     }catch(e){return null;}
   }
 
+  // Indicador de sync na sidebar
+  window._setSyncStatus=function(estado){
+    var el=ge('sb-sync-status');if(!el)return;
+    if(estado==='sync'){el.style.display='';el.style.color='var(--yellow)';el.textContent='🔄 Sincronizando…';}
+    else if(estado==='ok'){el.style.display='';el.style.color='var(--green)';el.textContent='✅ Sincronizado';}
+    else if(estado==='erro'){el.style.display='';el.style.color='var(--red)';el.textContent='⚠️ Falha no sync';}
+    else{el.style.display='none';}
+  };
+
+  // Renova token automaticamente antes de expirar (verifica a cada 10 min)
+  function _agendarRefreshToken(){
+    setInterval(async function(){
+      var session=getSession();
+      if(!session||!session.refresh_token)return;
+      var exp=session.expires_at||(session.expires_in?Math.floor(Date.now()/1000)+session.expires_in:0);
+      var agora=Math.floor(Date.now()/1000);
+      // Renova se faltar menos de 5 minutos para expirar
+      if(exp>0&&agora>exp-300){
+        var nova=await refreshSession(session);
+        if(nova&&nova.access_token)aplicarSessao(nova);
+        else{ge('login-screen').style.display='flex';}
+      }
+    },10*60*1000); // a cada 10 minutos
+  }
+
   function fecharLoginEIniciar(){
     ge('login-screen').style.display='none';
     // Inicia o app normal
@@ -10711,6 +10787,7 @@ function aplicarProtecaoAutofill(){
     // setTimeout(function(){if(typeof autoBaixarDoDriveAoAbrir==='function')autoBaixarDoDriveAoAbrir();},2000);
     setTimeout(function(){if(typeof _autoNuvemAoAbrir==='function')_autoNuvemAoAbrir();},1500);
     setTimeout(function(){if(typeof _migrarFotosStorage==='function')_migrarFotosStorage();},8000);
+    _agendarRefreshToken();
   }
 
   // Inicialização: verifica sessão salva
