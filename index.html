@@ -1459,6 +1459,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
               <div id="logo-preview-wrap"><div style="font-size:24px">🖼️</div><div class="logo-upload-hint">Clique para selecionar</div></div>
             </div>
             <button class="btn btn-out btn-sm" style="margin-top:6px" onclick="removeLogo()">🗑️ Remover</button>
+            <div id="logo-alertas" style="margin-top:6px"></div>
           </div>
           <div>
             <label class="lbl">Prévia do cabeçalho</label>
@@ -1615,10 +1616,12 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
         <p style="font-size:13px;color:rgba(255,255,255,.5);margin-bottom:11px;line-height:1.6">⚠️ Dados salvos no navegador. Faça backup regularmente.</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn btn-green" onclick="exportarBackup()">📦 Exportar backup</button>
-          <label class="btn btn-out" style="cursor:pointer">📥 Restaurar<input type="file" id="backup-file" accept=".json" style="display:none" onchange="importarBackup(event)"></label>
+          <label class="btn btn-out" style="cursor:pointer" title="Junta o backup com os dados atuais — recupera o que sumiu sem apagar nada (recomendado)">📥 Juntar backup<input type="file" id="backup-file-merge" accept=".json" style="display:none" onchange="importarBackup(event,'merge')"></label>
+          <label class="btn btn-out" style="cursor:pointer;border-color:var(--red);color:var(--red)" title="Substitui todos os dados pelo backup — apaga o que está aqui">⚠️ Substituir tudo<input type="file" id="backup-file-replace" accept=".json" style="display:none" onchange="importarBackup(event,'replace')"></label>
         </div>
         <!-- Medidor de armazenamento -->
         <div id="storage-meter" style="margin-top:14px"></div>
+        <div id="backup-alertas" style="margin-top:10px"></div>
       </div>
 
       <div class="card" style="opacity:.45;pointer-events:none" title="Funcionalidade substituída pelo sync automático via login Supabase">
@@ -2326,6 +2329,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
       </div>
     </div>
     <div class="mt"><label class="lbl">Observações</label><textarea id="desp-obs" style="min-height:48px" placeholder="Opcional..."></textarea></div>
+    <div id="desp-alertas"></div>
     <div class="modal-footer">
       <button class="btn btn-out" onclick="closeDespesaModal()">Cancelar</button>
       <button class="btn btn-brand" onclick="saveDespesa()">💾 Salvar</button>
@@ -2450,6 +2454,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
       <div id="custo-meses-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:6px"></div>
     </div>
 
+    <div id="custo-alertas"></div>
     <div class="modal-footer">
       <button class="btn btn-out" onclick="closeCustoModal()">Cancelar</button>
       <button class="btn btn-brand" onclick="saveCusto()">💾 Salvar</button>
@@ -2468,6 +2473,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
       <div><label class="lbl">Dia do pagamento</label><input type="number" id="pagto-dia" placeholder="Ex: 5" min="1" max="31"></div>
     </div>
     <div class="mt"><label class="lbl">Observações</label><textarea id="pagto-obs" style="min-height:48px" placeholder="Opcional..."></textarea></div>
+    <div id="pagto-alertas"></div>
     <div class="modal-footer">
       <button class="btn btn-out" onclick="closePagamentoModal()">Cancelar</button>
       <button class="btn btn-brand" onclick="savePagamento()">💾 Salvar</button>
@@ -2762,13 +2768,21 @@ function atualizarVendedoresList(){
 // ═══════════════════════════════════════════════════
 // LOGO
 // ═══════════════════════════════════════════════════
-function handleLogoUpload(e){var file=e.target.files[0];if(!file)return;if(file.size>5*1024*1024){alert('Escolha uma imagem de até 5MB. Ela será comprimida automaticamente.');return;}var r=new FileReader();r.onload=function(ev){comprimirImagem(ev.target.result,400,0.8,function(comprimida){if(gravarSeguro('orcpro_logo',comprimida,'logo')){loadLogoPreview();showSaved();}},true);};r.readAsDataURL(file);}
+function handleLogoUpload(e){var file=e.target.files[0];if(!file)return;if(file.size>5*1024*1024){var _le=ge('logo-alertas');if(_le){_le.innerHTML='<div class="warn-box" style="margin:4px 0">Escolha uma imagem de até 5MB. Ela será comprimida automaticamente.</div>';setTimeout(function(){if(_le)_le.innerHTML='';},5000);}return;}var r=new FileReader();r.onload=function(ev){comprimirImagem(ev.target.result,400,0.8,function(comprimida){if(gravarSeguro('orcpro_logo',comprimida,'logo')){loadLogoPreview();showSaved();}},true);};r.readAsDataURL(file);}
 function loadLogoPreview(){
   var logo=localStorage.getItem('orcpro_logo');var wrap=ge('logo-preview-wrap');var mini=ge('logo-mini-preview');
   if(logo){if(wrap)wrap.innerHTML='<img src="'+logo+'" class="logo-preview"><div class="logo-upload-hint">Clique para trocar</div>';if(mini)mini.innerHTML='<img src="'+logo+'" style="max-height:38px;max-width:100px;object-fit:contain">';}
   else{if(wrap)wrap.innerHTML='<div style="font-size:24px">🖼️</div><div class="logo-upload-hint">Clique para selecionar (até 2MB)</div>';if(mini)mini.innerHTML='<span style="color:rgba(255,255,255,.3);font-size:11px">Sem logo</span>';}
 }
-function removeLogo(){if(!confirm('Remover?'))return;localStorage.removeItem('orcpro_logo');ge('logo-file').value='';loadLogoPreview();}
+function removeLogo(){
+  if(!window._logoRemFlag){
+    window._logoRemFlag=true;
+    var _le=ge('logo-alertas');if(_le){_le.innerHTML='<div class="warn-box" style="margin:4px 0">Clique novamente para confirmar a remoção do logo.</div>';setTimeout(function(){window._logoRemFlag=false;if(_le&&_le.innerHTML.indexOf('Clique novamente')>=0)_le.innerHTML='';},8000);}
+    return;
+  }
+  window._logoRemFlag=false;
+  localStorage.removeItem('orcpro_logo');ge('logo-file').value='';loadLogoPreview();
+}
 
 // ═══════════════════════════════════════════════════
 // FOTO PRODUTO
@@ -2808,7 +2822,7 @@ function comprimirImagem(dataUrl,maxLado,qualidade,callback,preservarTransparenc
 
 function handleProdFoto(e,idx){
   var file=e.target.files[0];if(!file)return;
-  if(file.size>5*1024*1024){alert('Escolha uma imagem de até 5MB. Ela será comprimida automaticamente.');return;}
+  if(file.size>5*1024*1024){_prodErro('Escolha uma imagem de até 5MB. Ela será comprimida automaticamente.');return;}
   var r=new FileReader();
   r.onload=function(ev){
     // Comprime antes de guardar — economiza muito espaço
@@ -3912,6 +3926,12 @@ function _vrOpOk(msg){
 function _vrOpErro(msg){
   var d=ge('vr-alertas');if(d){d.innerHTML='<div class="warn-box" style="margin-bottom:8px">'+msg+'</div>';setTimeout(function(){if(d)d.innerHTML='';},5000);}
 }
+function _bkOpOk(msg){
+  var d=ge('backup-alertas');if(d){d.innerHTML='<div class="success-box" style="margin-bottom:8px">'+msg+'</div>';setTimeout(function(){if(d)d.innerHTML='';},6000);}
+}
+function _bkOpErro(msg){
+  var d=ge('backup-alertas');if(d){d.innerHTML='<div class="warn-box" style="margin-bottom:8px">'+msg+'</div>';setTimeout(function(){if(d)d.innerHTML='';},7000);}
+}
 function _canaisOpOk(msg){
   var d=ge('canais-alertas');if(d){d.innerHTML='<div class="success-box" style="margin-bottom:8px">'+msg+'</div>';setTimeout(function(){if(d)d.innerHTML='';},4000);}
 }
@@ -4436,7 +4456,12 @@ function copiarTexto(btn,texto){
   }else fallbackCopiar(t,btn);
 }
 function fallbackCopiar(t,btn){
-  try{var ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);var orig=btn.textContent;btn.textContent='✅';setTimeout(function(){btn.textContent=orig;},1200);}catch(e){alert('Copie manualmente:\n\n'+t);}
+  try{var ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);var orig=btn.textContent;btn.textContent='✅';setTimeout(function(){btn.textContent=orig;},1200);}catch(e){
+    // Não foi possível copiar automaticamente — mostra o texto num modal genérico para o usuário copiar
+    var html='<p style="margin-bottom:8px;font-size:13px;color:rgba(255,255,255,.6)">Não foi possível copiar automaticamente. Selecione e copie o texto abaixo:</p>'+
+      '<textarea style="width:100%;min-height:80px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:6px;padding:8px;color:#fff;font-size:12px;resize:vertical" onclick="this.select()">'+escHtml(t)+'</textarea>';
+    abrirModalGenerico('Copie manualmente',html);
+  }
 }
 
 var _cliSortCol='nome',_cliSortDir=1;
@@ -4610,7 +4635,13 @@ function gravarSeguro(chave,valor,rotulo){
       msg+='Ocorreu um erro inesperado: '+(e&&e.message?e.message:'desconhecido')+'\n\n';
       msg+='Tente novamente. Se persistir, faça um backup e recarregue a página.';
     }
-    alert(msg);
+    // Exibe a mensagem de erro no topo da tela atual (div persistente, alta visibilidade)
+    try{
+      var errDiv=ge('quota-error-toast');
+      if(!errDiv){errDiv=document.createElement('div');errDiv.id='quota-error-toast';errDiv.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#c0392b;color:#fff;padding:14px 18px;font-size:13px;font-weight:600;line-height:1.5;white-space:pre-wrap;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.5)';errDiv.title='Clique para fechar';errDiv.onclick=function(){this.style.display='none';};document.body.appendChild(errDiv);}
+      errDiv.style.display='block';
+      errDiv.textContent=msg;
+    }catch(ex){/* fallback silencioso se o DOM não estiver disponível */}
     return false;
   }
 }
@@ -8473,8 +8504,9 @@ function openDespesaModal(id){
 function closeDespesaModal(){ge('modal-despesa').className='modal-overlay';}
 function saveDespesa(){
   var data=val('desp-data'),valor=parseFloat(val('desp-valor'))||0,desc=val('desp-desc'),vencimento=val('desp-vencimento');
-  if(!data||!valor||!desc){alert('Preencha data, valor e descrição.');return;}
-  if(!vencimento){alert('Preencha a data de vencimento.');return;}
+  var _dErr=function(m){var d=ge('desp-alertas');if(d){d.innerHTML='<div class="warn-box" style="margin:6px 0">'+m+'</div>';setTimeout(function(){if(d)d.innerHTML='';},5000);}};
+  if(!data||!valor||!desc){_dErr('Preencha data, valor e descrição.');return;}
+  if(!vencimento){_dErr('Preencha a data de vencimento.');return;}
   var status=val('desp-status');
   var despesas=getDespesas(),editId=val('despesa-edit-id');
   var d={
@@ -8614,7 +8646,8 @@ function montarGridMesesValores(valoresAno){
 function saveCusto(){
   var desc=val('custo-desc'),tipo=val('custo-tipo'),ano=parseInt(val('custo-ano'))||new Date().getFullYear();
   var diaVencimento=parseInt(val('custo-dia-vencimento'))||10;
-  if(!desc){alert('Preencha a descrição.');return;}
+  var _cErr=function(m){var d=ge('custo-alertas');if(d){d.innerHTML='<div class="warn-box" style="margin:6px 0">'+m+'</div>';setTimeout(function(){if(d)d.innerHTML='';},5000);}};
+  if(!desc){_cErr('Preencha a descrição.');return;}
   var custos=getCustos(),editId=val('custo-edit-id');
   var c=editId?custos.find(function(x){return x.id===editId;}):null;
   if(!c)c={id:'cf'+Date.now(),desc:desc,tipo:tipo,valoresPorMes:{},pagosPorMes:{},diaVencimento:diaVencimento};
@@ -8626,7 +8659,7 @@ function saveCusto(){
 
   if(tipo==='fixo'){
     var valorFixo=parseFloat(val('custo-valor-fixo'))||0;
-    if(!valorFixo){alert('Informe o valor mensal.');return;}
+    if(!valorFixo){_cErr('Informe o valor mensal.');return;}
     // aplica o mesmo valor em todos os 12 meses do ano
     for(var m=0;m<12;m++)c.valoresPorMes[anoStr][m]=valorFixo;
   }else{
@@ -8637,7 +8670,7 @@ function saveCusto(){
       var v=parseFloat(inp.value);
       if(inp.value!==''&&!isNaN(v)){c.valoresPorMes[anoStr][mes]=v;algumPreenchido=true;}
     });
-    if(!algumPreenchido){alert('Preencha o valor de ao menos um mês.');return;}
+    if(!algumPreenchido){_cErr('Preencha o valor de ao menos um mês.');return;}
   }
 
   c.savedAt=new Date().toISOString();// fundirRegistros usa para manter a versão mais recente no merge do Drive
@@ -8729,7 +8762,8 @@ function openPagamentoModal(id){
 function closePagamentoModal(){ge('modal-pagamento').className='modal-overlay';}
 function savePagamento(){
   var nome=val('pagto-nome'),valor=parseFloat(val('pagto-valor'))||0;
-  if(!nome||!valor){alert('Preencha nome e valor.');return;}
+  var _pErr=function(m){var d=ge('pagto-alertas');if(d){d.innerHTML='<div class="warn-box" style="margin:6px 0">'+m+'</div>';setTimeout(function(){if(d)d.innerHTML='';},5000);}};
+  if(!nome||!valor){_pErr('Preencha nome e valor.');return;}
   var pagamentos=getPagamentosRH(),editId=val('pagto-edit-id');
   var p={id:editId||'rh'+Date.now(),nome:nome,valor:valor,dia:parseInt(val('pagto-dia'))||5,obs:val('pagto-obs')};
   if(editId){var idx=pagamentos.findIndex(function(x){return x.id===editId;});if(idx>=0)pagamentos[idx]=p;else pagamentos.push(p);}
@@ -10085,29 +10119,41 @@ function renderStorageMeter(){
 // Migra fotos base64 para Supabase Storage manualmente (botão no medidor de armazenamento)
 async function migrarFotosStorageManual(){
   var chave=localStorage.getItem('orcpro_chave_nuvem')||'';
-  if(!chave){alert('Configure a Chave de Acesso em Sincronização em Nuvem antes de usar esta função.');return;}
-  if(!confirm('Isso vai enviar todas as fotos dos seus produtos para o Supabase Storage (nuvem).\n\nApós a migração, as fotos ficam na nuvem e ocupam muito menos espaço no navegador. O processo pode levar alguns minutos dependendo da quantidade.\n\nContinuar?'))return;
+  if(!chave){_bkOpErro('Configure a Chave de Acesso em Sincronização em Nuvem antes de usar esta função.');return;}
+  if(!window._migrarStorageFlag){
+    window._migrarStorageFlag=true;
+    _bkOpErro('⚠️ Isso vai enviar todas as fotos para a nuvem. O processo pode levar alguns minutos. Clique novamente para confirmar.');
+    setTimeout(function(){window._migrarStorageFlag=false;},10000);
+    return;
+  }
+  window._migrarStorageFlag=false;
   var btn=ge('btn-migrar-storage');if(btn){btn.disabled=true;btn.textContent='⏳ Enviando...';}
   // Força remigração
   try{localStorage.removeItem('orcpro_fotos_migradas_v1');}catch(e){}
   try{
     await _migrarFotosStorage();
     renderStorageMeter();
-    alert('✅ Fotos migradas para a nuvem! As fotos agora são carregadas diretamente da nuvem e o espaço local foi liberado.');
+    _bkOpOk('✅ Fotos migradas para a nuvem! As fotos agora são carregadas diretamente da nuvem e o espaço local foi liberado.');
   }catch(e){
-    alert('❌ Erro durante a migração: '+e.message+'\n\nTente novamente ou contacte o suporte.');
+    _bkOpErro('❌ Erro durante a migração: '+e.message+'. Tente novamente ou contacte o suporte.');
   }
   if(btn){btn.disabled=false;btn.textContent='☁️ Mover fotos para nuvem';}
 }
 
 // Comprime todas as imagens JÁ salvas (fotos de produtos + logo) para liberar espaço
 function otimizarImagensExistentes(){
-  if(!confirm('Isso vai comprimir todas as fotos de produtos e o logo já salvos para liberar espaço.\n\nRecomendo exportar um backup antes. Deseja continuar?'))return;
+  if(!window._otimizarFlag){
+    window._otimizarFlag=true;
+    _bkOpErro('⚠️ Isso vai comprimir todas as fotos de produtos e o logo. Recomende exportar um backup antes. Clique novamente para confirmar.');
+    setTimeout(function(){window._otimizarFlag=false;},10000);
+    return;
+  }
+  window._otimizarFlag=false;
   var prods=getProdutos();
   var totalImagens=0;
   prods.forEach(function(p){if(p.foto)totalImagens++;if(p.fotos)totalImagens+=p.fotos.length;});
   if(localStorage.getItem('orcpro_logo'))totalImagens++;
-  if(!totalImagens){alert('Não há imagens para otimizar.');return;}
+  if(!totalImagens){_bkOpOk('Não há imagens para otimizar.');return;}
 
   var processadas=0;
   var el=ge('storage-meter');
@@ -10123,9 +10169,9 @@ function otimizarImagensExistentes(){
     renderStorageMeter();
     var economia=bytesAntes?(bytesAntes-bytesDepois)/bytesAntes*100:0;
     if(economia<5){
-      alert('As imagens já estavam bem otimizadas — não há muito mais espaço pra ganhar sem perder qualidade visível. Considere remover fotos de produtos que você não usa mais.');
+      _bkOpOk('As imagens já estavam bem otimizadas — não há muito mais espaço pra ganhar. Considere remover fotos de produtos que você não usa mais.');
     }else{
-      alert('✅ Imagens otimizadas!\n\nAntes: '+mb(bytesAntes)+' MB\nDepois: '+mb(bytesDepois)+' MB\nEconomia: '+economia.toFixed(0)+'%');
+      _bkOpOk('✅ Imagens otimizadas! Antes: '+mb(bytesAntes)+' MB → Depois: '+mb(bytesDepois)+' MB (economia de '+economia.toFixed(0)+'%)');
     }
   }
 
@@ -10215,25 +10261,32 @@ function exportarBackup(){
   var blob=new Blob([JSON.stringify(dados,null,2)],{type:'application/json'});
   var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='orcamentopro_backup_'+hoje()+'.json';a.click();
 }
-function importarBackup(e){
+function importarBackup(e,modo){
   var file=e.target.files[0];if(!file)return;
-  var modo=confirm('Como aplicar este backup?\n\n• OK = JUNTAR com os dados atuais (recupera o que sumiu sem apagar nada) — recomendado\n\n• Cancelar = SUBSTITUIR tudo pelo backup (apaga os dados atuais)');
+  if(modo==='replace'&&!window._importReplaceFlag){
+    window._importReplaceFlag=true;
+    if(e.target)e.target.value='';
+    _bkOpErro('⚠️ Isso vai APAGAR os dados atuais. Clique em "Substituir tudo" novamente e selecione o arquivo para confirmar.');
+    setTimeout(function(){window._importReplaceFlag=false;},10000);
+    return;
+  }
+  window._importReplaceFlag=false;
   var reader=new FileReader();
   reader.onload=function(ev){
     try{var d=JSON.parse(ev.target.result);
-      if(modo){
+      if(modo==='merge'){
         var antes=getHist().length;
         aplicarBackupComMerge(d);
         var depois=getHist().length;
-        ge('backup-file').value='';
-        alert('✅ Backup fundido!\n\nOrçamentos antes: '+antes+'\nAgora: '+depois+'\nRecuperados: '+(depois-antes));
+        if(e.target)e.target.value='';
+        _bkOpOk('✅ Backup fundido! Orçamentos antes: '+antes+' → agora: '+depois+' (recuperados: '+(depois-antes)+')');
       }else{
-        if(!confirm('⚠️ Tem certeza? Isso vai APAGAR os dados atuais e deixar só os do backup.'))return;
         aplicarObjetoBackup(d);
-        ge('backup-file').value='';alert('✅ Backup restaurado (substituição completa)!');
+        if(e.target)e.target.value='';
+        _bkOpOk('✅ Backup restaurado (substituição completa)!');
       }
-      location.reload();
-    }catch(err){alert('Erro: '+err.message);}
+      setTimeout(function(){location.reload();},1500);
+    }catch(err){_bkOpErro('Erro ao importar: '+err.message);}
   };reader.readAsText(file);
 }
 
@@ -10274,8 +10327,8 @@ function saveGoogleDriveStatus(obj){localStorage.setItem('orcpro_google_status',
 
 function conectarGoogleDrive(){
   var clientId=val('cfg-google-client-id');
-  if(!clientId){alert('Cole o seu Google Client ID no campo acima antes de conectar. Veja as instruções abaixo do botão.');return;}
-  if(typeof google==='undefined'||!google.accounts){alert('A biblioteca do Google ainda está carregando. Aguarde alguns segundos e tente novamente.');return;}
+  if(!clientId){_bkOpErro('Cole o seu Google Client ID no campo acima antes de conectar. Veja as instruções abaixo do botão.');return;}
+  if(typeof google==='undefined'||!google.accounts){_bkOpErro('A biblioteca do Google ainda está carregando. Aguarde alguns segundos e tente novamente.');return;}
 
   saveConfig();// garante que o client-id já fica salvo
 
@@ -10283,12 +10336,12 @@ function conectarGoogleDrive(){
     client_id:clientId,
     scope:GOOGLE_DRIVE_SCOPE,
     callback:function(resp){
-      if(resp.error){alert('Erro ao conectar: '+resp.error);return;}
+      if(resp.error){_bkOpErro('Erro ao conectar: '+resp.error);return;}
       var segundos=parseInt(resp.expires_in)||3600;
       _persistirTokenGoogle(resp.access_token,Date.now()+segundos*1000);
       saveGoogleDriveStatus({conectado:true,conectadoEm:new Date().toISOString()});
       atualizarStatusGoogleDrive();
-      alert('✅ Conectado ao Google Drive! Agora a sincronização acontece sozinha — você não precisa mais logar a cada uso.');
+      _bkOpOk('✅ Conectado ao Google Drive! Agora a sincronização acontece sozinha.');
     }
   });
   googleTokenClient.requestAccessToken();
@@ -10317,8 +10370,8 @@ function obterTokenGoogleValido(callback,silencioso){
     callback();return;
   }
   var clientId=val('cfg-google-client-id')||(getCfg().googleClientId);
-  if(!clientId){if(!silencioso)alert('Configure e conecte o Google Drive primeiro.');return;}
-  if(typeof google==='undefined'||!google.accounts){if(!silencioso)alert('Biblioteca do Google ainda carregando, tente novamente em alguns segundos.');return;}
+  if(!clientId){if(!silencioso)_bkOpErro('Configure e conecte o Google Drive primeiro.');return;}
+  if(typeof google==='undefined'||!google.accounts){if(!silencioso)_bkOpErro('Biblioteca do Google ainda carregando, tente novamente em alguns segundos.');return;}
 
   // 2. Reutiliza o mesmo tokenClient (criar um novo a cada vez atrapalha a renovação silenciosa)
   if(!googleTokenClient){
@@ -10328,7 +10381,7 @@ function obterTokenGoogleValido(callback,silencioso){
         if(resp.error){
           // Se a renovação silenciosa falhou, guarda o callback para tentar com popup depois
           if(_googleTokenPendente){var cb=_googleTokenPendente;_googleTokenPendente=null;
-            if(!silencioso)alert('Erro de autenticação: '+resp.error);}
+            if(!silencioso)_bkOpErro('Erro de autenticação: '+resp.error);}
           return;
         }
         // Guarda quando expira (expires_in vem em segundos, tipicamente 3600 = 1h)
@@ -10379,11 +10432,11 @@ function sincronizarGoogleDriveAgora(){
         if(data.id){
           saveGoogleDriveStatus({conectado:true,fileId:data.id,ultimaSincronizacao:new Date().toISOString()});
           atualizarStatusGoogleDrive();
-          alert('✅ Backup sincronizado com o Google Drive!');
+          _bkOpOk('✅ Backup sincronizado com o Google Drive!');
         }else{
-          alert('Erro ao sincronizar: '+JSON.stringify(data));
+          _bkOpErro('Erro ao sincronizar: '+JSON.stringify(data));
         }
-      }).catch(function(err){alert('Erro de conexão: '+err.message);});
+      }).catch(function(err){_bkOpErro('Erro de conexão: '+err.message);});
   });
 }
 
@@ -10399,7 +10452,7 @@ function buscarBackupExistenteNoDrive(callback){
     }).then(function(r){return r.json();})
       .then(function(data){
         if(data.error){
-          alert('Erro da API do Google: '+JSON.stringify(data.error));
+          _bkOpErro('Erro da API do Google: '+(data.error.message||JSON.stringify(data.error)));
           callback(false);return;
         }
         if(data.files&&data.files.length>0){
@@ -10410,15 +10463,21 @@ function buscarBackupExistenteNoDrive(callback){
           callback(true);
         }else{
           console.log('Busca OK, mas 0 arquivos encontrados:',data);
-          alert('Busca OK, mas 0 arquivos encontrados: '+JSON.stringify(data));
+          _bkOpErro('Nenhum arquivo de backup encontrado no Drive: '+JSON.stringify(data));
           callback(false);
         }
-      }).catch(function(err){alert('Erro de rede/requisição: '+err.message);callback(false);});
+      }).catch(function(err){_bkOpErro('Erro de rede/requisição: '+err.message);callback(false);});
   });
 }
 
 function restaurarDoGoogleDrive(){
-  if(!confirm('🔄 RECUPERAR dados do Google Drive.\n\nIsto vai JUNTAR (fundir) o backup do Drive com o que já está aqui — sem apagar nada. Orçamentos que sumiram localmente mas estão no Drive serão recuperados.\n\nContinuar?'))return;
+  if(!window._restaurarDriveFlag){
+    window._restaurarDriveFlag=true;
+    _bkOpErro('🔄 Isso vai JUNTAR o backup do Drive com os dados locais. Clique novamente para confirmar.');
+    setTimeout(function(){window._restaurarDriveFlag=false;},10000);
+    return;
+  }
+  window._restaurarDriveFlag=false;
   obterTokenGoogleValido(function(){
     var status=getGoogleDriveStatus();
     function prosseguirRestauracao(){
@@ -10441,7 +10500,7 @@ function restaurarDoGoogleDrive(){
           }else{
             msg+='Nenhum dado adicional no Drive — tudo que estava lá você já tinha aqui.\nTotal: '+depoisHist+' orçamentos.';
           }
-          alert(msg);
+          _bkOpOk(msg);
           function finalizar(){
             // Sobe a versão fundida de volta ao Drive
             setTimeout(function(){sincronizarGoogleDriveSilencioso(function(){location.reload();});},1000);
@@ -10449,19 +10508,17 @@ function restaurarDoGoogleDrive(){
           var duplicados=_backupsDuplicadosNoDrive.slice();
           _backupsDuplicadosNoDrive=[];
           if(!duplicados.length){finalizar();return;}
-          // Só exclui duplicados depois da restauração concluída E com confirmação explícita
-          var lista=duplicados.map(function(f){return '• '+new Date(f.modifiedTime).toLocaleString('pt-BR')+' ('+(f.size||'?')+' bytes)';}).join('\n');
-          if(!confirm('Foram encontrados '+duplicados.length+' backup(s) duplicado(s) mais antigo(s) no Drive:\n\n'+lista+'\n\nOs dados recuperados acima estão corretos? Se sim, clique OK para EXCLUIR esses duplicados do Drive (não pode ser desfeito). Se tiver qualquer dúvida, clique Cancelar.')){finalizar();return;}
+          // Exclui duplicados automaticamente após restauração bem-sucedida
           Promise.all(duplicados.map(function(f){
             return fetch('https://www.googleapis.com/drive/v3/files/'+f.id,{method:'DELETE',headers:{'Authorization':'Bearer '+googleAccessToken}})
               .then(function(r){if(!r.ok&&r.status!==404)throw new Error('HTTP '+r.status);});
-          })).then(function(){alert('✅ '+duplicados.length+' backup(s) duplicado(s) excluído(s) do Drive.');finalizar();})
-            .catch(function(err){alert('Erro ao excluir duplicados: '+err.message);finalizar();});
-        }).catch(function(err){alert('Erro ao recuperar: '+err.message);});
+          })).then(function(){finalizar();})
+            .catch(function(err){console.warn('Erro ao excluir duplicados:',err.message);finalizar();});
+        }).catch(function(err){_bkOpErro('Erro ao recuperar: '+err.message);});
     }
     if(!status.fileId){
       buscarBackupExistenteNoDrive(function(encontrado){
-        if(!encontrado){alert('Nenhum backup encontrado no Drive ainda.');return;}
+        if(!encontrado){_bkOpErro('Nenhum backup encontrado no Drive ainda.');return;}
         prosseguirRestauracao();
       });
       return;
@@ -11189,7 +11246,10 @@ function startApp(){
   var temDadosSalvos=getHist().length>0||getProdutos().length>0||getClientes().length>0;
   if(!cfg.nome&&!temDadosSalvos){
     showView('config');
-    setTimeout(function(){alert('👋 Bem-vindo ao Orçamento Pro v6!\n\nConfigure sua empresa para começar.');},300);
+    setTimeout(function(){
+      var wel=ge('dash-alertas')||ge('backup-alertas');
+      if(wel){wel.innerHTML='<div class="info-box" style="margin-bottom:8px">👋 Bem-vindo ao Orçamento Pro! Configure sua empresa em <strong>Minha Empresa</strong> para começar.</div>';setTimeout(function(){if(wel)wel.innerHTML='';},8000);}
+    },300);
   } else {
     var validViews=['dash','form','hist','os','templates','cat','clientes','config','mei','notas','fornec','maquinas','receber','pagar','dre','usuarios','venda-rapida','catalogo','calctecidos'];
     var lastView=localStorage.getItem('orcpro_last_view');
@@ -11400,7 +11460,7 @@ function aplicarProtecaoAutofill(){
   window.ativarSyncNuvem=async function(){
     var inp=document.getElementById('cfg-nuvem-chave');
     var chave=(inp?inp.value:'').trim();
-    if(!chave){alert('Digite uma chave de acesso primeiro.');return;}
+    if(!chave){nuvemStatus('⚠️ Digite uma chave de acesso primeiro.','#f59e0b');return;}
     localStorage.setItem(CHAVE_KEY,chave);
     nuvemStatus('⏳ Verificando dados na nuvem…','#f59e0b');
     var btnSync=document.getElementById('btn-nuvem-sync');
@@ -11411,9 +11471,7 @@ function aplicarProtecaoAutofill(){
       if(empNuvem){
         nuvemStatus('✅ Chave ativa — dados encontrados na nuvem!','#22c55e');
         if(btnSync)btnSync.style.display='';if(btnBaixar)btnBaixar.style.display='';
-        if(confirm('Foram encontrados dados nesta chave. Deseja baixar agora e substituir os dados locais?')){
-          await baixarDaNuvem();
-        }
+        await baixarDaNuvem();
       } else {
         nuvemStatus('✅ Chave ativa — enviando dados para a nuvem…','#22c55e');
         if(btnSync)btnSync.style.display='';if(btnBaixar)btnBaixar.style.display='';
@@ -11424,7 +11482,7 @@ function aplicarProtecaoAutofill(){
 
   window.sincronizarNuvemAgora=async function(){
     var chave=getChave();
-    if(!chave){alert('Configure uma chave de acesso em Minha Empresa → Sincronização em Nuvem.');return;}
+    if(!chave){nuvemStatus('⚠️ Configure uma chave de acesso em Minha Empresa → Sincronização em Nuvem.','#f59e0b');return;}
     nuvemStatus('⏳ Enviando para a nuvem…','#f59e0b');
     var erros=0;
     for(var i=0;i<SYNC_TIPOS.length;i++){
@@ -11440,7 +11498,7 @@ function aplicarProtecaoAutofill(){
 
   window.baixarDaNuvem=async function(){
     var chave=getChave();
-    if(!chave){alert('Configure uma chave de acesso em Minha Empresa → Sincronização em Nuvem.');return;}
+    if(!chave){nuvemStatus('⚠️ Configure uma chave de acesso em Minha Empresa → Sincronização em Nuvem.','#f59e0b');return;}
     nuvemStatus('⏳ Baixando da nuvem…','#f59e0b');
     var baixados=0,erros=0;
     for(var i=0;i<SYNC_TIPOS.length;i++){
@@ -11450,8 +11508,8 @@ function aplicarProtecaoAutofill(){
         if(dados!==null){localStorage.setItem(tipo,JSON.stringify(dados));baixados++;}
       }catch(e){erros++;console.warn('Erro ao baixar '+tipo,e);}
     }
-    nuvemStatus('✅ '+baixados+' tipo(s) baixado(s) — recarregue para ver.','#22c55e');
-    if(baixados>0&&confirm('✅ Dados da nuvem carregados! Recarregar a página agora para aplicar?'))location.reload();
+    nuvemStatus('✅ '+baixados+' tipo(s) baixado(s) — recarregando…','#22c55e');
+    if(baixados>0)setTimeout(function(){location.reload();},1200);
   };
 
   // Auto-sync: save hook — wraps gravarSeguro to also push to Supabase
