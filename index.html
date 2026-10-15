@@ -686,6 +686,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
 
     <!-- VENDA RÁPIDA -->
     <div id="view-venda-rapida" style="display:none;min-height:100%">
+      <div id="vr-alertas"></div>
       <div class="info-box">⚡ Use esta tela para registrar vendas rápidas (Shopee, Mercado Livre, Balcão, Instagram) sem precisar montar um orçamento completo. A venda entra automaticamente na Receita, Estoque, MEI, DRE e demais cálculos do sistema — exatamente como um orçamento aprovado.</div>
 
       <div class="card">
@@ -1012,6 +1013,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
 
     <!-- OS -->
     <div id="view-os" style="display:none;min-height:100%">
+      <div id="os-alertas"></div>
       <div class="info-box">🔧 Ordens de Serviço geradas a partir de orçamentos aprovados. Acompanhe o status de produção.</div>
       <div class="card">
         <div class="card-title">Ordens de Serviço <span id="os-count" style="margin-left:6px;font-size:12px;color:var(--brand);font-weight:700"></span></div>
@@ -1136,6 +1138,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
 
     <!-- CALCULADORA DE TECIDOS (DTF) -->
     <div id="view-calctecidos" style="display:none;min-height:100%">
+      <div id="ct-alertas"></div>
       <div class="info-box">🧮 Calculadora profissional de precificação — escolha o tipo de produto e todos os campos se ajustam automaticamente. Ferramenta de tomada de decisão, não apenas uma calculadora.</div>
 
       <!-- SELETOR DE TIPO -->
@@ -3883,6 +3886,24 @@ function _fuErro(msg){
 function _fuMassaErro(msg){
   var d=ge('fu-massa-alertas');if(d){d.innerHTML='<div class="warn-box" style="margin-top:8px">'+msg+'</div>';setTimeout(function(){if(d)d.innerHTML='';},5000);}
 }
+function _osOpOk(msg){
+  var d=ge('os-alertas');if(d){d.innerHTML='<div class="success-box" style="margin-bottom:8px">'+msg+'</div>';setTimeout(function(){if(d)d.innerHTML='';},4000);}
+}
+function _osOpErro(msg){
+  var d=ge('os-alertas');if(d){d.innerHTML='<div class="warn-box" style="margin-bottom:8px">'+msg+'</div>';setTimeout(function(){if(d)d.innerHTML='';},5000);}
+}
+function _ctOpOk(msg){
+  var d=ge('ct-alertas');if(d){d.innerHTML='<div class="success-box" style="margin-bottom:8px">'+msg+'</div>';setTimeout(function(){if(d)d.innerHTML='';},4000);}
+}
+function _ctOpErro(msg){
+  var d=ge('ct-alertas');if(d){d.innerHTML='<div class="warn-box" style="margin-bottom:8px">'+msg+'</div>';setTimeout(function(){if(d)d.innerHTML='';},5000);}
+}
+function _vrOpOk(msg){
+  var d=ge('vr-alertas');if(d){d.innerHTML='<div class="success-box" style="margin-bottom:8px">'+msg+'</div>';setTimeout(function(){if(d)d.innerHTML='';},4000);}
+}
+function _vrOpErro(msg){
+  var d=ge('vr-alertas');if(d){d.innerHTML='<div class="warn-box" style="margin-bottom:8px">'+msg+'</div>';setTimeout(function(){if(d)d.innerHTML='';},5000);}
+}
 
 function addOpcaoProduto(nome,valores){
   if(_prodOpcoes.length>=3){_prodErro('Máximo de 3 opções (ex: Cor, Tamanho, Modelo).');return;}
@@ -5254,7 +5275,11 @@ function updateOSStatus(id,status){
     }
   }
 }
-function deletarOS(id){if(!confirm('Excluir OS?'))return;saveOS(getOS().filter(function(o){return o.id!==id;}));renderOS();}
+function deletarOS(id){
+  var o=getOS().find(function(x){return x.id===id;});
+  var num=o?escHtml(o.num):'esta OS';
+  abrirDelFin('os:'+id,'Excluir OS '+num+'? Esta ação não pode ser desfeita.','⚠️ Excluir OS','btn btn-danger');
+}
 function verOS(id){
   var o=getOS().find(function(x){return x.id===id;});if(!o)return;
   var atrasada=o.previsao&&o.status!=='Concluído'&&o.status!=='Entregue'&&o.previsao<hoje();
@@ -5272,7 +5297,7 @@ function verOS(id){
   ge('modal-os-ver').className='modal-overlay open';
 }
 function enviarSatisfacao(id){
-  var o=getOS().find(function(x){return x.id===id;});if(!o||!o.cliente.wpp)return alert('Cliente sem WhatsApp cadastrado.');
+  var o=getOS().find(function(x){return x.id===id;});if(!o||!o.cliente.wpp){_osOpErro('Cliente sem WhatsApp cadastrado.');return;}
   var num=o.cliente.wpp.replace(/\D/g,'');
   var msg=encodeURIComponent('Olá, '+( o.cliente.nome||'')+'! 😊\n\nSeu pedido foi concluído. Ficou satisfeito com nosso atendimento e produto?\n\nAvalie de 1 a 5:\n⭐ 1 - Péssimo\n⭐⭐ 2 - Ruim\n⭐⭐⭐ 3 - Regular\n⭐⭐⭐⭐ 4 - Bom\n⭐⭐⭐⭐⭐ 5 - Excelente\n\nSua opinião é muito importante para nós! 🙏');
   window.open('https://wa.me/'+num+'?text='+msg,'_blank');
@@ -6186,7 +6211,7 @@ function atualizarPreviewGravacao(){
 
 function aplicarGravacao(){
   var r=window._gravacaoCalculada;
-  if(!r){alert('Calcule a gravação primeiro.');return;}
+  if(!r){_ctOpErro('Calcule a gravação primeiro.');return;}
   setVal('ct-custo-processo',r.porPeca.toFixed(2));
   // Se a quantidade do calculador é diferente da do orçamento, oferece sincronizar
   var qtdGrav=parseFloat(val('grav-qtd'))||0;
@@ -6631,21 +6656,21 @@ function limparTecidos(){
 
 function salvarOrcamentoTecidos(){
   var qtd=parseFloat(val('ct-qtd'))||0;
-  if(!qtd){alert('Informe a quantidade.');return;}
+  if(!qtd){_ctOpErro('Informe a quantidade.');return;}
   var tipoProd=val('ct-tipo-produto')||'tecidos';
   var usaArtes=CT_TIPOS[tipoProd]&&CT_TIPOS[tipoProd].usaArtes;
   var artes=getArtesTecido().filter(function(a){return a.nome&&a.largura>0&&a.altura>0;});
   // Só os tipos que usam arte (tecidos/DTF e adesivos) exigem arte cadastrada.
   // Canecas, impressão 3D e genéricos não dependem de arte — antes ficavam impossíveis de salvar.
   if(usaArtes&&!artes.length){
-    alert('Para '+(CT_TIPOS[tipoProd].label||'este tipo')+', adicione ao menos uma arte com nome, largura e altura.');
+    _ctOpErro('Para '+(CT_TIPOS[tipoProd].label||'este tipo')+', adicione ao menos uma arte com nome, largura e altura.');
     return;
   }
   // Para os demais tipos, valida se há algum custo informado (evita salvar orçamento vazio)
   if(!usaArtes){
     var temCusto=(parseFloat(val('ct-valor-peca'))||0)>0||getCustoInsumoEspecifico().custoProcesso>0;
     if(!temCusto){
-      alert('Informe ao menos o valor do insumo principal ou o custo do processo antes de salvar.');
+      _ctOpErro('Informe ao menos o valor do insumo principal ou o custo do processo antes de salvar.');
       return;
     }
   }
@@ -6698,14 +6723,14 @@ function salvarOrcamentoTecidos(){
   ge('ct-btn-duplicar').style.display='inline-flex';
   renderHistTecidos();
   var nomeTipo=(CT_TIPOS[tipoProd]&&CT_TIPOS[tipoProd].label)?CT_TIPOS[tipoProd].label:'orçamento';
-  alert('✅ Orçamento salvo! ('+nomeTipo+')');
+  _ctOpOk('✅ Orçamento salvo! ('+nomeTipo+')');
 }
 
 function duplicarOrcamentoTecidos(){
   var editId=val('ct-edit-id');
-  if(!editId){alert('Salve o orçamento primeiro antes de duplicar.');return;}
+  if(!editId){_ctOpErro('Salve o orçamento primeiro antes de duplicar.');return;}
   ge('ct-edit-id').value='';ge('ct-btn-duplicar').style.display='none';
-  alert('✅ Pronto para salvar como novo orçamento — ajuste o que precisar e clique em Salvar.');
+  _ctOpOk('✅ Pronto para salvar como novo orçamento — ajuste o que precisar e clique em Salvar.');
 }
 
 function carregarOrcamentoTecidos(id){
@@ -6772,10 +6797,9 @@ function carregarOrcamentoTecidos(id){
 }
 
 function excluirOrcamentoTecidos(id){
-  if(!confirm('Excluir este orçamento de tecidos?'))return;
-  saveHistTecidos(getHistTecidos().filter(function(h){return h.id!==id;}));
-  if(val('ct-edit-id')===id)limparTecidos();
-  renderHistTecidos();
+  var h=getHistTecidos().find(function(x){return x.id===id;});
+  var nome=h?(escHtml(h.produto||h.cliente||'este orçamento')):'este orçamento';
+  abrirDelFin('orcamento-ct:'+id,'Excluir orçamento "'+nome+'"? Esta ação não pode ser desfeita.','⚠️ Excluir orçamento','btn btn-danger');
 }
 
 function renderHistTecidos(){
@@ -6808,7 +6832,7 @@ function renderHistTecidos(){
 function exportarPDFTecidos(){
   calcularTecidos();
   var r=window._ctResultado;
-  if(!r||!r.qtd){alert('Preencha o orçamento antes de exportar.');return;}
+  if(!r||!r.qtd){_ctOpErro('Preencha o orçamento antes de exportar.');return;}
   var cfg=getCfg();
   var artes=getArtesTecido().filter(function(a){return a.nome;});
   var clienteNome=val('ct-cliente')||'Cliente';
@@ -6840,14 +6864,14 @@ function exportarPDFTecidos(){
     '<div class="footer">Gerado em '+new Date().toLocaleString('pt-BR')+(cfg.tel?' · '+cfg.tel:'')+(cfg.email?' · '+cfg.email:'')+'</div>'+
   '</div></body></html>';
   var w=window.open('','_blank');
-  if(!w){alert('Seu navegador bloqueou a abertura da janela. Permita pop-ups.');return;}
+  if(!w){_ctOpErro('Seu navegador bloqueou a abertura da janela. Permita pop-ups e tente novamente.');return;}
   w.document.write(html);w.document.close();
 }
 
 function compartilharTecidosWpp(){
   calcularTecidos();
   var r=window._ctResultado;
-  if(!r||!r.qtd){alert('Preencha o orçamento antes de compartilhar.');return;}
+  if(!r||!r.qtd){_ctOpErro('Preencha o orçamento antes de compartilhar.');return;}
   var clienteNome=val('ct-cliente')||'Cliente';
   var produtoNome=val('ct-produto')||'produto';
   var msg='Olá, '+clienteNome+'! 👋\n\nOrçamento: *'+produtoNome+'*\nQuantidade: '+r.qtd+' un.\nValor por unidade: '+fmt(r.precoRecomendado)+'\nValor total: *'+fmt(r.precoRecomendado*r.qtd)+'*\n\nQualquer dúvida, estou à disposição!';
@@ -7491,8 +7515,8 @@ function gerarContasReceberVendaRapida(venda,totalVenda){
 function salvarVendaRapida(){
   var data=val('vr-data');
   var itens=getVendaRapidaItens().filter(function(it){return it.desc&&it.qty>0;});
-  if(!data){alert('Informe a data da venda.');return;}
-  if(!itens.length){alert('Adicione ao menos um item com nome e quantidade.');return;}
+  if(!data){_vrOpErro('Informe a data da venda.');return;}
+  if(!itens.length){_vrOpErro('Adicione ao menos um item com nome e quantidade.');return;}
 
   var custoTotal=itens.reduce(function(a,it){return a+it.custo;},0);
   var forma=val('vr-forma-pgto');
@@ -7566,7 +7590,7 @@ function salvarVendaRapida(){
 
   limparVendaRapida();
   renderVendasRapidas();
-  alert('✅ Venda registrada! Estoque, receita e indicadores já foram atualizados automaticamente.');
+  _vrOpOk('✅ Venda registrada! Estoque, receita e indicadores já foram atualizados automaticamente.');
 }
 
 function renderVendasRapidas(){
@@ -7607,7 +7631,7 @@ function editarVendaRapida(id){
   deletarVendaRapida(id,true);
 }
 function deletarVendaRapida(id,silencioso){
-  if(!silencioso&&!confirm('Excluir esta venda? Isso reverte a entrada no estoque e remove contas a receber associadas.'))return;
+  if(!silencioso){abrirDelFin('venda-rapida:'+id,'Excluir esta venda? Isso reverte a entrada no estoque e remove contas a receber associadas.','⚠️ Excluir venda','btn btn-danger');return;}
   var hist=getHist();
   var venda=hist.find(function(h){return h.id===id;});
   if(venda){
@@ -7731,6 +7755,19 @@ function confirmarDelFin(){
   } else if(raw.startsWith('produto:')){
     var id=raw.replace('produto:','');
     saveProdutos(getProdutos().filter(function(p){return p.id!==id;}));renderProdutos();
+  } else if(raw.startsWith('os:')){
+    var id=raw.replace('os:','');
+    saveOS(getOS().filter(function(o){return o.id!==id;}));renderOS();
+    _osOpOk('✅ OS excluída.');
+  } else if(raw.startsWith('venda-rapida:')){
+    var id=raw.replace('venda-rapida:','');
+    deletarVendaRapida(id,true);// silencioso=true, a confirmação já foi feita
+  } else if(raw.startsWith('orcamento-ct:')){
+    var id=raw.replace('orcamento-ct:','');
+    saveHistTecidos(getHistTecidos().filter(function(h){return h.id!==id;}));
+    if(val('ct-edit-id')===id)limparTecidos();
+    renderHistTecidos();
+    _ctOpOk('✅ Orçamento excluído.');
   } else if(raw.startsWith('orcamento:')){
     var id=raw.replace('orcamento:','');
     saveHist(getHist().filter(function(h){return h.id!==id;}));renderHist();
@@ -7914,7 +7951,7 @@ function gerarReciboPagamento(contaId){
   '</body></html>';
 
   var w=window.open('','_blank');
-  if(!w){alert('Seu navegador bloqueou a abertura da janela. Permita pop-ups para gerar o recibo.');return;}
+  if(!w){_vrOpErro('Seu navegador bloqueou a abertura da janela. Permita pop-ups para gerar o recibo.');return;}
   w.document.write(html);
   w.document.close();
 }
