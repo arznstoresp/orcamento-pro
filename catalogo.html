@@ -177,18 +177,26 @@ input:hover,textarea:hover{border-color:var(--line-2)}
 .draft-btn { flex:1; min-width:0; font-size:11px; padding:5px 8px; border:1.5px solid var(--line-2); border-radius:8px; background:transparent; cursor:pointer; color:var(--fg); transition:border-color .15s; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .draft-btn:hover { border-color:#555; }
 .draft-btn.has-draft { border-color:var(--orange); color:var(--orange-ink); }
-.draft-actions { display:flex; gap:4px; }
+.draft-btn.selected { border-color:var(--orange-ink); background:rgba(209,66,3,.15); color:var(--orange-ink); font-weight:700; }
+.draft-actions { display:flex; gap:4px; flex-wrap:wrap; }
 
 /* accent color */
-.accent-row { display:flex; align-items:center; gap:10px; margin-top:10px; }
-.accent-row label { font-size:12px; color:var(--mute); font-weight:700; }
-.accent-picker { width:36px; height:36px; border:none; border-radius:8px; cursor:pointer; padding:2px; background:transparent; }
+.accent-row { display:flex; align-items:center; gap:10px; margin-top:12px; background:var(--panel-2); border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+.accent-row .accent-info { flex:1; min-width:0; }
+.accent-row .accent-info strong { display:block; font-size:12px; font-weight:700; color:var(--text); }
+.accent-row .accent-info span { font-size:11px; color:var(--mute); }
+.accent-picker { width:32px; height:32px; border:2px solid var(--line-2); border-radius:8px; cursor:pointer; padding:2px; background:transparent; flex:none; }
 .accent-reset { font-size:11px; }
+/* logo slot upload button */
+.logo-slot-upload { font-size:10px; padding:3px 10px; background:var(--orange); border:none; border-radius:6px; color:#fff; cursor:pointer; font-weight:700; margin-top:4px; }
+.logo-slot-upload:hover { background:#e24a06; }
 
 /* options row */
-.options-row { display:flex; gap:12px; flex-wrap:wrap; margin-top:10px; align-items:center; }
-.option-check { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--mute); cursor:pointer; user-select:none; }
-.option-check input { width:15px; height:15px; accent-color:var(--orange); cursor:pointer; }
+.options-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+.option-check { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--mute); cursor:pointer; user-select:none; background:var(--panel-2); border:1px solid var(--line); border-radius:8px; padding:8px 10px; transition:border-color .15s; }
+.option-check:hover { border-color:var(--line-2); color:var(--text); }
+.option-check input { width:15px; height:15px; accent-color:var(--orange); cursor:pointer; flex:none; }
+.option-check:has(input:checked) { border-color:var(--orange); color:var(--orange-ink); }
 
 /* drag handle */
 .drag-handle { cursor:grab; padding:0 4px; color:var(--mute); font-size:16px; line-height:1; touch-action:none; }
@@ -258,9 +266,12 @@ input:hover,textarea:hover{border-color:var(--line-2)}
       </div>
       <!-- accent color -->
       <div class="accent-row">
-        <label for="accentPicker">Cor de destaque</label>
+        <div class="accent-info">
+          <strong>Cor de destaque</strong>
+          <span>Aplica-se a preços, bordas e botões do catálogo. Deixe em branco para usar a cor do tema selecionado.</span>
+        </div>
         <input type="color" id="accentPicker" class="accent-picker" title="Escolher cor de destaque">
-        <button class="btn accent-reset" id="btnAccentReset" type="button">Padrão do tema</button>
+        <button class="btn accent-reset" id="btnAccentReset" type="button">Padrão</button>
       </div>
       <!-- options -->
       <div class="options-row">
@@ -288,27 +299,23 @@ input:hover,textarea:hover{border-color:var(--line-2)}
     <!-- step 2: produtos -->
     <div class="step-label" style="margin-bottom:0;padding:0 0 10px"><div class="step-num">2</div><h2>Produtos</h2></div>
 
-    <!-- auto-import banner -->
-    <div class="block" id="importBanner" style="border-color:var(--orange);background:#1a0f08">
-      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-        <div style="flex:1;min-width:0">
-          <div style="font-size:14px;font-weight:700;margin-bottom:2px">Importar do Orçamento Pro</div>
-          <div class="hint">Usa os produtos já cadastrados — sem precisar adicionar tudo de novo.</div>
-        </div>
-        <button class="btn primary" id="btnImportOrcpro" type="button">Importar produtos</button>
+    <!-- auto-import banner + drop zone side by side -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:stretch">
+      <div class="block" id="importBanner" style="border-color:var(--orange);background:#1a0f08;display:flex;flex-direction:column;gap:10px">
+        <div style="font-size:13px;font-weight:700">📦 Importar do Orçamento Pro</div>
+        <div class="hint" style="flex:1">Usa os produtos já cadastrados — sem precisar adicionar tudo de novo.</div>
+        <button class="btn primary" id="btnImportOrcpro" type="button" style="width:100%">Importar produtos</button>
+        <div id="importInfo" style="font-size:12px;color:var(--mute);display:none"></div>
       </div>
-      <div id="importInfo" style="margin-top:10px;font-size:12px;color:var(--mute);display:none"></div>
-    </div>
 
-    <div id="drop" class="drop" tabindex="0" role="button" aria-label="Adicionar fotos ou PDFs" style="padding:16px 16px">
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center">
+      <div id="drop" class="drop" tabindex="0" role="button" aria-label="Adicionar fotos ou PDFs" style="margin:0;padding:16px 12px;display:flex;flex-direction:column;gap:8px;justify-content:center;align-items:center;text-align:center">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:24px;height:24px;flex:none"><path d="M12 16V4m0 0l-4 4m4-4l4 4"/><path d="M4 15v3a2 2 0 002 2h12a2 2 0 002-2v-3"/></svg>
-        <div style="text-align:left">
-          <strong style="font-size:14px">Ou adicione fotos manualmente</strong>
-          <span style="display:block;font-size:12px;color:var(--mute)">Arraste fotos/PDFs ou <u style="cursor:pointer" id="btnPickInline">escolha arquivos</u></span>
+        <div>
+          <strong style="font-size:13px">Adicionar fotos manualmente</strong>
+          <span style="display:block;font-size:12px;color:var(--mute);margin-top:4px">Arraste fotos/PDFs ou <u style="cursor:pointer" id="btnPickInline">escolha arquivos</u></span>
         </div>
+        <input id="file" type="file" accept="image/*,application/pdf" multiple hidden>
       </div>
-      <input id="file" type="file" accept="image/*,application/pdf" multiple hidden>
     </div>
 
     <div class="block">
@@ -321,7 +328,7 @@ input:hover,textarea:hover{border-color:var(--line-2)}
 
     <div class="block">
       <div class="block-head">
-        <div class="step-label" style="margin-bottom:0"><div class="step-num">3</div><h2>Lista de produtos</h2></div><span class="hint" id="count"></span><span class="sp"></span>
+        <div class="step-label" style="margin-bottom:0"><div class="step-num">3</div><h2>Seus produtos</h2></div><span class="hint" id="count"></span><span class="sp"></span>
         <button class="btn small" id="btnSuggestAll" type="button" hidden>Sugerir textos com Claude</button>
         <button class="btn small" id="btnBlank" type="button">+ Produto</button>
       </div>
@@ -329,7 +336,7 @@ input:hover,textarea:hover{border-color:var(--line-2)}
     </div>
 
     <details class="block" open id="capaBlock">
-      <summary><span class="step-num" style="display:inline-grid;place-items:center;width:22px;height:22px;font-size:10px;border-radius:50%;background:var(--orange);color:#fff;margin-right:8px;vertical-align:middle">5</span>Textos da capa, fechamento e contato</summary>
+      <summary><span class="step-num" style="margin-right:8px;vertical-align:middle;display:inline-grid">5</span>Textos da capa, fechamento e contato</summary>
       <div class="stack">
         <label><span>Modelo de texto <small>preenche capa e fechamento, você pode ajustar depois</small></span>
           <select id="s-preset">
@@ -360,13 +367,9 @@ input:hover,textarea:hover{border-color:var(--line-2)}
       <span class="preview-title">Prévia ao vivo</span>
       <span class="slide-counter" id="slideCounter"></span>
     </div>
-    <div class="export-bar" style="margin-bottom:16px">
-      <div class="exp-info">
-        <strong>Exportar catálogo</strong>
-        <span>PPTX editável no Canva ou PDF direto</span>
-      </div>
-      <button class="btn" id="btnExportPdf2" type="button">Baixar PDF</button>
-      <button class="btn primary" id="btnExport2" type="button">Baixar PPTX</button>
+    <div class="preview-export-row" style="display:flex;gap:8px;margin-bottom:12px">
+      <button class="btn" id="btnExportPdf2" type="button" style="flex:1">⬇ PDF</button>
+      <button class="btn primary" id="btnExport2" type="button" style="flex:1">⬇ PPTX</button>
     </div>
     <div id="slides-empty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-height:200px;color:var(--mute);text-align:center;padding:20px;border:1px dashed var(--line);border-radius:10px">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:40px;height:40px;opacity:.4"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
@@ -412,16 +415,16 @@ var PRESETS = {
     closing:{title:"Seu time merece\nvestir essa camisa.", text:"Cuidamos de cada detalhe, do orçamento à entrega, para o uniforme chegar exatamente como você imaginou."}
   }
 };
-var S = { client:{name:"",cnpj:""}, products:[], theme:"dark", logo2:"", activeLogo:1, accentColor:"", pageNums:false, twoCol:false, showQR:false, catSep:false };
+var S = { client:{name:"",cnpj:""}, products:[], theme:"dark", logo1:"", logo2:"", activeLogo:1, accentColor:"", pageNums:false, twoCol:false, showQR:false, catSep:false };
 var _qrDataUrl = "";
 S.seller = Object.assign({}, DEFAULTS.seller);
 S.cover = Object.assign({}, DEFAULTS.cover);
 S.closing = Object.assign({}, DEFAULTS.closing);
 try{
   var saved = JSON.parse(localStorage.getItem(STORE)||"null");
-  if(saved){ ["seller","cover","closing"].forEach(function(k){ if(saved[k]) Object.assign(S[k], saved[k]); }); if(saved.theme) S.theme=saved.theme; if(saved.logo2) S.logo2=saved.logo2; if(saved.activeLogo) S.activeLogo=saved.activeLogo; if(saved.accentColor) S.accentColor=saved.accentColor; if(saved.pageNums!=null) S.pageNums=saved.pageNums; if(saved.twoCol!=null) S.twoCol=saved.twoCol; if(saved.showQR!=null) S.showQR=saved.showQR; if(saved.catSep!=null) S.catSep=saved.catSep; }
+  if(saved){ ["seller","cover","closing"].forEach(function(k){ if(saved[k]) Object.assign(S[k], saved[k]); }); if(saved.theme) S.theme=saved.theme; if(saved.logo1) S.logo1=saved.logo1; if(saved.logo2) S.logo2=saved.logo2; if(saved.activeLogo) S.activeLogo=saved.activeLogo; if(saved.accentColor) S.accentColor=saved.accentColor; if(saved.pageNums!=null) S.pageNums=saved.pageNums; if(saved.twoCol!=null) S.twoCol=saved.twoCol; if(saved.showQR!=null) S.showQR=saved.showQR; if(saved.catSep!=null) S.catSep=saved.catSep; }
 }catch(e){}
-function saveSettings(){ try{ localStorage.setItem(STORE, JSON.stringify({seller:S.seller,cover:S.cover,closing:S.closing,theme:S.theme,logo2:S.logo2,activeLogo:S.activeLogo,accentColor:S.accentColor,pageNums:S.pageNums,twoCol:S.twoCol,showQR:S.showQR,catSep:S.catSep})); }catch(e){} }
+function saveSettings(){ try{ localStorage.setItem(STORE, JSON.stringify({seller:S.seller,cover:S.cover,closing:S.closing,theme:S.theme,logo1:S.logo1,logo2:S.logo2,activeLogo:S.activeLogo,accentColor:S.accentColor,pageNums:S.pageNums,twoCol:S.twoCol,showQR:S.showQR,catSep:S.catSep})); }catch(e){} }
 function generateQR(){
   _qrDataUrl="";
   var tel=(S.seller&&S.seller.tel||"").trim();
@@ -511,7 +514,7 @@ function buildSlides(S){
   };
   var TH = Object.assign({}, THEMES[S.theme] || THEMES.dark);
   if(S.accentColor) TH.accent = S.accentColor.replace(/^#/,"");
-  function getActiveLogo(){ return (S.activeLogo===2 && S.logo2) ? S.logo2 : LOGO; }
+  function getActiveLogo(){ if(S.activeLogo===2 && S.logo2) return S.logo2; if(S.activeLogo===1 && S.logo1) return S.logo1; return LOGO; }
 
   var P=S.products, N=P.length, out=[], sel=S.seller;
   var qrEnabled = !!(S.showQR && (sel.tel||"").trim());
@@ -859,7 +862,7 @@ async function exportPPTX(){
 }
 
 /* ---------- exportar PDF ---------- */
-var PDF_DPI = 144, PXPT = PDF_DPI/72, PDF_W = Math.round(W*PDF_DPI), PDF_H = Math.round(H*PDF_DPI);
+var PDF_DPI = 192, PXPT = PDF_DPI/72, PDF_W = Math.round(W*PDF_DPI), PDF_H = Math.round(H*PDF_DPI);
 var pdfStage = null;
 function stage(){
   if(pdfStage) return pdfStage;
@@ -905,7 +908,7 @@ async function slideCanvas(sd){
   el.innerHTML=sd.els.map(elPX).join("");
   await waitImages(el);
   await new Promise(function(r){ requestAnimationFrame(function(){ requestAnimationFrame(r); }); });
-  return html2canvas(el,{width:PDF_W,height:PDF_H,scale:2,backgroundColor:"#"+sd.bg,useCORS:true,logging:false});
+  return html2canvas(el,{width:PDF_W,height:PDF_H,scale:3,backgroundColor:"#"+sd.bg,useCORS:true,logging:false});
 }
 async function exportPDF(){
   if(!S.products.length){ setStatus("Adicione pelo menos um produto.","err"); return; }
@@ -925,7 +928,7 @@ async function exportPDF(){
       setStatus("Montando o PDF… ("+(i+1)+"/"+slides.length+")","",true);
       if(progressBar) progressBar.style.width=Math.round((i/slides.length)*100)+"%";
       var cv=await slideCanvas(slides[i]);
-      var data=cv.toDataURL("image/jpeg",0.95);
+      var data=cv.toDataURL("image/jpeg",0.98);
       if(i>0) doc.addPage([W,H],"landscape");
       doc.addImage(data,"JPEG",0,0,W,H,undefined,"NONE");
     }
@@ -983,7 +986,7 @@ function scaled(cv,max,q){
   return {url:o.toDataURL("image/jpeg",q),w:o.width,h:o.height};
 }
 function versions(cv){
-  var big=scaled(cv,1500,0.9), small=scaled(cv,800,0.8);
+  var big=scaled(cv,2000,0.95), small=scaled(cv,1000,0.9);
   return {img:big.url,prev:small.url,iw:big.w,ih:big.h};
 }
 async function processPhoto(file){
@@ -1252,12 +1255,20 @@ $("btnSuggestAll").addEventListener("click",function(){ suggest(S.products.map(f
 /* ---------- eventos gerais ---------- */
 
 /* ---------- theme ---------- */
+function applyThemeLogoFilter(){
+  var logo=$("brandLogo");
+  if(!logo) return;
+  // light theme has white background — invert dark logo for contrast
+  logo.style.filter = (S.theme==="light") ? "brightness(0)" : "";
+}
 document.getElementById("themeRow").addEventListener("click",function(ev){
   var btn=ev.target.closest("[data-theme]"); if(!btn) return;
   S.theme=btn.dataset.theme;
   Array.prototype.forEach.call(document.querySelectorAll("[data-theme]"),function(b){ b.classList.toggle("active", b===btn); });
+  applyThemeLogoFilter();
   saveSettings(); schedule();
 });
+applyThemeLogoFilter();
 
 /* ---------- accent color ---------- */
 (function(){
@@ -1298,7 +1309,7 @@ document.getElementById("themeRow").addEventListener("click",function(ev){
     if(!activeSlot){ setStatus("Selecione um slot primeiro.","err"); return; }
     var name=window.prompt("Nome do rascunho (slot "+activeSlot+"):","Rascunho "+activeSlot); if(!name) return;
     var data=JSON.parse(JSON.stringify(S)); data._name=name.trim().slice(0,40);
-    try{ localStorage.setItem(draftKey(activeSlot),JSON.stringify(data)); loadDraftMeta(); setStatus("Rascunho ""+name+"" salvo.","ok"); }catch(e){ setStatus("Não consegui salvar o rascunho.","err"); }
+    try{ localStorage.setItem(draftKey(activeSlot),JSON.stringify(data)); loadDraftMeta(); setStatus('Rascunho "'+name+'" salvo.',"ok"); }catch(e){ setStatus("Não consegui salvar o rascunho.","err"); }
   }
   function doLoad(){
     if(!activeSlot){ setStatus("Selecione um slot primeiro.","err"); return; }
@@ -1323,8 +1334,8 @@ document.getElementById("themeRow").addEventListener("click",function(ev){
       var o2=document.getElementById("opt2Col"); if(o2) o2.checked=!!S.twoCol;
       var thsaved=S.theme||"dark";
       Array.prototype.forEach.call(document.querySelectorAll("[data-theme]"),function(b){ b.classList.toggle("active",b.dataset.theme===thsaved); });
-      saveSettings(); renderList(); schedule();
-      setStatus("Rascunho ""+name2+"" carregado.","ok");
+      saveSettings(); renderList(); updateLogoUI(); applyThemeLogoFilter(); schedule();
+      setStatus('Rascunho "'+name2+'" carregado.',"ok");
     }catch(e){ setStatus("Não consegui carregar o rascunho.","err"); }
   }
   function doDelete(){
@@ -1423,10 +1434,16 @@ document.getElementById("themeRow").addEventListener("click",function(ev){
     var act1=$("logoActions1"), act2=$("logoActions2");
     slot1.classList.toggle("active-logo", S.activeLogo===1);
     slot2.classList.toggle("active-logo", S.activeLogo===2);
-    // slot1 always has builtin logo
-    prev1.src=LOGO; prev1.style.display="block";
-    lbl1.innerHTML='Logo Principal<br><small style="font-weight:400;opacity:.7">padrão ArznStore</small>';
-    act1.style.display="none";
+    // slot1: custom upload or built-in LOGO
+    if(S.logo1){
+      prev1.src=S.logo1; prev1.style.display="block";
+      lbl1.innerHTML='Logo Principal<br><small style="font-weight:400;opacity:.7">clique para trocar</small>';
+      act1.style.display="flex";
+    } else {
+      prev1.src=LOGO; prev1.style.display="block";
+      lbl1.innerHTML='Logo Principal<br><small style="font-weight:400;opacity:.7">clique para adicionar logo próprio</small>';
+      act1.style.display="none";
+    }
     if(S.logo2){
       prev2.src=S.logo2; prev2.style.display="block";
       lbl2.innerHTML='Logo Alternativo<br><small style="font-weight:400;opacity:.7">clique para trocar</small>';
@@ -1436,14 +1453,22 @@ document.getElementById("themeRow").addEventListener("click",function(ev){
       lbl2.innerHTML='Logo Alternativo<br><small style="font-weight:400;opacity:.7">clique para adicionar</small>';
       act2.style.display="none";
     }
-    $("brandLogo").src=(S.activeLogo===2&&S.logo2)?S.logo2:LOGO;
+    $("brandLogo").src=getActiveLogo();
+    if(typeof applyThemeLogoFilter==="function") applyThemeLogoFilter();
   }
-  // slot1 click = set active logo 1
+  // slot1 click = upload custom or set active
   $("logoSlot1").addEventListener("click",function(e){
     if(e.target.closest("button")) return;
-    S.activeLogo=1; saveSettings(); updateLogoUI(); schedule();
+    if(!S.logo1){ $("logoFile1").click(); } else { S.activeLogo=1; saveSettings(); updateLogoUI(); schedule(); }
   });
-  $("logoSlot1").addEventListener("keydown",function(e){ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); S.activeLogo=1; saveSettings(); updateLogoUI(); schedule(); } });
+  $("logoSlot1").addEventListener("keydown",function(e){ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); if(!S.logo1) $("logoFile1").click(); else { S.activeLogo=1; saveSettings(); updateLogoUI(); schedule(); } } });
+  $("logoFile1").addEventListener("change",function(){
+    var f=this.files[0]; if(!f) return;
+    var rd=new FileReader(); rd.onload=function(ev){ S.logo1=ev.target.result; S.activeLogo=1; saveSettings(); updateLogoUI(); schedule(); }; rd.readAsDataURL(f); this.value="";
+  });
+  $("logoClear1").addEventListener("click",function(e){
+    e.stopPropagation(); S.logo1=""; if(S.activeLogo===1) S.activeLogo=1; saveSettings(); updateLogoUI(); schedule();
+  });
   // slot2 click = upload or set active
   $("logoSlot2").addEventListener("click",function(e){
     if(e.target.closest("button")) return;
