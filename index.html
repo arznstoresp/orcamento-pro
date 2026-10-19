@@ -617,18 +617,6 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
       <div id="dash-alertas"></div>
       <!-- Saudação + resumo do dia -->
       <div id="dash-saudacao" style="margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px"></div>
-      <!-- Ações Rápidas -->
-      <div id="dash-acoes-rapidas" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-bottom:14px">
-        <button class="btn" style="display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;padding:10px 8px;white-space:nowrap" onclick="showView('form')">
-          <span style="font-size:16px">📝</span> Novo Orçamento
-        </button>
-        <button class="btn btn-out" style="display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;padding:10px 8px;white-space:nowrap" onclick="showView('os')">
-          <span style="font-size:16px">🔧</span> Nova OS
-        </button>
-        <button class="btn btn-out" style="display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;padding:10px 8px;white-space:nowrap" onclick="showView('venda-rapida')">
-          <span style="font-size:16px">⚡</span> Venda Rápida
-        </button>
-      </div>
       <div class="dash-grid" id="dash-kpis"></div>
       <div style="margin-bottom:14px" id="dash-meta-wrap"></div>
 
@@ -9205,9 +9193,8 @@ function _renderSaudacaoDash(){
   var hist=getHist(),hoje2=hoje(),mes=hoje2.substring(0,7);
   var pendHoje=hist.filter(function(h){return (h.status==='Aguardando aprovação'||h.status==='Em revisão');}).length;
   var fatMes=0;hist.forEach(function(h){if(h.status==='Aprovado'&&(h.data||'').substring(0,7)===mes)fatMes+=calcHistTotal(h);});
-  var resumo='<span style="font-size:12px;color:var(--dark-text2)">'+
-    (pendHoje>0?'<span style="color:#fbbf24">⏳ '+pendHoje+' aguardando</span> · ':'')+'Faturado: <b style="color:var(--dark-green)">'+fmt(fatMes)+'</b></span>';
-  el.innerHTML='<div><span style="font-size:15px;font-weight:700;color:var(--dark-text)">'+saud+(nome?', '+nome:'')+'!</span><br>'+resumo+'</div>'+
+  var resumo=pendHoje>0?'<span style="font-size:12px;color:var(--dark-text2)"><span style="color:#fbbf24">⏳ '+pendHoje+' aguardando aprovação</span></span>':'';
+  el.innerHTML='<div><span style="font-size:15px;font-weight:700;color:var(--dark-text)">'+saud+(nome?', '+nome:'')+'!</span>'+(resumo?'<br>'+resumo:'')+'</div>'+
     '<button class="btn btn-sm btn-out" onclick="renderDash()" style="font-size:12px;padding:5px 12px;white-space:nowrap" title="Atualizar dashboard">🔄 Atualizar</button>';
 }
 
