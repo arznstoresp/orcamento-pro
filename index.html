@@ -675,7 +675,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
     <!-- VENDA RÁPIDA -->
     <div id="view-venda-rapida" style="display:none;min-height:100%">
       <div id="vr-alertas"></div>
-      <div class="info-box">⚡ Use esta tela para registrar vendas rápidas (Shopee, Mercado Livre, Balcão, Instagram) sem precisar montar um orçamento completo. A venda entra automaticamente na Receita, Estoque, MEI, DRE e demais cálculos do sistema — exatamente como um orçamento aprovado.</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.35);margin-bottom:10px;display:flex;align-items:center;gap:6px">⚡ Vendas de marketplace ou balcão — entram direto na Receita, Estoque e MEI. <span style="cursor:pointer;text-decoration:underline;color:rgba(255,255,255,.45)" title="Use esta tela para registrar vendas rápidas (Shopee, Mercado Livre, Balcão, Instagram) sem precisar montar um orçamento completo.">Saiba mais</span></div>
 
       <div class="card">
         <div class="card-title">Nova Venda Rápida</div>
@@ -704,7 +704,7 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
             </table>
           </div>
           <button class="add-row" onclick="addVendaRapidaItem()">＋ Adicionar item</button>
-          <button class="add-row" style="margin-top:5px;border-color:var(--brand);color:var(--brand)" onclick="openCatPickerVendaRapida()">📦 Inserir do catálogo</button>
+          <button class="btn btn-out" style="margin-top:8px;width:100%;border-color:var(--brand);color:var(--brand);font-size:13px;padding:9px" onclick="openCatPickerVendaRapida()">📦 Inserir do catálogo</button>
         </div>
 
         <div class="totals-box mt">
@@ -771,10 +771,13 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
           <div id="vr-parc-datas" class="mt"></div>
         </div>
 
-        <div class="mt"><label class="lbl">Observações</label><textarea id="vr-obs" style="min-height:44px" placeholder="Opcional..."></textarea></div>
+        <div class="mt">
+          <span onclick="this.style.display='none';document.getElementById('vr-obs-wrap').style.display='block'" id="vr-obs-toggle" style="font-size:12px;color:rgba(255,255,255,.4);cursor:pointer;user-select:none">＋ Adicionar observação</span>
+          <div id="vr-obs-wrap" style="display:none"><label class="lbl">Observações</label><textarea id="vr-obs" style="min-height:44px" placeholder="Opcional..."></textarea></div>
+        </div>
 
-        <div class="mt" style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-out" onclick="limparVendaRapida()">↺ Limpar</button>
+        <div class="mt" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-out" onclick="limparVendaRapida()" style="font-size:12px;padding:6px 12px;opacity:.6">↺ Limpar</button>
           <button class="btn btn-brand" onclick="salvarVendaRapida()">💾 Registrar Venda</button>
         </div>
       </div>
@@ -7536,6 +7539,9 @@ function limparVendaRapida(){
   toggleFormaPgtoVendaRapida();
   ge('vr-itens-body').innerHTML='';vrIid=0;
   addVendaRapidaItem();
+  var tog=ge('vr-obs-toggle'),wrap=ge('vr-obs-wrap');
+  if(tog)tog.style.display='';
+  if(wrap)wrap.style.display='none';
 }
 
 function gerarContasReceberVendaRapida(venda,totalVenda){
