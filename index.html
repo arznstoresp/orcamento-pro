@@ -1639,18 +1639,18 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
 
       <div class="card" id="card-nuvem">
         <div class="card-title">☁️ Sincronização em Nuvem <small style="font-size:11px;font-weight:400;color:rgba(255,255,255,.4);margin-left:6px">— acesse seus dados em qualquer aparelho</small></div>
-        <p style="font-size:13px;color:rgba(255,255,255,.5);margin-bottom:11px;line-height:1.6">Crie uma <strong style="color:rgba(255,255,255,.8)">Chave de Acesso</strong> (qualquer texto que só você sabe) e use a mesma chave em todos os seus dispositivos. Seus dados ficam salvos em nuvem e aparecem automaticamente em qualquer navegador ou celular.</p>
+        <p style="font-size:13px;color:rgba(255,255,255,.5);margin-bottom:11px;line-height:1.6">Seus dados são enviados automaticamente para a nuvem e aparecem em <strong style="color:rgba(255,255,255,.8)">qualquer navegador ou celular</strong> em que você entrar com o mesmo e-mail e senha. A chave abaixo é preenchida sozinha pelo seu login — não precisa mexer.</p>
         <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
           <div style="flex:1;min-width:200px">
-            <label class="lbl">Chave de Acesso <span class="lbl-hint">— ex: arznstore2025</span></label>
-            <input id="cfg-nuvem-chave" placeholder="Digite sua chave pessoal..." autocomplete="off" style="font-family:monospace;letter-spacing:.04em" oninput="autoSave()">
+            <label class="lbl">Chave de Acesso <span class="lbl-hint">— automática, vinda do seu login</span></label>
+            <input id="cfg-nuvem-chave" placeholder="Entre com seu login para ativar" autocomplete="off" style="font-family:monospace;letter-spacing:.04em" oninput="autoSave()">
           </div>
           <button class="btn btn-brand" onclick="ativarSyncNuvem()" title="Ativa a sincronização com esta chave">🔗 Ativar Sync</button>
           <button class="btn btn-out" onclick="sincronizarNuvemAgora()" id="btn-nuvem-sync" style="display:none" title="Envia todos os dados para a nuvem agora">☁️ Enviar agora</button>
           <button class="btn btn-out" onclick="baixarDaNuvem()" id="btn-nuvem-baixar" style="display:none" title="Baixa os dados salvos na nuvem">📥 Baixar nuvem</button>
         </div>
         <div id="nuvem-status" style="margin-top:8px;font-size:12px;min-height:18px"></div>
-        <div class="info-box mt" style="margin-bottom:0">💡 Use a <strong>mesma chave</strong> no celular, no trabalho e em casa. Seus orçamentos, clientes e produtos ficam sincronizados automaticamente. Se trocar de chave, os dados ficam sob a nova chave — a anterior continua na nuvem.</div>
+        <div class="info-box mt" style="margin-bottom:0">💡 Em um aparelho novo: entre com seu login e aguarde "Sincronizando…". <strong>Enviar agora</strong> sincroniza na hora; <strong>Baixar nuvem</strong> substitui os dados deste navegador pelos da nuvem (use só em aparelho novo ou vazio).</div>
       </div>
 
       <div class="card">
@@ -5591,7 +5591,7 @@ function checarNomeDuplicaVariacao(){
 function getMovEstoque(){try{return JSON.parse(localStorage.getItem('orcpro_mov_estoque')||'[]');}catch(e){return[];}}
 function saveMovEstoque(arr){
   if(arr.length>500)arr=arr.slice(-500);// manter histórico gerenciável
-  localStorage.setItem('orcpro_mov_estoque',JSON.stringify(arr));
+  gravarSeguro('orcpro_mov_estoque',JSON.stringify(arr),'movimentação de estoque');
 }
 function registrarMovEstoque(produtoId,produtoNome,tipo,qtd,motivo,refId){
   var mov=getMovEstoque();
@@ -11444,152 +11444,290 @@ function aplicarProtecaoAutofill(){
 })();
 
 // ═══════════════════════════════════════════════════
-// SYNC NUVEM — Supabase multi-dispositivo
+// SYNC NUVEM — Supabase multi-dispositivo (v2)
+// Regras: (1) sempre baixa/mescla ANTES de enviar; (2) navegador vazio adota a nuvem inteira;
+// (3) nunca envia lista/objeto vazio por cima de dado existente; (4) erros reais aparecem na tela.
 // ═══════════════════════════════════════════════════
 (function(){
   var SUPA_URL='https://edztcoebgllqrkrkormc.supabase.co';
   var SUPA_KEY='sb_publishable_s6MSdF0rhidpCpddqTzNRg_1ajwnxIc';
-  var CHAVE_KEY='orcpro_chave_nuvem';
-  var SYNC_TIPOS=['orcpro_emp','orcpro_produtos','orcpro_clientes','orcpro_hist','orcpro_os','orcpro_notas','orcpro_templates','orcpro_fornecedores','orcpro_maquinas','orcpro_receber','orcpro_rh','orcpro_precif_modelos','orcpro_ct_hist','orcpro_mov_estoque','orcpro_despesas','orcpro_custos','orcpro_canais','orcpro_funcs','orcpro_usuarios'];
+  var CHAVE_KEY='orcpro_chave_nuvem',META_KEY='orcpro_sync_meta',SESS_KEY='orcpro_auth_session';
+  var TIPOS=['orcpro_emp','orcpro_produtos','orcpro_clientes','orcpro_hist','orcpro_os','orcpro_notas','orcpro_templates','orcpro_fornecedores','orcpro_maquinas','orcpro_receber','orcpro_rh','orcpro_precif_modelos','orcpro_ct_hist','orcpro_mov_estoque','orcpro_despesas','orcpro_custos','orcpro_canais','orcpro_funcs','orcpro_usuarios','orcpro_ct_config','orcpro_pagar_pagas','orcpro_cnt','orcpro_os_cnt','orcpro_recibo_cnt','orcpro_logo'];
+  var RAW={orcpro_logo:1};
+  var CONTADORES={orcpro_cnt:1,orcpro_os_cnt:1,orcpro_recibo_cnt:1};
+  var SNAP_TIPOS=['orcpro_hist','orcpro_produtos','orcpro_clientes','orcpro_receber','orcpro_custos','orcpro_emp','orcpro_ct_config','orcpro_os','orcpro_ct_hist'];
+  var pronta=false,rodando=false,pendente=false,timer=null,ultimoCiclo=0,avisouErro=false;
 
   function getChave(){return localStorage.getItem(CHAVE_KEY)||'';}
+  function el(id){return document.getElementById(id);}
+  function hora(){return new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});}
+  function nuvemStatus(msg,cor){var e=el('nuvem-status');if(e){e.textContent=msg;e.style.color=cor||'rgba(255,255,255,.5)';}}
+  function sidebar(msg,cor){var e=el('sb-sync-status');if(!e)return;if(!msg){e.style.display='none';return;}e.style.display='';e.style.color=cor||'var(--yellow)';e.textContent=msg;}
 
-  function nuvemStatus(msg,cor){
-    var el=document.getElementById('nuvem-status');
-    if(el){el.textContent=msg;el.style.color=cor||'rgba(255,255,255,.5)';}
+  // ---- metadados locais (por tipo: último carimbo da nuvem visto e hash do que já foi enviado) ----
+  function getMeta(){try{return JSON.parse(localStorage.getItem(META_KEY)||'{}')||{};}catch(e){return{};}}
+  function saveMeta(m){try{localStorage.setItem(META_KEY,JSON.stringify(m));}catch(e){}}
+  function hash(s){if(s==null)return'';var h=5381,i=s.length;while(i)h=(h*33)^s.charCodeAt(--i);return s.length+':'+(h>>>0);}
+
+  // ---- leitura/escrita local ----
+  function rawLocal(tipo){return localStorage.getItem(tipo);}
+  function lerLocal(tipo){
+    var r=rawLocal(tipo);if(r===null)return undefined;
+    if(RAW[tipo])return{raw:r};
+    try{return JSON.parse(r);}catch(e){return undefined;}
   }
-
-  async function supaReq(method,path,body){
-    var opts={method:method,headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'}};
-    if(body)opts.body=JSON.stringify(body);
-    var r=await fetch(SUPA_URL+'/rest/v1/'+path,opts);
-    if(!r.ok){var t=await r.text();throw new Error('Supabase '+r.status+': '+t);}
-    var ct=r.headers.get('content-type')||'';
-    return ct.includes('json')&&r.status!==204?r.json():null;
+  function vazio(v,tipo){
+    if(v===undefined||v===null)return true;
+    if(Array.isArray(v))return v.length===0;
+    if(typeof v==='number')return v<=0;
+    if(typeof v==='object'){
+      if(tipo==='orcpro_logo')return !v.raw;
+      if(tipo==='orcpro_emp')return !v.nome;
+      var k=Object.keys(v).filter(function(x){return x!=='atualizadoEm';});
+      return k.length===0;
+    }
+    return false;
   }
-
-  window._supaSave=async function(tipo,dados){
-    var chave=getChave();if(!chave)return;
+  function gravarLocal(tipo,v){
     try{
-      await supaReq('POST','orcpro_dados',{chave:chave,tipo:tipo,dados:dados,atualizado_em:new Date().toISOString()});
-    }catch(e){console.warn('_supaSave falhou:',e);}
-  };
-
-  window._supaLoad=async function(tipo){
-    var chave=getChave();if(!chave)return null;
+      if(RAW[tipo])localStorage.setItem(tipo,v&&v.raw!=null?v.raw:'');
+      else if(CONTADORES[tipo])localStorage.setItem(tipo,String(v));
+      else localStorage.setItem(tipo,JSON.stringify(v));
+      return true;
+    }catch(e){console.warn('[Nuvem] não coube no armazenamento local:',tipo,e);return false;}
+  }
+  function mesclar(tipo,loc,rem){
     try{
-      var rows=await supaReq('GET','orcpro_dados?chave=eq.'+encodeURIComponent(chave)+'&tipo=eq.'+encodeURIComponent(tipo)+'&select=dados&limit=1',null);
-      return(rows&&rows.length)?rows[0].dados:null;
-    }catch(e){console.warn('_supaLoad falhou:',e);return null;}
-  };
-
-  window.ativarSyncNuvem=async function(){
-    var inp=document.getElementById('cfg-nuvem-chave');
-    var chave=(inp?inp.value:'').trim();
-    if(!chave){nuvemStatus('⚠️ Digite uma chave de acesso primeiro.','#f59e0b');return;}
-    localStorage.setItem(CHAVE_KEY,chave);
-    nuvemStatus('⏳ Verificando dados na nuvem…','#f59e0b');
-    var btnSync=document.getElementById('btn-nuvem-sync');
-    var btnBaixar=document.getElementById('btn-nuvem-baixar');
-    try{
-      // Tenta carregar orcpro_emp como teste
-      var empNuvem=await window._supaLoad('orcpro_emp');
-      if(empNuvem){
-        nuvemStatus('✅ Chave ativa — dados encontrados na nuvem!','#22c55e');
-        if(btnSync)btnSync.style.display='';if(btnBaixar)btnBaixar.style.display='';
-        await baixarDaNuvem();
-      } else {
-        nuvemStatus('✅ Chave ativa — enviando dados para a nuvem…','#22c55e');
-        if(btnSync)btnSync.style.display='';if(btnBaixar)btnBaixar.style.display='';
-        await sincronizarNuvemAgora();
+      if(tipo==='orcpro_emp')return deveAdotarRemoto(loc,rem)?rem:loc;
+      if(tipo==='orcpro_ct_config')return deveAdotarRemotoConfigTecidos(loc,rem)?rem:loc;
+      if(CONTADORES[tipo])return Math.max(+loc||0,+rem||0);
+      if(tipo==='orcpro_logo')return(loc&&loc.raw)?loc:rem;
+      if(Array.isArray(loc)&&Array.isArray(rem)){
+        var f=function(a){return a.filter(function(x){return x&&typeof x==='object';});};
+        if(f(loc).length!==loc.length||f(rem).length!==rem.length)return vazio(loc,tipo)?rem:loc;
+        return fundirRegistros(loc,rem,'id');
       }
-    }catch(e){nuvemStatus('❌ Erro: '+e.message,'#ef4444');}
+      if(loc&&rem&&typeof loc==='object'&&typeof rem==='object'&&!Array.isArray(loc)&&!Array.isArray(rem))return Object.assign({},rem,loc);
+    }catch(e){console.warn('[Nuvem] falha ao mesclar',tipo,e);}
+    return vazio(loc,tipo)?rem:loc;
+  }
+
+  // ---- rede ----
+  async function token(){
+    try{
+      var s=JSON.parse(localStorage.getItem(SESS_KEY)||'null');
+      if(!s||!s.access_token)return SUPA_KEY;
+      var exp=s.expires_at||0,agora=Math.floor(Date.now()/1000);
+      if(exp&&agora>exp-60&&s.refresh_token){
+        var r=await fetch(SUPA_URL+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{apikey:SUPA_KEY,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:s.refresh_token})});
+        if(r.ok){var n=await r.json();if(n&&n.access_token){localStorage.setItem(SESS_KEY,JSON.stringify(n));return n.access_token;}}
+        return SUPA_KEY;
+      }
+      return s.access_token;
+    }catch(e){return SUPA_KEY;}
+  }
+  async function supaReq(method,path,body,prefer,timeoutMs){
+    var tk=await token();
+    var ctl=new AbortController(),t=setTimeout(function(){ctl.abort();},timeoutMs||30000);
+    var h={apikey:SUPA_KEY,Authorization:'Bearer '+tk,'Content-Type':'application/json'};
+    if(prefer)h.Prefer=prefer;
+    try{
+      var r=await fetch(SUPA_URL+'/rest/v1/'+path,{method:method,headers:h,body:body?JSON.stringify(body):undefined,signal:ctl.signal});
+      if(!r.ok){var tx='';try{tx=await r.text();}catch(e){}throw new Error('Servidor respondeu '+r.status+(tx?' — '+tx.slice(0,180):''));}
+      var ct=r.headers.get('content-type')||'';
+      return(ct.indexOf('json')>=0&&r.status!==204)?await r.json():null;
+    }catch(e){
+      if(e&&e.name==='AbortError')throw new Error('Tempo esgotado ao falar com a nuvem');
+      throw e;
+    }finally{clearTimeout(t);}
+  }
+  async function nuvemIndice(){
+    var rows=await supaReq('GET','orcpro_dados?chave=eq.'+encodeURIComponent(getChave())+'&select=tipo,atualizado_em',null,null,20000);
+    var m={};(rows||[]).forEach(function(r){m[r.tipo]=r.atualizado_em||'1970-01-01T00:00:00Z';});return m;
+  }
+  async function nuvemLer(tipo){
+    var rows=await supaReq('GET','orcpro_dados?chave=eq.'+encodeURIComponent(getChave())+'&tipo=eq.'+encodeURIComponent(tipo)+'&select=dados&limit=1',null,null,60000);
+    return(rows&&rows.length)?rows[0].dados:undefined;
+  }
+  async function nuvemGravar(tipo,dados){
+    var ts=new Date().toISOString();
+    await supaReq('POST','orcpro_dados?on_conflict=chave,tipo',{chave:getChave(),tipo:tipo,dados:dados,atualizado_em:ts},'resolution=merge-duplicates,return=minimal',60000);
+    return ts;
+  }
+  // compatibilidade com chamadas antigas
+  window._supaSave=function(tipo,dados){return nuvemGravar(tipo,dados);};
+  window._supaLoad=function(tipo){return nuvemLer(tipo);};
+
+  // ---- ciclo: puxa, mescla e só então envia ----
+  async function ciclo(modo){
+    if(!getChave())return{ok:false,erro:'Faça login para sincronizar.'};
+    if(rodando){pendente=true;return{ok:true,ocupado:true};}
+    rodando=true;
+    var r={ok:true,enviados:0,baixados:0,mudou:false,erros:[]};
+    try{
+      var meta=getMeta(),uid=getChave();
+      if(meta.uid!==uid)meta={uid:uid,t:{}};
+      meta.t=meta.t||{};
+      var idx=await nuvemIndice();
+      pronta=true;
+      var novo=['orcpro_hist','orcpro_produtos','orcpro_clientes','orcpro_emp'].every(function(t){return vazio(lerLocal(t),t);})&&!Object.keys(meta.t).length;
+      for(var i=0;i<TIPOS.length;i++){
+        var tipo=TIPOS[i];
+        try{
+          var m=meta.t[tipo]||null,c=idx[tipo]||null;
+          var loc=lerLocal(tipo),locVazio=vazio(loc,tipo);
+          var h=hash(rawLocal(tipo));
+          var sujo=!m||m.h!==h;
+          var precisaEnviar=false;
+          if(c){
+            var cloudNovo=!m||Date.parse(c)>Date.parse(m.ts||0);
+            if(locVazio||novo){
+              var rem=await nuvemLer(tipo);
+              if(rem!==undefined&&!vazio(rem,tipo)){if(gravarLocal(tipo,rem)){r.baixados++;r.mudou=true;}}
+              meta.t[tipo]={ts:c,h:hash(rawLocal(tipo))};
+            }else if(cloudNovo&&(!m||sujo)){
+              var rem2=await nuvemLer(tipo);
+              var mer=(rem2===undefined||vazio(rem2,tipo))?loc:mesclar(tipo,loc,rem2);
+              if(JSON.stringify(mer)!==JSON.stringify(loc)){if(gravarLocal(tipo,mer)){r.baixados++;r.mudou=true;}}
+              precisaEnviar=true;
+            }else if(cloudNovo){
+              var rem3=await nuvemLer(tipo);
+              if(rem3!==undefined&&!vazio(rem3,tipo)){if(gravarLocal(tipo,rem3)){r.baixados++;r.mudou=true;}}
+              meta.t[tipo]={ts:c,h:hash(rawLocal(tipo))};
+            }else if(sujo){precisaEnviar=true;}
+          }else if(!locVazio){precisaEnviar=true;}
+          if(precisaEnviar){
+            var atual=lerLocal(tipo);
+            if(!vazio(atual,tipo)){
+              var ts=await nuvemGravar(tipo,atual);
+              meta.t[tipo]={ts:ts,h:hash(rawLocal(tipo))};r.enviados++;
+            }
+          }
+        }catch(e){r.erros.push(tipo.replace('orcpro_','')+': '+(e&&e.message||e));console.warn('[Nuvem] erro em',tipo,e);}
+        saveMeta(meta);
+      }
+      saveMeta(meta);
+      if(novo&&!Object.keys(idx).length)r.nuvemVazia=true;
+      if(r.erros.length)r.ok=false;
+      if(!r.erros.length)snapshots(meta).catch(function(){});
+    }catch(e){
+      r.ok=false;r.erros.push(e&&e.message||String(e));console.warn('[Nuvem] ciclo falhou:',e);
+    }finally{
+      rodando=false;ultimoCiclo=Date.now();
+    }
+    if(r.ok&&r.nuvemVazia){
+      sidebar('⚠️ Nuvem vazia','var(--yellow)');nuvemStatus('⚠️ Este navegador e a nuvem estão vazios para este usuário. Abra o app no navegador que tem seus dados e clique em "Enviar agora".','#f59e0b');
+      if(modo==='abrir'&&!avisouErro){avisouErro=true;setTimeout(function(){alert('⚠️ A nuvem está vazia para o seu usuário e este navegador também.\n\nAbra o app no navegador onde estão seus dados (ex.: Opera GX), entre com o mesmo login e clique em Minha Empresa → Sincronização em Nuvem → Enviar agora.');},300);}
+    }else if(r.ok){sidebar('✅ Sincronizado às '+hora(),'var(--green)');nuvemStatus('✅ Sincronizado às '+hora()+' — '+r.enviados+' enviado(s), '+r.baixados+' baixado(s).','#22c55e');}
+    else{
+      var msg=r.erros[0]||'erro desconhecido';
+      sidebar('⚠️ Falha no sync','var(--red)');nuvemStatus('❌ Falha ao sincronizar: '+msg+(r.erros.length>1?' (+'+(r.erros.length-1)+' erro(s))':''),'#ef4444');
+      if(modo==='abrir'&&!avisouErro){avisouErro=true;setTimeout(function(){alert('⚠️ Não consegui sincronizar com a nuvem agora.\n\n'+msg+'\n\nSeus dados locais continuam intactos. O app tentará de novo ao voltar para esta aba.');},300);}
+    }
+    if(pendente){pendente=false;agendar();}
+    return r;
+  }
+
+  // ---- cópias de segurança datadas na nuvem (falha silenciosa se a tabela não existir) ----
+  async function snapshots(meta){
+    var agora=Date.now();
+    if(meta.snapOffAte&&agora<meta.snapOffAte)return;
+    if(meta.snap&&agora-meta.snap<6*3600*1000)return;
+    try{
+      var rows=[];
+      SNAP_TIPOS.forEach(function(t){var v=lerLocal(t);if(!vazio(v,t))rows.push({chave:getChave(),tipo:t,dados:v});});
+      if(!rows.length)return;
+      await supaReq('POST','orcpro_dados_versoes',rows,'return=minimal',60000);
+      meta.snap=agora;
+      try{await supaReq('DELETE','orcpro_dados_versoes?chave=eq.'+encodeURIComponent(getChave())+'&criado_em=lt.'+encodeURIComponent(new Date(agora-30*86400000).toISOString()),null,null,20000);}catch(e){}
+    }catch(e){meta.snapOffAte=agora+24*3600*1000;}
+    saveMeta(meta);
+  }
+
+  function agendar(){
+    if(!pronta)return;
+    clearTimeout(timer);timer=setTimeout(function(){ciclo('rotina').then(avisoMudanca);},2500);
+  }
+  function avisoMudanca(r){
+    if(!r||!r.mudou||r.ocupado)return;
+    if(el('sync-banner'))return;
+    var b=document.createElement('div');b.id='sync-banner';
+    b.style.cssText='position:fixed;left:16px;bottom:16px;z-index:99998;background:#1d1d1d;border:1px solid #D14203;color:#fff;padding:10px 14px;border-radius:10px;font-size:13px;display:flex;gap:10px;align-items:center;box-shadow:0 6px 24px rgba(0,0,0,.5)';
+    b.innerHTML='<span>🔄 Dados atualizados de outro aparelho.</span><button style="background:#D14203;border:0;color:#fff;border-radius:6px;padding:5px 10px;cursor:pointer;font-weight:700">Recarregar</button>';
+    b.querySelector('button').onclick=function(){location.reload();};
+    document.body.appendChild(b);
+  }
+
+  // ---- API pública usada pelo app ----
+  window._nuvemSyncInicial=async function(){
+    if(!getChave())return{ok:false};
+    var ov=document.createElement('div');
+    ov.id='sync-overlay';
+    ov.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(10,10,10,.92);color:#fff;display:flex;align-items:center;justify-content:center;font:600 15px system-ui,sans-serif';
+    ov.textContent='☁️ Sincronizando com a nuvem…';
+    document.body.appendChild(ov);
+    try{return await ciclo('abrir');}
+    finally{if(ov.parentNode)ov.parentNode.removeChild(ov);}
   };
+  window._autoNuvemAoAbrir=function(){return ciclo('rotina').then(avisoMudanca);};
 
   window.sincronizarNuvemAgora=async function(){
-    var chave=getChave();
-    if(!chave){nuvemStatus('⚠️ Configure uma chave de acesso em Minha Empresa → Sincronização em Nuvem.','#f59e0b');return;}
-    nuvemStatus('⏳ Enviando para a nuvem…','#f59e0b');
-    var erros=0;
-    for(var i=0;i<SYNC_TIPOS.length;i++){
-      var tipo=SYNC_TIPOS[i];
-      var raw=localStorage.getItem(tipo);
-      if(raw===null)continue;
-      try{var dados=JSON.parse(raw);await window._supaSave(tipo,dados);}
-      catch(e){erros++;console.warn('Erro ao enviar '+tipo,e);}
-    }
-    if(erros===0)nuvemStatus('✅ Dados enviados — '+new Date().toLocaleTimeString('pt-BR'),'#22c55e');
-    else nuvemStatus('⚠️ Enviado com '+erros+' erro(s). Verifique o console.','#f59e0b');
+    if(!getChave()){nuvemStatus('⚠️ Faça login para sincronizar.','#f59e0b');return;}
+    nuvemStatus('⏳ Sincronizando…','#f59e0b');sidebar('🔄 Sincronizando…','var(--yellow)');
+    var r=await ciclo('manual');
+    if(r&&r.mudou)avisoMudanca(r);
   };
 
   window.baixarDaNuvem=async function(){
-    var chave=getChave();
-    if(!chave){nuvemStatus('⚠️ Configure uma chave de acesso em Minha Empresa → Sincronização em Nuvem.','#f59e0b');return;}
+    if(!getChave()){nuvemStatus('⚠️ Faça login para baixar da nuvem.','#f59e0b');return;}
+    if(!confirm('Isto SUBSTITUI os dados deste navegador pelos que estão na nuvem. Continuar?'))return;
     nuvemStatus('⏳ Baixando da nuvem…','#f59e0b');
-    var baixados=0,erros=0;
-    for(var i=0;i<SYNC_TIPOS.length;i++){
-      var tipo=SYNC_TIPOS[i];
-      try{
-        var dados=await window._supaLoad(tipo);
-        if(dados!==null){localStorage.setItem(tipo,JSON.stringify(dados));baixados++;}
-      }catch(e){erros++;console.warn('Erro ao baixar '+tipo,e);}
-    }
+    var baixados=0,erros=[],meta=getMeta();
+    if(meta.uid!==getChave())meta={uid:getChave(),t:{}};meta.t=meta.t||{};
+    try{
+      var idx=await nuvemIndice();
+      for(var i=0;i<TIPOS.length;i++){
+        var tipo=TIPOS[i];if(!idx[tipo])continue;
+        try{
+          var d=await nuvemLer(tipo);
+          if(d!==undefined&&!vazio(d,tipo)&&gravarLocal(tipo,d)){baixados++;meta.t[tipo]={ts:idx[tipo],h:hash(rawLocal(tipo))};}
+        }catch(e){erros.push(tipo.replace('orcpro_','')+': '+(e&&e.message||e));}
+      }
+    }catch(e){erros.push(e&&e.message||String(e));}
+    saveMeta(meta);
+    if(erros.length){nuvemStatus('❌ '+baixados+' baixado(s), com erro: '+erros[0],'#ef4444');return;}
+    if(!baixados){nuvemStatus('⚠️ A nuvem está vazia para este usuário (0 tipos). Use "Enviar agora" no aparelho que tem os dados.','#f59e0b');return;}
     nuvemStatus('✅ '+baixados+' tipo(s) baixado(s) — recarregando…','#22c55e');
-    if(baixados>0)setTimeout(function(){location.reload();},1200);
+    setTimeout(function(){location.reload();},1200);
   };
 
-  // Auto-sync: save hook — wraps gravarSeguro to also push to Supabase
-  var _origGravarSeguro=null;
+  window.ativarSyncNuvem=async function(){
+    var inp=el('cfg-nuvem-chave');
+    if(!getChave()){
+      var tx=(inp?inp.value:'').trim();
+      if(!tx){nuvemStatus('⚠️ Faça login com seu e-mail e senha para ativar.','#f59e0b');return;}
+      localStorage.setItem(CHAVE_KEY,tx);
+    }
+    var b1=el('btn-nuvem-sync'),b2=el('btn-nuvem-baixar');if(b1)b1.style.display='';if(b2)b2.style.display='';
+    await window.sincronizarNuvemAgora();
+  };
+
   document.addEventListener('DOMContentLoaded',function(){
-    if(typeof gravarSeguro==='function'&&!_origGravarSeguro){
-      _origGravarSeguro=gravarSeguro;
+    if(typeof gravarSeguro==='function'&&!window._gravarSeguroOrig){
+      window._gravarSeguroOrig=gravarSeguro;
       window.gravarSeguro=function(chaveLS,valor,nome){
-        var r=_origGravarSeguro(chaveLS,valor,nome);
-        if(getChave()&&SYNC_TIPOS.indexOf(chaveLS)>=0){
-          try{var d=JSON.parse(valor);window._supaSave(chaveLS,d);}catch(e){}
-        }
+        var r=window._gravarSeguroOrig(chaveLS,valor,nome);
+        if(r!==false&&TIPOS.indexOf(chaveLS)>=0)agendar();
         return r;
       };
     }
-    // Preencher campo da chave se já configurada
-    var inp=document.getElementById('cfg-nuvem-chave');
-    var chave=getChave();
-    if(inp&&chave)inp.value=chave;
-    var btnSync=document.getElementById('btn-nuvem-sync');
-    var btnBaixar=document.getElementById('btn-nuvem-baixar');
-    if(chave){if(btnSync)btnSync.style.display='';if(btnBaixar)btnBaixar.style.display='';}
+    var inp=el('cfg-nuvem-chave');if(inp){inp.value=getChave();inp.readOnly=true;inp.title='Preenchida automaticamente pelo seu login';}
+    if(getChave()){var a=el('btn-nuvem-sync'),b=el('btn-nuvem-baixar');if(a)a.style.display='';if(b)b.style.display='';}
   });
-
-  // Auto-load on page open: se tiver chave, baixa silenciosamente em background
-  window._autoNuvemAoAbrir=async function(){
-    var chave=getChave();
-    if(!chave)return;
-    if(typeof window._setSyncStatus==='function')window._setSyncStatus('sync');
-    try{
-      // Só sincroniza se a nuvem tiver dados mais recentes
-      var empNuvem=await window._supaLoad('orcpro_emp');
-      if(!empNuvem){if(typeof window._setSyncStatus==='function')window._setSyncStatus('');return;}
-      // Compara timestamp se existir
-      var empLocal=JSON.parse(localStorage.getItem('orcpro_emp')||'{}');
-      var tsNuvem=empNuvem.atualizadoEm||0;
-      var tsLocal=empLocal.atualizadoEm||0;
-      if(tsNuvem>tsLocal){
-        // Baixa todos os tipos silenciosamente
-        for(var i=0;i<SYNC_TIPOS.length;i++){
-          var tipo=SYNC_TIPOS[i];
-          var dados=await window._supaLoad(tipo);
-          if(dados!==null)localStorage.setItem(tipo,JSON.stringify(dados));
-        }
-        console.log('[Nuvem] Dados sincronizados do servidor.');
-      }
-      if(typeof window._setSyncStatus==='function')window._setSyncStatus('ok');
-      setTimeout(function(){if(typeof window._setSyncStatus==='function')window._setSyncStatus('');},4000);
-    }catch(e){
-      console.warn('[Nuvem] Auto-sync falhou:',e);
-      if(typeof window._setSyncStatus==='function')window._setSyncStatus('erro');
-      setTimeout(function(){if(typeof window._setSyncStatus==='function')window._setSyncStatus('');},6000);
-    }
-  };
+  document.addEventListener('visibilitychange',function(){
+    if(document.visibilityState==='visible'&&getChave()&&Date.now()-ultimoCiclo>45000)ciclo('rotina').then(avisoMudanca);
+  });
+  window.addEventListener('online',function(){if(getChave())ciclo('rotina').then(avisoMudanca);});
 })();
 
 // ═══════════════════════════════════════════════════
@@ -11759,8 +11897,16 @@ function aplicarProtecaoAutofill(){
     },10*60*1000); // a cada 10 minutos
   }
 
-  function fecharLoginEIniciar(){
+  async function fecharLoginEIniciar(){
     ge('login-screen').style.display='none';
+    // Sincroniza com a nuvem ANTES de qualquer rotina que grave dados (evita enviar dados vazios/semente por cima)
+    try{
+      var rs=await window._nuvemSyncInicial();
+      if(rs&&rs.mudou&&!sessionStorage.getItem('orcpro_sync_reload')){
+        sessionStorage.setItem('orcpro_sync_reload','1');location.reload();return;
+      }
+      sessionStorage.removeItem('orcpro_sync_reload');
+    }catch(e){console.warn('[Nuvem] sync inicial falhou:',e);}
     // Inicia o app normal
     migrarSkusUmaVez();
     corrigirValoresCanecasUmaVez();
@@ -11770,8 +11916,6 @@ function aplicarProtecaoAutofill(){
     var bg=ge('busca-global');
     if(bg){bg.value='';setTimeout(function(){bg.value='';},300);setTimeout(function(){bg.value='';},1000);}
     // Drive auto-sync desativado: Supabase Auth já garante sync entre dispositivos
-    // setTimeout(function(){if(typeof autoBaixarDoDriveAoAbrir==='function')autoBaixarDoDriveAoAbrir();},2000);
-    setTimeout(function(){if(typeof _autoNuvemAoAbrir==='function')_autoNuvemAoAbrir();},1500);
     setTimeout(function(){if(typeof _migrarFotosStorage==='function')_migrarFotosStorage();},8000);
     _agendarRefreshToken();
   }
