@@ -3536,6 +3536,7 @@ async function sincronizarXBZ(){
         var idx=existing.findIndex(function(x){return x.id===existingXbzCodes[code];});
         if(idx>=0){
           existing[idx].imagem=existing[idx].imagem||p.imagem_url||'';
+          if(!existing[idx].foto&&existing[idx].imagem)existing[idx].foto=existing[idx].imagem;// o catálogo exibe 'foto'
           existing[idx].linkFornecedor=p.link_fornecedor||'';
           existing[idx]._xbzStatus=statusProd;
           if(precoBase>0&&!existing[idx]._precoEditado) existing[idx].precoVarejo=precoBase.toFixed(2);
@@ -3560,6 +3561,7 @@ async function sincronizarXBZ(){
           cat:p.categoria||p.modelo||'XBZ Brindes',
           desc:p.descricao||'',
           imagem:p.imagem_url||'',
+          foto:p.imagem_url||'',// o catálogo exibe 'foto' (antes só 'imagem' era preenchido e a foto não aparecia)
           linkFornecedor:p.link_fornecedor||'',
           precoVarejo:precoBase>0?precoBase.toFixed(2):'',
           precoAtacado:'',
@@ -10300,6 +10302,18 @@ function aplicarObjetoBackup(d){
 
 // Alívio de espaço: o Gerador de Catálogo guarda logos em base64 (pode passar de 2 MB).
 // Encolhe os logos já salvos para no máx. 700 px, mantendo a transparência.
+// Produtos importados da XBZ guardavam a foto em 'imagem', mas o catálogo exibe 'foto'.
+// Copia uma vez 'imagem' -> 'foto' nos produtos XBZ que ficaram sem foto.
+function corrigirFotosXbzUmaVez(){
+  try{
+    if(localStorage.getItem('orcpro_xbz_fotos_corrigidas_v1'))return;
+    var prods=getProdutos(),n=0;
+    prods.forEach(function(p){if(p&&!p.foto&&p.imagem&&/^https?:/i.test(p.imagem)){p.foto=p.imagem;n++;}});
+    if(n)saveProdutos(prods);
+    localStorage.setItem('orcpro_xbz_fotos_corrigidas_v1','1');
+    if(n)console.log('[XBZ] foto restaurada em '+n+' produto(s).');
+  }catch(e){}
+}
 function compactarGeradorCatalogo(){
   try{
     var k='arzn-catalog-gen-v1',raw=localStorage.getItem(k);
@@ -12048,6 +12062,7 @@ function aplicarProtecaoAutofill(){
     }catch(e){console.warn('[Nuvem] sync inicial falhou:',e);}
     // Inicia o app normal
     compactarGeradorCatalogo();
+    corrigirFotosXbzUmaVez();
     migrarSkusUmaVez();
     corrigirValoresCanecasUmaVez();
     initPIN();
