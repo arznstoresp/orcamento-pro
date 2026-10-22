@@ -465,6 +465,11 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
   body{background:#fff!important;color:#111!important}
   @page{size:A4;margin:0.8cm}
 }
+/* Perfil vendedor: sem custo/margem/lucro nas telas de uso diário */
+body.papel-vendedor #view-hist table.cat th:nth-child(6),body.papel-vendedor #view-hist table.cat td:nth-child(6),
+body.papel-vendedor #view-cat table.cat th:nth-child(5),body.papel-vendedor #view-cat table.cat td:nth-child(5),
+body.papel-vendedor #view-cat table.cat th:nth-child(8),body.papel-vendedor #view-cat table.cat td:nth-child(8),
+body.papel-vendedor #tmargem-wrap{display:none!important}
 </style>
 </head>
 <body>
@@ -1648,6 +1653,8 @@ table.cat td{padding:7px 6px;border-bottom:1px solid var(--dark-border);font-siz
           <button class="btn btn-brand" onclick="ativarSyncNuvem()" title="Ativa a sincronização com esta chave">🔗 Ativar Sync</button>
           <button class="btn btn-out" onclick="sincronizarNuvemAgora()" id="btn-nuvem-sync" style="display:none" title="Envia todos os dados para a nuvem agora">☁️ Enviar agora</button>
           <button class="btn btn-out" onclick="baixarDaNuvem()" id="btn-nuvem-baixar" style="display:none" title="Baixa os dados salvos na nuvem">📥 Baixar nuvem</button>
+          <button class="btn btn-out" onclick="conferirDadosNuvem()" title="Compara quantos registros existem aqui e na nuvem">📊 Conferir dados</button>
+          <button class="btn btn-out" onclick="abrirVersoesNuvem()" title="Cópias datadas guardadas na nuvem">🕘 Versões</button>
         </div>
         <div id="nuvem-status" style="margin-top:8px;font-size:12px;min-height:18px"></div>
         <div class="info-box mt" style="margin-bottom:0">💡 Em um aparelho novo: entre com seu login e aguarde "Sincronizando…". <strong>Enviar agora</strong> sincroniza na hora; <strong>Baixar nuvem</strong> substitui os dados deste navegador pelos da nuvem (use só em aparelho novo ou vazio).</div>
@@ -8407,10 +8414,16 @@ function renderUsuarios(){
 // Aplica restrições de visibilidade na sidebar conforme o perfil do usuário logado
 function aplicarPermissoesUsuario(){
   var logado=getUsuarioLogado();
-  if(!logado||logado.perfil==='admin')return;// admin (ou PIN principal) vê tudo
-  // Perfil vendedor: esconde itens financeiros/administrativos
-  var idsRestritos=['nb-mei','nb-receber','nb-pagar','nb-dre','nb-usuarios','nb-config','nb-fornec','nb-maquinas','nb-notas'];
+  var ehVendedor=(localStorage.getItem('orcpro_papel')==='vendedor')||(logado&&logado.perfil&&logado.perfil!=='admin');
+  if(!ehVendedor)return;// admin (ou PIN principal) vê tudo
+  // Perfil vendedor: esconde itens financeiros/administrativos, custos e margens
+  // (visual apenas — os dados em si continuam acessíveis a quem tem login liberado)
+  document.body.classList.add('papel-vendedor');
+  var idsRestritos=['nb-dash','nb-calctecidos','nb-mei','nb-receber','nb-pagar','nb-dre','nb-usuarios','nb-config','nb-fornec','nb-maquinas','nb-notas'];
   idsRestritos.forEach(function(id){var el=ge(id);if(el)el.style.display='none';});
+  var telasRestritas=['dash','calctecidos','mei','receber','pagar','dre','usuarios','config','notas','fornec','maquinas'];
+  var atual=localStorage.getItem('orcpro_last_view');
+  if(!atual||telasRestritas.indexOf(atual)>=0)showView('venda-rapida');
 }
 
 // ═══════════════════════════════════════════════════
@@ -9294,6 +9307,13 @@ function renderDash(){
   var alertHtml='';
   if(vencidos.length)alertHtml+='<div class="alert-box">⚠️ <strong>'+vencidos.length+' orçamento(s) vencidos</strong> sem resposta! <button class="btn btn-danger btn-sm" onclick="filtrarHistVencidos()" style="margin-left:8px">Ver histórico</button> <button class="btn btn-wpp btn-sm" onclick="abrirFollowupMassa()" style="margin-left:6px">💬 Follow-up em massa</button></div>';
   if(vencendo.length)alertHtml+='<div class="warn-box">🕐 <strong>'+vencendo.length+' orçamento(s) vencem em até 48h!</strong> <button class="btn btn-yellow btn-sm" onclick="filtrarHistVencendo()" style="margin-left:8px">Ver</button></div>';
+  // Lembrete de backup em arquivo (segunda cópia, fora da nuvem): a cada 30 dias
+  try{
+    var ub=parseInt(localStorage.getItem('orcpro_ultimo_backup')||'0',10);
+    var diasBk=ub?Math.floor((Date.now()-ub)/86400000):null;
+    if(hist.length&&(diasBk===null||diasBk>=30)&&localStorage.getItem('orcpro_papel')!=='vendedor')
+      alertHtml+='<div class="warn-box">💾 '+(diasBk===null?'Você ainda não exportou um backup em arquivo.':'Faz <strong>'+diasBk+' dias</strong> desde o último backup em arquivo.')+' <button class="btn btn-yellow btn-sm" onclick="exportarBackup();renderDash()">Exportar agora</button></div>';
+  }catch(e){}
   alertas.innerHTML=alertHtml;
 
   // ── GRÁFICO BARRAS — Faturamento real: apenas orçamentos Aprovados ──
@@ -10281,6 +10301,7 @@ function exportarBackup(){
   var dados=montarObjetoBackup();
   var blob=new Blob([JSON.stringify(dados,null,2)],{type:'application/json'});
   var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='orcamentopro_backup_'+hoje()+'.json';a.click();
+  try{localStorage.setItem('orcpro_ultimo_backup',String(Date.now()));}catch(e){}
 }
 function importarBackup(e,modo){
   var file=e.target.files[0];if(!file)return;
@@ -11724,6 +11745,70 @@ function aplicarProtecaoAutofill(){
     var inp=el('cfg-nuvem-chave');if(inp){inp.value=getChave();inp.readOnly=true;inp.title='Preenchida automaticamente pelo seu login';}
     if(getChave()){var a=el('btn-nuvem-sync'),b=el('btn-nuvem-baixar');if(a)a.style.display='';if(b)b.style.display='';}
   });
+  // ---- conferência: quantos registros existem aqui x na nuvem ----
+  var ROTULOS={orcpro_emp:'Empresa',orcpro_produtos:'Produtos',orcpro_clientes:'Clientes',orcpro_hist:'Orçamentos',orcpro_os:'Ordens de serviço',orcpro_notas:'Notas de compra',orcpro_templates:'Templates',orcpro_fornecedores:'Fornecedores',orcpro_maquinas:'Maquinários',orcpro_receber:'Contas a receber',orcpro_rh:'RH',orcpro_precif_modelos:'Modelos de preço',orcpro_ct_hist:'Histórico da calculadora',orcpro_mov_estoque:'Mov. de estoque',orcpro_despesas:'Despesas',orcpro_custos:'Custos fixos/variáveis',orcpro_canais:'Canais de venda',orcpro_funcs:'Funcionários',orcpro_usuarios:'Usuários',orcpro_ct_config:'Config. da calculadora',orcpro_pagar_pagas:'Contas pagas',orcpro_cnt:'Contador de orçamentos',orcpro_os_cnt:'Contador de OS',orcpro_recibo_cnt:'Contador de recibos',orcpro_logo:'Logo'};
+  function contar(v,tipo){
+    if(v===undefined||v===null)return'—';
+    if(Array.isArray(v))return String(v.length);
+    if(typeof v==='number')return String(v);
+    if(typeof v==='object'){if(tipo==='orcpro_logo')return v.raw?'sim':'—';if(tipo==='orcpro_emp')return v.nome?'sim':'—';return Object.keys(v).length+' item(ns)';}
+    return'—';
+  }
+  window.conferirDadosNuvem=async function(){
+    var e=el('nuvem-status');if(!e)return;
+    if(!getChave()){nuvemStatus('⚠️ Faça login para conferir.','#f59e0b');return;}
+    nuvemStatus('⏳ Conferindo…','#f59e0b');
+    try{
+      var idx=await nuvemIndice(),linhas=['Dado — neste navegador × na nuvem'];
+      for(var i=0;i<TIPOS.length;i++){
+        var t=TIPOS[i],loc=contar(lerLocal(t),t),nu='—';
+        if(idx[t]){try{nu=contar(await nuvemLer(t),t);}catch(err){nu='erro';}}
+        linhas.push((loc===nu?'✅ ':'⚠️ ')+ROTULOS[t]+': '+loc+' × '+nu);
+      }
+      e.style.whiteSpace='pre-line';e.style.color='rgba(255,255,255,.75)';e.textContent=linhas.join('\n');
+    }catch(err){nuvemStatus('❌ Não consegui conferir: '+(err&&err.message||err),'#ef4444');}
+  };
+
+  // ---- versões (cópias datadas) na nuvem ----
+  window.abrirVersoesNuvem=async function(){
+    if(!getChave()){alert('Faça login para ver as versões.');return;}
+    var ov=document.createElement('div');
+    ov.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;padding:16px';
+    ov.innerHTML='<div style="background:#161616;border:1px solid #2d2d2d;border-radius:12px;max-width:560px;width:100%;max-height:80vh;overflow:auto;padding:18px;color:#f3f3f3;font:14px system-ui,sans-serif"><div style="font-weight:700;font-size:16px;margin-bottom:6px">🕘 Versões salvas na nuvem</div><div id="vers-corpo" style="color:#9c9c9c">Carregando…</div><div style="margin-top:14px;text-align:right"><button id="vers-fechar" class="btn btn-out">Fechar</button></div></div>';
+    document.body.appendChild(ov);
+    ov.querySelector('#vers-fechar').onclick=function(){ov.remove();};
+    var corpo=ov.querySelector('#vers-corpo');
+    try{
+      var rows=await supaReq('GET','orcpro_dados_versoes?chave=eq.'+encodeURIComponent(getChave())+'&select=criado_em,tipo&order=criado_em.desc&limit=400',null,null,30000);
+      var grupos={},ordem=[];
+      (rows||[]).forEach(function(r){if(!grupos[r.criado_em]){grupos[r.criado_em]=[];ordem.push(r.criado_em);}grupos[r.criado_em].push(r.tipo);});
+      if(!ordem.length){corpo.textContent='Ainda não há versões. A primeira cópia é criada automaticamente depois de uma sincronização bem-sucedida (e a cada 6 horas).';return;}
+      corpo.innerHTML='<div style="margin-bottom:8px">Restaurar substitui os dados deste aparelho por aquela cópia e envia para a nuvem. Escolha com cuidado.</div>';
+      ordem.slice(0,12).forEach(function(ts){
+        var d=new Date(ts),row=document.createElement('div');
+        row.style.cssText='display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid #2d2d2d;border-radius:8px;padding:8px 10px;margin-top:6px';
+        row.innerHTML='<span>'+d.toLocaleString('pt-BR')+' <small style="color:#9c9c9c">· '+grupos[ts].length+' tipos</small></span><button class="btn btn-brand btn-sm">Restaurar</button>';
+        row.querySelector('button').onclick=function(){restaurarVersao(ts,grupos[ts],ov);};
+        corpo.appendChild(row);
+      });
+    }catch(err){corpo.textContent='❌ '+(err&&err.message||err)+(String(err&&err.message).indexOf('404')>=0?' — a tabela de versões ainda não existe no Supabase.':'');}
+  };
+  async function restaurarVersao(ts,tipos,ov){
+    if(!confirm('Restaurar a versão de '+new Date(ts).toLocaleString('pt-BR')+'?\n\nOs dados deste aparelho serão substituídos por essa cópia ('+tipos.length+' tipos) e enviados para a nuvem.'))return;
+    var ok=0,falhas=[];
+    for(var i=0;i<tipos.length;i++){
+      try{
+        var rows=await supaReq('GET','orcpro_dados_versoes?chave=eq.'+encodeURIComponent(getChave())+'&criado_em=eq.'+encodeURIComponent(ts)+'&tipo=eq.'+encodeURIComponent(tipos[i])+'&select=dados&limit=1',null,null,60000);
+        if(rows&&rows.length&&!vazio(rows[0].dados,tipos[i])&&gravarLocal(tipos[i],rows[0].dados))ok++;
+      }catch(err){falhas.push(tipos[i]);}
+    }
+    if(falhas.length){alert('Restaurei '+ok+' tipo(s), mas houve falha em: '+falhas.join(', '));}
+    var r=await ciclo('manual');
+    if(ov)ov.remove();
+    alert('✅ Versão restaurada ('+ok+' tipos). A página vai recarregar.');
+    location.reload();
+  }
+
   document.addEventListener('visibilitychange',function(){
     if(document.visibilityState==='visible'&&getChave()&&Date.now()-ultimoCiclo>45000)ciclo('rotina').then(avisoMudanca);
   });
@@ -11738,7 +11823,10 @@ function aplicarProtecaoAutofill(){
   var SUPA_KEY='sb_publishable_s6MSdF0rhidpCpddqTzNRg_1ajwnxIc';
   var SESSION_KEY='orcpro_auth_session';
   // E-mails autorizados — apenas estes conseguem acessar o sistema
-  var EMAILS_PERMITIDOS=['arznstore22@gmail.com'];
+  // Dono do sistema. Outras pessoas (mãe, vendedor) entram com o próprio login e são liberadas
+  // pela tabela orcpro_acessos no Supabase (e-mail -> dono_uid + papel 'admin' ou 'vendedor').
+  var DONO_EMAIL='arznstore22@gmail.com';
+  var ACESSO_CACHE_KEY='orcpro_acesso_cache';
 
   function _traduzirErroAuth(msg,ctx){
     var m=(msg||'').toLowerCase();
@@ -11777,18 +11865,31 @@ function aplicarProtecaoAutofill(){
     return {ok:r.ok,data:await r.json()};
   }
 
-  function aplicarSessao(session){
+  // Descobre de quem são os dados (dono_uid) e o papel da pessoa que entrou
+  async function resolverAcesso(session,email,uid){
+    if(email===DONO_EMAIL)return{dono:uid,papel:'admin'};
+    var cache={};try{cache=JSON.parse(localStorage.getItem(ACESSO_CACHE_KEY)||'{}')||{};}catch(e){}
+    try{
+      var r=await fetch(SUPA_URL+'/rest/v1/orcpro_acessos?email=eq.'+encodeURIComponent(email)+'&select=dono_uid,papel&limit=1',{headers:{apikey:SUPA_KEY,Authorization:'Bearer '+session.access_token}});
+      if(r.ok){
+        var rows=await r.json();
+        if(rows&&rows.length){var a={dono:rows[0].dono_uid,papel:rows[0].papel==='admin'?'admin':'vendedor'};cache[email]=a;try{localStorage.setItem(ACESSO_CACHE_KEY,JSON.stringify(cache));}catch(e){}return a;}
+        delete cache[email];try{localStorage.setItem(ACESSO_CACHE_KEY,JSON.stringify(cache));}catch(e){}
+        return null;
+      }
+    }catch(e){/* sem rede: usa o último acesso conhecido */}
+    return cache[email]||null;
+  }
+
+  async function aplicarSessao(session){
     if(!session||!session.access_token)return false;
-    var emailSessao=session.user&&session.user.email;
-    if(EMAILS_PERMITIDOS.length&&emailSessao&&!EMAILS_PERMITIDOS.includes(emailSessao.toLowerCase())){
-      saveSession(null);return false;
-    }
+    var email=((session.user&&session.user.email)||'').toLowerCase(),uid=session.user&&session.user.id;
+    var acesso=await resolverAcesso(session,email,uid);
+    if(!acesso){saveSession(null);return false;}
     saveSession(session);
-    // Usa o user.id como chave da nuvem — único por conta, imutável
-    var uid=session.user&&session.user.id;
-    if(uid)localStorage.setItem('orcpro_chave_nuvem',uid);
-    // Mostra e-mail e botão sair na sidebar
-    var email=session.user&&session.user.email;
+    // A chave da nuvem é o id do DONO dos dados (a equipe compartilha os dados do dono)
+    if(acesso.dono)localStorage.setItem('orcpro_chave_nuvem',acesso.dono);
+    localStorage.setItem('orcpro_papel',acesso.papel);
     var elEmail=ge('sb-user-email');if(elEmail)elEmail.textContent=email||'';
     var btnLogout=ge('btn-logout');if(btnLogout)btnLogout.style.display='';
     return true;
@@ -11797,9 +11898,6 @@ function aplicarProtecaoAutofill(){
   window.fazerLogin=async function(){
     var email=val('login-email').trim(),senha=val('login-senha');
     if(!email||!senha){setLoginMsg('Preencha e-mail e senha.','var(--yellow)');return;}
-    if(EMAILS_PERMITIDOS.length&&!EMAILS_PERMITIDOS.includes(email.toLowerCase())){
-      setLoginMsg('Acesso não autorizado para este e-mail.','var(--red)');return;
-    }
     var btn=ge('btn-fazer-login');btn.disabled=true;btn.textContent='Entrando…';
     setLoginMsg('');
     var res=await supaAuth('token?grant_type=password',{email:email,password:senha});
@@ -11809,15 +11907,17 @@ function aplicarProtecaoAutofill(){
       msg=_traduzirErroAuth(msg,'login');
       setLoginMsg(msg,'var(--red)');return;
     }
-    aplicarSessao(res.data);
+    if(!(await aplicarSessao(res.data))){
+      setLoginMsg('Acesso não autorizado para este e-mail. Peça ao responsável para liberar seu acesso.','var(--red)');return;
+    }
     fecharLoginEIniciar();
   };
 
   window.fazerCadastro=async function(){
     var email=val('signup-email').trim(),senha=val('signup-senha');
     if(!email||!senha){setLoginMsg('Preencha e-mail e senha.','var(--yellow)');return;}
-    if(EMAILS_PERMITIDOS.length&&!EMAILS_PERMITIDOS.includes(email.toLowerCase())){
-      setLoginMsg('Cadastro não permitido para este e-mail.','var(--red)');return;
+    if(email.toLowerCase()!==DONO_EMAIL){
+      setLoginMsg('Cadastro livre não permitido. Peça ao responsável para criar seu acesso.','var(--red)');return;
     }
     if(senha.length<6){setLoginMsg('Senha deve ter pelo menos 6 caracteres.','var(--yellow)');return;}
     var btn=ge('btn-fazer-signup');btn.disabled=true;btn.textContent='Criando…';
@@ -11831,7 +11931,7 @@ function aplicarProtecaoAutofill(){
     }
     // Supabase pode retornar sessão direto ou pedir confirmação por e-mail
     if(res.data&&res.data.access_token){
-      aplicarSessao(res.data);
+      await aplicarSessao(res.data);
       fecharLoginEIniciar();
     }else{
       setLoginMsg('Conta criada! Verifique seu e-mail para confirmar o cadastro.','var(--green)');
@@ -11856,7 +11956,7 @@ function aplicarProtecaoAutofill(){
   window._confirmarLogout=function(){
     ge('modal-logout').className='modal-overlay';
     saveSession(null);
-    localStorage.removeItem('orcpro_chave_nuvem');
+    localStorage.removeItem('orcpro_chave_nuvem');localStorage.removeItem('orcpro_papel');
     location.reload();
   };
 
@@ -11933,7 +12033,7 @@ function aplicarProtecaoAutofill(){
       if(!nova||!nova.access_token){ge('login-screen').style.display='flex';return;}
       session=nova;
     }
-    aplicarSessao(session);
+    if(!(await aplicarSessao(session))){ge('login-screen').style.display='flex';setLoginMsg('Acesso não autorizado para este e-mail.','var(--red)');return;}
     fecharLoginEIniciar();
   };
 })();

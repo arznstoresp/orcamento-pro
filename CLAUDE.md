@@ -42,6 +42,18 @@ Integrações externas são opcionais e não substituem o `localStorage`:
 - **ViaCEP** — autocompletar endereço a partir do CEP.
 - O app deve continuar funcionando 100% offline sem essas integrações.
 
+## Sincronização em nuvem (Supabase) — regras
+
+- Login por e-mail/senha (Supabase Auth). A chave da nuvem é o id do DONO dos dados; a equipe
+  (mãe, vendedor) entra com o próprio login e é liberada na tabela `orcpro_acessos` (papel `admin`/`vendedor`).
+- O sync (`ciclo()`) SEMPRE baixa/mescla antes de enviar. Navegador vazio adota a nuvem inteira;
+  com dados, faz união por `id` (`fundirRegistros`). Nunca enviar lista/objeto vazio por cima de dado existente.
+- O sync inicial roda em `fecharLoginEIniciar` ANTES das rotinas que gravam dados. Não inverter essa ordem.
+- Novos tipos de dado precisam entrar em `TIPOS` (e gravar via `gravarSeguro`) para sincronizar.
+- Cópias datadas ficam em `orcpro_dados_versoes` (botão "Versões"); backup em arquivo `.json` a cada 30 dias.
+- Papel `vendedor` esconde custos/margens só visualmente (CSS `body.papel-vendedor`); não é barreira de segurança.
+- Fluxo de trabalho: commit direto no `main`, mostrar o diff antes, nunca sobrescrever dados sem comparar.
+
 ## Navegação: SPA de view única, tudo no DOM
 
 Não há roteador nem re-render por template. Todas as "telas" (`view-dash`,
