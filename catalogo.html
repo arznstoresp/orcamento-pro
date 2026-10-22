@@ -697,21 +697,39 @@ function buildSlides(S){
       var nh=nl*(nfs===28?0.5:0.44)+0.05;
       els.push(TX(tx,y,tw,nh,name,{size:nfs,bold:true,color:TH.text,lh:0.98}));
       y+=nh+0.2;
-      if((p.desc||"").trim()){
-        var dl=estLines(p.desc,13.5,tw-0.3,false), dh=dl*0.27+0.05;
-        els.push(TX(tx,y,tw-0.3,dh,p.desc.trim(),{size:13.5,color:TH.mute,lh:1.15}));
+      /* Encaixe vertical: descrição, personalização e observação disputam o mesmo espaço
+         (acima da linha de preço, em 6.2"). Reservamos o espaço de spec/obs primeiro e
+         reduzimos a fonte da descrição (até 10pt) ou cortamos com "…" para nunca sobrepor. */
+      var spec=specText(p), obsTxt=(p.obs||"").trim(), oh=0;
+      if(obsTxt){ var ol=estLines(obsTxt,9.5,tw-0.6,false); oh=ol>2?0.78:0.5; }
+      var specL=spec?estLines("PERSONALIZAÇÃO   "+spec,10,tw-0.3,true):0, specH=spec?(specL>1?0.2*specL+0.2:0.38):0;
+      var bottomLimit=6.1, reserved=specH+(obsTxt?oh+0.12:0)+0.2;
+      var descTxt=(p.desc||"").trim();
+      if(descTxt){
+        var availH=Math.max(0.5,bottomLimit-reserved-y), dfs=13.5, dl, dlh;
+        for(;;){
+          dlh=dfs*0.02; dl=estLines(descTxt,dfs,tw-0.3,false);
+          if(dl*dlh+0.05<=availH || dfs<=10) break;
+          dfs-=0.5;
+        }
+        var maxL=Math.max(1,Math.floor((availH-0.05)/dlh));
+        if(dl>maxL){
+          var dw=descTxt.split(/\s+/);
+          while(dw.length>1 && estLines(dw.join(" ")+"…",dfs,tw-0.3,false)>maxL) dw.pop();
+          descTxt=dw.join(" ")+"…"; dl=estLines(descTxt,dfs,tw-0.3,false);
+        }
+        var dh=dl*dlh+0.05;
+        els.push(TX(tx,y,tw-0.3,dh,descTxt,{size:dfs,color:TH.mute,lh:1.15}));
         y+=Math.max(1.15,dh+0.25);
       } else y+=0.1;
-      var spec=specText(p);
       if(spec){
-        els.push(TX(tx,y,tw,0.3,[{text:"PERSONALIZAÇÃO  ",size:9,bold:true,color:TH.accent,cs:2},{text:spec,size:10,color:"8C8C8C"}],{}));
-        y+=0.38;
+        els.push(TX(tx,y,tw-0.3,specH-0.08,[{text:"PERSONALIZAÇÃO  ",size:9,bold:true,color:TH.accent,cs:2},{text:spec,size:10,color:"8C8C8C"}],{}));
+        y+=specH;
       }
-      if((p.obs||"").trim()){
-        var ol=estLines(p.obs,9.5,tw-0.6,false), oh=ol>2?0.78:0.5;
-        var obsY=Math.min(y, 6.12-oh);
+      if(obsTxt){
+        var obsY=Math.min(y, bottomLimit-oh);
         els.push(R(tx,obsY,tw-0.3,oh,{r:0.08,fill:"1F1300",line:TH.accent,lw:0.75}));
-        els.push(TX(tx+0.15,obsY,tw-0.6,oh,"⚠  "+p.obs.trim(),{size:9.5,italic:true,color:"E8B98A",valign:"middle",lh:1.1}));
+        els.push(TX(tx+0.15,obsY,tw-0.6,oh,"⚠  "+obsTxt,{size:9.5,italic:true,color:"E8B98A",valign:"middle",lh:1.1}));
       }
       if((p.preco||"").trim()||(p.minQtd||"").trim()){
         var pinfo=[]; if((p.preco||"").trim()) pinfo.push("R$ "+p.preco.trim()+" / un"); if((p.minQtd||"").trim()) pinfo.push("Qtd mínima: "+p.minQtd.trim());
