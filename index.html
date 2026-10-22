@@ -3539,7 +3539,8 @@ async function sincronizarXBZ(){
           if(!existing[idx].foto&&existing[idx].imagem)existing[idx].foto=existing[idx].imagem;// o catálogo exibe 'foto'
           existing[idx].linkFornecedor=p.link_fornecedor||'';
           existing[idx]._xbzStatus=statusProd;
-          if(precoBase>0&&!existing[idx]._precoEditado) existing[idx].precoVarejo=precoBase.toFixed(2);
+          if(precoBase>0&&!existing[idx]._precoEditado){existing[idx].precoVarejo=precoBase.toFixed(2);existing[idx].varejo=precoBase;if(!existing[idx].atacado)existing[idx].atacado=precoBase;}
+          _normalizarProdXbz(existing[idx]);
           atualizados++;
         }
       } else {
@@ -3548,6 +3549,8 @@ async function sincronizarXBZ(){
         var variacoesArr=variacoes.map(function(v){
           return{id:'v_'+String(v.codigo_variante||'').replace(/[^a-zA-Z0-9_-]/g,'_'),
             nome:v.sku||v.codigo_variante||'',
+            modelo:v.sku||v.codigo_variante||'',
+            estoqueQtd:0,
             preco:parseFloat(v.preco)||0,
             precoTexto:v.preco_texto||'',
             vendaMinima:parseInt(v.venda_minima)||1,
@@ -3565,6 +3568,12 @@ async function sincronizarXBZ(){
           linkFornecedor:p.link_fornecedor||'',
           precoVarejo:precoBase>0?precoBase.toFixed(2):'',
           precoAtacado:'',
+          varejo:precoBase>0?precoBase:0,
+          atacado:precoBase>0?precoBase:0,
+          minAtacado:10,
+          custo:0,
+          unit:'un',
+          fotos:p.imagem_url?[p.imagem_url]:[],
           unidade:'un',
           controlaEstoque:false,
           exibirCatalogo:true,
@@ -10304,13 +10313,30 @@ function aplicarObjetoBackup(d){
 // Encolhe os logos já salvos para no máx. 700 px, mantendo a transparência.
 // Produtos importados da XBZ guardavam a foto em 'imagem', mas o catálogo exibe 'foto'.
 // Copia uma vez 'imagem' -> 'foto' nos produtos XBZ que ficaram sem foto.
+// Garante os nomes de campo que o catálogo realmente usa (unit, varejo, atacado, foto/fotos, variação com modelo/estoqueQtd).
+function _normalizarProdXbz(p){
+  if(!p)return;
+  if(!p.unit)p.unit=p.unidade||'un';
+  if(!p.foto&&p.imagem)p.foto=p.imagem;
+  if(p.foto&&(!p.fotos||!p.fotos.length))p.fotos=[p.foto];
+  var pv=parseFloat(p.precoVarejo)||0;
+  if(!parseFloat(p.varejo)&&pv)p.varejo=pv;
+  if(!parseFloat(p.atacado)&&(parseFloat(p.precoAtacado)||p.varejo))p.atacado=parseFloat(p.precoAtacado)||p.varejo;
+  if(!p.minAtacado)p.minAtacado=10;
+  if(p.custo==null)p.custo=0;
+  if(!p.cat)p.cat='XBZ Brindes';
+  (p.variacoes||[]).forEach(function(v){
+    if(!v.modelo&&!v.cor&&!v.tamanho&&v.nome)v.modelo=v.nome;
+    if(v.estoqueQtd==null)v.estoqueQtd=parseFloat(v.estoque)||0;
+  });
+}
 function corrigirFotosXbzUmaVez(){
   try{
-    if(localStorage.getItem('orcpro_xbz_fotos_corrigidas_v1'))return;
+    if(localStorage.getItem('orcpro_xbz_fotos_corrigidas_v2'))return;
     var prods=getProdutos(),n=0;
-    prods.forEach(function(p){if(p&&!p.foto&&p.imagem&&/^https?:/i.test(p.imagem)){p.foto=p.imagem;n++;}});
+    prods.forEach(function(p){if(p&&(p._xbzCodigo||p._origem==='xbz')){_normalizarProdXbz(p);n++;}});
     if(n)saveProdutos(prods);
-    localStorage.setItem('orcpro_xbz_fotos_corrigidas_v1','1');
+    localStorage.setItem('orcpro_xbz_fotos_corrigidas_v2','1');
     if(n)console.log('[XBZ] foto restaurada em '+n+' produto(s).');
   }catch(e){}
 }
