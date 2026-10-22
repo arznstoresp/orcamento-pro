@@ -10160,23 +10160,24 @@ function renderStorageMeter(){
 // Migra fotos base64 para Supabase Storage manualmente (botão no medidor de armazenamento)
 async function migrarFotosStorageManual(){
   var chave=localStorage.getItem('orcpro_chave_nuvem')||'';
-  if(!chave){_bkOpErro('Configure a Chave de Acesso em Sincronização em Nuvem antes de usar esta função.');return;}
-  if(!window._migrarStorageFlag){
-    window._migrarStorageFlag=true;
-    _bkOpErro('⚠️ Isso vai enviar todas as fotos para a nuvem. O processo pode levar alguns minutos. Clique novamente para confirmar.');
-    setTimeout(function(){window._migrarStorageFlag=false;},10000);
-    return;
-  }
-  window._migrarStorageFlag=false;
+  if(!chave){_bkOpErro('Entre com seu login antes de usar esta função.');return;}
+  if(!confirm('Enviar todas as fotos dos produtos para a nuvem e liberar o espaço do navegador?\n\nRecomendo exportar um backup antes. Pode levar alguns minutos — não feche a aba.'))return;
   var btn=ge('btn-migrar-storage');if(btn){btn.disabled=true;btn.textContent='⏳ Enviando...';}
   // Força remigração
   try{localStorage.removeItem('orcpro_fotos_migradas_v1');}catch(e){}
   try{
-    await _migrarFotosStorage();
+    var r=await _migrarFotosStorage();
     renderStorageMeter();
-    _bkOpOk('✅ Fotos migradas para a nuvem! As fotos agora são carregadas diretamente da nuvem e o espaço local foi liberado.');
+    var msgFim='';
+    if(!r.total)msgFim='✅ Nenhuma foto pendente: todas as fotos já estão na nuvem.';
+    else if(!r.falhas)msgFim='✅ '+r.enviadas+' foto(s) enviadas para a nuvem. O espaço local foi liberado.';
+    else msgFim='⚠️ '+r.enviadas+' de '+r.total+' fotos enviadas; '+r.falhas+' falharam.\nMotivo: '+(r.erro||'desconhecido')+(/bucket|not found|404/i.test(r.erro||'')?'\n\nO espaço de fotos ainda não existe no Supabase: rode o SQL do bucket.':'')+'\n\nAs fotos que falharam continuam salvas aqui, sem perda.';
+    alert(msgFim);
+    if(!r.total)_bkOpOk('✅ Nenhuma foto pendente: todas as fotos já estão na nuvem.');
+    else if(!r.falhas)_bkOpOk('✅ '+r.enviadas+' foto(s) enviadas para a nuvem. O espaço local foi liberado.');
+    else _bkOpErro('⚠️ '+r.enviadas+' de '+r.total+' fotos enviadas; '+r.falhas+' falharam. Motivo: '+(r.erro||'desconhecido')+(/bucket|not found|404/i.test(r.erro||'')?' — o espaço de fotos ainda não existe no Supabase (rode o SQL do bucket).':'')+' As fotos que falharam continuam salvas aqui, sem perda.');
   }catch(e){
-    _bkOpErro('❌ Erro durante a migração: '+e.message+'. Tente novamente ou contacte o suporte.');
+    _bkOpErro('❌ Erro durante a migração: '+e.message+'. Suas fotos continuam salvas aqui.');
   }
   if(btn){btn.disabled=false;btn.textContent='☁️ Mover fotos para nuvem';}
 }
@@ -11438,23 +11439,27 @@ function aplicarProtecaoAutofill(){
       // caminho: orcpro/<chave_hash>/<prodId>/<idx>.jpg — isolado por usuário
       var chaveHash=btoa(chave).replace(/[^a-zA-Z0-9]/g,'').substring(0,16);
       var path='orcpro/'+chaveHash+'/'+prodId+'/'+idx+'.'+ext;
+      var tk=SUPA_KEY;
+      try{var ss=JSON.parse(localStorage.getItem('orcpro_auth_session')||'null');if(ss&&ss.access_token)tk=ss.access_token;}catch(e){}
       var r=await fetch(SUPA_URL+'/storage/v1/object/'+BUCKET+'/'+path,{
         method:'POST',
-        headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Content-Type':blob.type,'x-upsert':'true'},
+        headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+tk,'Content-Type':blob.type,'x-upsert':'true'},
         body:blob
       });
-      if(!r.ok){var t=await r.text();console.warn('Storage upload falhou:',r.status,t);return fotoData;}
+      if(!r.ok){var t=await r.text();console.warn('Storage upload falhou:',r.status,t);window._ultimoErroStorage=r.status+' '+t.slice(0,160);return fotoData;}
       // URL pública
       return SUPA_URL+'/storage/v1/object/public/'+BUCKET+'/'+path;
-    }catch(e){console.warn('_uploadFotoStorage erro:',e);return fotoData;}
+    }catch(e){console.warn('_uploadFotoStorage erro:',e);window._ultimoErroStorage=String(e&&e.message||e);return fotoData;}
   };
 
   // Migração: percorre produtos com base64 e sobe as fotos para o Storage em background.
   // Roda silenciosamente ao abrir o app se tiver chave configurada.
   window._migrarFotosStorage=async function(){
+    var res={total:0,enviadas:0,falhas:0,erro:''};
     var chave=getChave();
-    if(!chave)return;
-    if(localStorage.getItem('orcpro_fotos_migradas_v1'))return;
+    if(!chave)return res;
+    if(localStorage.getItem('orcpro_fotos_migradas_v1'))return res;
+    window._ultimoErroStorage='';
     var prods=getProdutos();
     var alterado=0;
     for(var i=0;i<prods.length;i++){
@@ -11462,15 +11467,17 @@ function aplicarProtecaoAutofill(){
       var mudou=false;
       // foto principal
       if(isBase64(p.foto)){
+        res.total++;
         var url=await window._uploadFotoStorage(p.foto,p.id,0);
-        if(url&&!isBase64(url)){p.foto=url;mudou=true;}
+        if(url&&!isBase64(url)){p.foto=url;mudou=true;res.enviadas++;}else res.falhas++;
       }
       // array fotos
       if(p.fotos&&p.fotos.length){
         for(var fi=0;fi<p.fotos.length;fi++){
           if(isBase64(p.fotos[fi])){
+            res.total++;
             var furl=await window._uploadFotoStorage(p.fotos[fi],p.id,fi);
-            if(furl&&!isBase64(furl)){p.fotos[fi]=furl;mudou=true;}
+            if(furl&&!isBase64(furl)){p.fotos[fi]=furl;mudou=true;res.enviadas++;}else res.falhas++;
           }
         }
         // Garante que foto principal está sincronizada com fotos[0]
@@ -11482,7 +11489,10 @@ function aplicarProtecaoAutofill(){
       saveProdutos(prods);
       console.log('[Storage] '+alterado+' produto(s) com fotos migradas para Supabase Storage.');
     }
-    try{localStorage.setItem('orcpro_fotos_migradas_v1','1');}catch(e){}
+    res.erro=window._ultimoErroStorage||'';
+    // Só marca como concluída se nenhuma foto falhou (senão tenta de novo na próxima)
+    if(!res.falhas){try{localStorage.setItem('orcpro_fotos_migradas_v1','1');}catch(e){}}
+    return res;
   };
 
   // Inicia migração em background 8s após o carregamento (não bloqueia a UI)
