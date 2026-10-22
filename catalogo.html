@@ -397,7 +397,17 @@ window.__ARZN_LOGO = LOGO;
 var W = 13.333, H = 7.5;
 var C = {BLACK:"0D0D0D", PANEL:"1A1A1A", ORANGE:"D14203", WHITE:"FFFFFF", GRAY:"A6A6A6"};
 var STORE = "arzn-catalog-gen-v1";
-var DESC_MAX = 170;
+var DESC_MAX = 260;
+/* Corta a descrição sem deixar a frase pela metade: prefere a última frase completa
+   (., !, ? ou quebra de linha) dentro do limite; senão corta na última palavra e põe "…". */
+function cortarDesc(t,max){
+  t=String(t||"").trim(); max=max||DESC_MAX;
+  if(t.length<=max) return t;
+  var c=t.slice(0,max), i=Math.max(c.lastIndexOf("."),c.lastIndexOf("!"),c.lastIndexOf("?"),c.lastIndexOf("\n"));
+  if(i>=max*0.4) return c.slice(0,i+1).trim();
+  var sp=c.lastIndexOf(" ");
+  return (sp>0?c.slice(0,sp):c).replace(/[,;:\s]+$/,"")+"…";
+}
 
 /* ---------- estado ---------- */
 var year = new Date().getFullYear();
@@ -1259,7 +1269,7 @@ async function suggest(ids,overwrite){
     var arr=Array.isArray(res)?res:(res&&res.produtos)||[];
     arr.forEach(function(r){
       var p=byId(r.id); if(!p) return;
-      if(r.descricao && (overwrite||!(p.desc||"").trim())) p.desc=String(r.descricao).trim().slice(0,DESC_MAX);
+      if(r.descricao && (overwrite||!(p.desc||"").trim())) p.desc=cortarDesc(r.descricao);
       if(Array.isArray(r.etiquetas) && r.etiquetas.length && (overwrite||!(p.chips||"").trim())) p.chips=r.etiquetas.map(function(s){return String(s).trim();}).filter(Boolean).join(", ");
       refreshInputs(p);
     });
@@ -1615,7 +1625,7 @@ _ge("btnImportOrcpro").addEventListener("click",function(){
     g.S.products.push(g.newProduct({
       name: p.nome||"",
       cat: p.cat||"",
-      desc: p.desc||"",
+      desc: cortarDesc(p.desc||""),
       img: p.foto||"",
       prev: p.foto||"",
       preco: p.varejo?String(p.varejo):"",
