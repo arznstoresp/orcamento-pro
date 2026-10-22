@@ -435,6 +435,23 @@ try{
   var saved = JSON.parse(localStorage.getItem(STORE)||"null");
   if(saved){ ["seller","cover","closing"].forEach(function(k){ if(saved[k]) Object.assign(S[k], saved[k]); }); if(saved.theme) S.theme=saved.theme; if(saved.logo1) S.logo1=saved.logo1; if(saved.logo2) S.logo2=saved.logo2; if(saved.activeLogo) S.activeLogo=saved.activeLogo; if(saved.accentColor) S.accentColor=saved.accentColor; if(saved.pageNums!=null) S.pageNums=saved.pageNums; if(saved.twoCol!=null) S.twoCol=saved.twoCol; if(saved.showQR!=null) S.showQR=saved.showQR; if(saved.catSep!=null) S.catSep=saved.catSep; }
 }catch(e){}
+/* Logos são guardados em base64 no localStorage (limite ~5 MB para o app inteiro).
+   Encolhe para no máximo 700 px (mantém transparência) antes de salvar. */
+function encolherLogo(dataUrl,cb){
+  var im=new Image();
+  im.onload=function(){
+    try{
+      var esc=Math.min(1,700/Math.max(im.naturalWidth,im.naturalHeight));
+      var cv=document.createElement("canvas"); cv.width=Math.max(1,Math.round(im.naturalWidth*esc)); cv.height=Math.max(1,Math.round(im.naturalHeight*esc));
+      cv.getContext("2d").drawImage(im,0,0,cv.width,cv.height);
+      var png=cv.toDataURL("image/png"), best=png;
+      if(png.length>250000){ var wp=cv.toDataURL("image/webp",0.85); if(wp.indexOf("image/webp")>=0&&wp.length<best.length) best=wp; }
+      cb(best.length<dataUrl.length?best:dataUrl);
+    }catch(e){ cb(dataUrl); }
+  };
+  im.onerror=function(){ cb(dataUrl); };
+  im.src=dataUrl;
+}
 function saveSettings(){ try{ localStorage.setItem(STORE, JSON.stringify({seller:S.seller,cover:S.cover,closing:S.closing,theme:S.theme,logo1:S.logo1,logo2:S.logo2,activeLogo:S.activeLogo,accentColor:S.accentColor,pageNums:S.pageNums,twoCol:S.twoCol,showQR:S.showQR,catSep:S.catSep})); }catch(e){} }
 function generateQR(){
   _qrDataUrl="";
@@ -1497,7 +1514,7 @@ applyThemeLogoFilter();
   $("logoSlot1").addEventListener("keydown",function(e){ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); if(!S.logo1) $("logoFile1").click(); else { S.activeLogo=1; saveSettings(); updateLogoUI(); schedule(); } } });
   $("logoFile1").addEventListener("change",function(){
     var f=this.files[0]; if(!f) return;
-    var rd=new FileReader(); rd.onload=function(ev){ S.logo1=ev.target.result; S.activeLogo=1; saveSettings(); updateLogoUI(); schedule(); }; rd.readAsDataURL(f); this.value="";
+    var rd=new FileReader(); rd.onload=function(ev){ encolherLogo(ev.target.result,function(u){ S.logo1=u; S.activeLogo=1; saveSettings(); updateLogoUI(); schedule(); }); }; rd.readAsDataURL(f); this.value="";
   });
   $("logoClear1").addEventListener("click",function(e){
     e.stopPropagation(); S.logo1=""; if(S.activeLogo===1) S.activeLogo=1; saveSettings(); updateLogoUI(); schedule();
@@ -1510,7 +1527,7 @@ applyThemeLogoFilter();
   $("logoSlot2").addEventListener("keydown",function(e){ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); if(!S.logo2) $("logoFile2").click(); else { S.activeLogo=2; saveSettings(); updateLogoUI(); schedule(); } } });
   $("logoFile2").addEventListener("change",function(){
     var f=this.files[0]; if(!f) return;
-    var rd=new FileReader(); rd.onload=function(ev){ S.logo2=ev.target.result; S.activeLogo=2; saveSettings(); updateLogoUI(); schedule(); }; rd.readAsDataURL(f); this.value="";
+    var rd=new FileReader(); rd.onload=function(ev){ encolherLogo(ev.target.result,function(u){ S.logo2=u; S.activeLogo=2; saveSettings(); updateLogoUI(); schedule(); }); }; rd.readAsDataURL(f); this.value="";
   });
   $("logoClear2").addEventListener("click",function(e){
     e.stopPropagation(); S.logo2=""; if(S.activeLogo===2) S.activeLogo=1; saveSettings(); updateLogoUI(); schedule();

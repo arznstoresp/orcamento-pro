@@ -10297,6 +10297,35 @@ function aplicarObjetoBackup(d){
   if(d.recibo_cnt)localStorage.setItem('orcpro_recibo_cnt',d.recibo_cnt);
 }
 
+// Alívio de espaço: o Gerador de Catálogo guarda logos em base64 (pode passar de 2 MB).
+// Encolhe os logos já salvos para no máx. 700 px, mantendo a transparência.
+function compactarGeradorCatalogo(){
+  try{
+    var k='arzn-catalog-gen-v1',raw=localStorage.getItem(k);
+    if(!raw||raw.length<400000)return;
+    var d=JSON.parse(raw),pend=0,mudou=false;
+    function fim(){if(--pend>0)return;if(!mudou)return;try{var atual=JSON.parse(localStorage.getItem(k)||'{}');['logo1','logo2'].forEach(function(c){if(d[c])atual[c]=d[c];});localStorage.setItem(k,JSON.stringify(atual));console.log('[Espaço] logos do gerador compactados.');}catch(e){}}
+    ['logo1','logo2'].forEach(function(c){
+      var src=d[c];if(!src||src.length<200000)return;
+      pend++;
+      var im=new Image();
+      im.onload=function(){
+        try{
+          var esc=Math.min(1,700/Math.max(im.naturalWidth,im.naturalHeight));
+          var cv=document.createElement('canvas');cv.width=Math.max(1,Math.round(im.naturalWidth*esc));cv.height=Math.max(1,Math.round(im.naturalHeight*esc));
+          cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height);
+          var best=cv.toDataURL('image/png');
+          if(best.length>250000){var wp=cv.toDataURL('image/webp',0.85);if(wp.indexOf('image/webp')>=0&&wp.length<best.length)best=wp;}
+          if(best.length<src.length){d[c]=best;mudou=true;}
+        }catch(e){}
+        fim();
+      };
+      im.onerror=fim;
+      im.src=src;
+    });
+  }catch(e){}
+}
+
 function exportarBackup(){
   var dados=montarObjetoBackup();
   var blob=new Blob([JSON.stringify(dados,null,2)],{type:'application/json'});
@@ -12008,6 +12037,7 @@ function aplicarProtecaoAutofill(){
       sessionStorage.removeItem('orcpro_sync_reload');
     }catch(e){console.warn('[Nuvem] sync inicial falhou:',e);}
     // Inicia o app normal
+    compactarGeradorCatalogo();
     migrarSkusUmaVez();
     corrigirValoresCanecasUmaVez();
     initPIN();
