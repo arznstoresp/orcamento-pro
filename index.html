@@ -575,6 +575,7 @@ body.papel-vendedor #tmargem-wrap{display:none!important}
     <button class="nb" id="nb-gerador"   onclick="showView('gerador')">  🗂️ Gerador de Catálogo</button>
     <div class="sb-sec">Calculadoras</div>
     <button class="nb" id="nb-calctecidos" onclick="showView('calctecidos')"> 🧮 Precificação</button>
+    <button class="nb" id="nb-pers" onclick="showView('pers')"> 🎨 Personalização</button>
     <div class="sb-sec">Estoque</div>
     <button class="nb" id="nb-notas"     onclick="showView('notas')">    🧾 Notas de Compra</button>
     <button class="nb" id="nb-fornec"    onclick="showView('fornec')">   🚚 Fornecedores</button>
@@ -1133,6 +1134,47 @@ body.papel-vendedor #tmargem-wrap{display:none!important}
     </div>
 
     <!-- CALCULADORA DE TECIDOS (DTF) -->
+    <!-- PERSONALIZAÇÃO (tabela Global + simulador de preço) -->
+    <div id="view-pers" style="display:none;min-height:100%">
+      <div class="info-box">🎨 Escolha o produto, a personalização da Global e a quantidade. O preço final sai nos seus 3 níveis de margem e pode ir direto para o orçamento.</div>
+      <div class="pe-tabs" style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+        <button class="btn btn-brand btn-sm" id="pe-tb-sim" onclick="peAba('sim')">Simulador</button>
+        <button class="btn btn-out btn-sm" id="pe-tb-pad" onclick="peAba('pad')">Valores padrão</button>
+        <button class="btn btn-out btn-sm" id="pe-tb-ref" onclick="peAba('ref')">Tabela Global completa</button>
+        <button class="btn btn-out btn-sm" id="pe-tb-cfg" onclick="peAba('cfg')">Margens</button>
+      </div>
+      <div id="pe-sim">
+        <div class="g2" style="align-items:start">
+          <div>
+            <div class="card"><div class="card-title">1 · Produto</div>
+              <label class="lbl" for="pe-prod">Produto cadastrado</label>
+              <input id="pe-prod" list="pe-prod-lista" placeholder="Digite para buscar (ex.: squeeze)" oninput="peProdEscolhido()" autocomplete="off">
+              <datalist id="pe-prod-lista"></datalist>
+              <div class="g2" style="margin-top:8px">
+                <div><label class="lbl" for="pe-custo">Custo do produto (un.)</label><input id="pe-custo" type="number" step="0.01" min="0" value="0" oninput="peCalc()"></div>
+                <div><label class="lbl" for="pe-qtd">Quantidade</label><input id="pe-qtd" type="number" min="1" value="100" oninput="peCalc()"></div>
+              </div>
+              <div class="g2" style="margin-top:8px">
+                <div><label class="lbl" for="pe-extra">Custos extras por peça (frete, embalagem)</label><input id="pe-extra" type="number" step="0.01" min="0" value="0" oninput="peCalc()"></div>
+                <div><label class="lbl" for="pe-manual">Preço manual por peça (opcional)</label><input id="pe-manual" type="number" step="0.01" min="0" placeholder="vazio = usa os níveis" oninput="peCalc()"></div>
+              </div>
+            </div>
+            <div class="card"><div class="card-title">2 · Personalização</div>
+              <label class="lbl" style="display:flex;gap:8px;align-items:center;font-weight:500"><input type="checkbox" id="pe-simples" checked onchange="peGrp()" style="width:auto"> Usar valores padrão (50 / 100 / 300 / 500 / 1.000 pçs)</label>
+              <label class="lbl" for="pe-proc" style="margin-top:8px">Processo</label><select id="pe-proc" onchange="peGrp()"></select>
+              <label class="lbl" for="pe-grp" style="margin-top:8px">Tipo / tamanho</label><select id="pe-grp" onchange="peOpts()"></select>
+              <p id="pe-grp-obs" style="font-size:12px;color:var(--dark-text3);margin:6px 0 0"></p>
+              <div id="pe-opts"></div>
+            </div>
+          </div>
+          <div><div class="card" id="pe-res"></div></div>
+        </div>
+      </div>
+      <div id="pe-pad" style="display:none"></div>
+      <div id="pe-ref" style="display:none"></div>
+      <div id="pe-cfg" style="display:none"></div>
+    </div>
+
     <div id="view-calctecidos" style="display:none;min-height:100%">
       <div id="ct-alertas"></div>
       <div class="info-box">🧮 Calculadora profissional de precificação — escolha o tipo de produto e todos os campos se ajustam automaticamente. Ferramenta de tomada de decisão, não apenas uma calculadora.</div>
@@ -3539,7 +3581,7 @@ async function sincronizarXBZ(){
           if(!existing[idx].foto&&existing[idx].imagem)existing[idx].foto=existing[idx].imagem;// o catálogo exibe 'foto'
           existing[idx].linkFornecedor=p.link_fornecedor||'';
           existing[idx]._xbzStatus=statusProd;
-          if(precoBase>0&&!existing[idx]._precoEditado){existing[idx].precoVarejo=precoBase.toFixed(2);existing[idx].varejo=precoBase;if(!existing[idx].atacado)existing[idx].atacado=precoBase;}
+          if(precoBase>0&&!existing[idx]._precoEditado){existing[idx].precoVarejo=precoBase.toFixed(2);aplicarCustoXbz(existing[idx],precoBase);}
           _normalizarProdXbz(existing[idx]);
           atualizados++;
         }
@@ -3568,8 +3610,8 @@ async function sincronizarXBZ(){
           linkFornecedor:p.link_fornecedor||'',
           precoVarejo:precoBase>0?precoBase.toFixed(2):'',
           precoAtacado:'',
-          varejo:precoBase>0?precoBase:0,
-          atacado:precoBase>0?precoBase:0,
+          varejo:0,
+          atacado:0,
           minAtacado:10,
           custo:0,
           unit:'un',
@@ -3582,6 +3624,7 @@ async function sincronizarXBZ(){
           _xbzStatus:statusProd,
           _origem:'xbz'
         });
+        aplicarCustoXbz(existing[existing.length-1],precoBase);
         existingXbzCodes[code]=safeId;
         novos++;
       }
@@ -8440,9 +8483,9 @@ function aplicarPermissoesUsuario(){
   // Perfil vendedor: esconde itens financeiros/administrativos, custos e margens
   // (visual apenas — os dados em si continuam acessíveis a quem tem login liberado)
   document.body.classList.add('papel-vendedor');
-  var idsRestritos=['nb-dash','nb-calctecidos','nb-mei','nb-receber','nb-pagar','nb-dre','nb-usuarios','nb-config','nb-fornec','nb-maquinas','nb-notas'];
+  var idsRestritos=['nb-dash','nb-calctecidos','nb-pers','nb-mei','nb-receber','nb-pagar','nb-dre','nb-usuarios','nb-config','nb-fornec','nb-maquinas','nb-notas'];
   idsRestritos.forEach(function(id){var el=ge(id);if(el)el.style.display='none';});
-  var telasRestritas=['dash','calctecidos','mei','receber','pagar','dre','usuarios','config','notas','fornec','maquinas'];
+  var telasRestritas=['dash','calctecidos','pers','mei','receber','pagar','dre','usuarios','config','notas','fornec','maquinas'];
   var atual=localStorage.getItem('orcpro_last_view');
   if(!atual||telasRestritas.indexOf(atual)>=0)showView('venda-rapida');
 }
@@ -10930,8 +10973,190 @@ function closeMobileSidebarIfOpen(){
   }
 }
 
+
+// ═══════════════════════════════════════════════════
+// PERSONALIZAÇÃO — tabela da Global Gravações (2026) + simulador de preço
+// ═══════════════════════════════════════════════════
+var PERS_SEED={"empresa":{"nome":"Global Gravações Promocionais","tel":"(11) 2925-3888","end":"Rua Eli, 173 - Vila Maria","email":"global@globalgravacoes.com.br","insta":"@globalgravacoes","site":"www.globalgravacoessistema.com.br"},"vigencia":"Tabela de preços 2026","regras":["Prazo médio de 3 a 7 dias úteis, contados após o e-mail de produção e o material a produzir. Prazos especiais devem ser tratados com antecedência e podem ter ajuste de valor. Flambagem, promotor de aderência e manuseio geram custo extra.","Troca de materiais: o pedido fica parado até a troca. Não entregam nem retiram mercadoria em fornecedores. XBZ, SPOT e Asia entregam direto na Global.","Foto da 1ª peça: solicitar por e-mail na formalização do pedido; responder em até 5 minutos, senão é considerada amostra física adicional (custo extra). Etiqueta resinada e serigrafia com mais de uma cor não têm foto, indicar amostra física.","A Global se isenta de até 1% de perda de peças na gravação. Enviar 1% de peças extras (mínimo 2, máximo 100). Sem extras, a reposição é lançada como amostra ou pedido mínimo pela tabela.","Fechar o pedido significa concordar com todos os termos da Global."],"processos":[{"id":"uv360","nome":"UV 360°","fatMin":350,"desc":"Impressão digital UV em copos, garrafas, squeezes, potes, frascos, canecas, tubos e peças cilíndricas sem alça. Toda a circunferência, secagem instantânea.","amostra":"Sem verniz R$ 100,00 · Com verniz R$ 150,00. Não reembolsada em pedidos abaixo de 150 peças; acima de 150 peças a amostra é reembolsada.","obs":["Valores definidos pela altura da personalização, quantidade de peças por pedido e acabamento (com ou sem verniz).","Personalizações acima de 19 cm: sob consulta.","Artes ou logos com traçados finos ou escritas pequenas podem perder legibilidade. Engrosse traços e aumente as escritas."],"grupos":[{"id":"uv360_sv_0","nome":"Sem verniz · até 3 cm","obs":"Altura da personalização até 3 cm","faixas":[{"de":1,"preco":7.7,"tipo":"un"},{"de":51,"preco":7.0,"tipo":"un"},{"de":101,"preco":6.9,"tipo":"un"},{"de":301,"preco":6.75,"tipo":"un"},{"de":501,"preco":6.4,"tipo":"un"}]},{"id":"uv360_sv_1","nome":"Sem verniz · 3 a 7 cm","obs":"Altura da personalização 3 a 7 cm","faixas":[{"de":1,"preco":8.86,"tipo":"un"},{"de":51,"preco":8.05,"tipo":"un"},{"de":101,"preco":7.94,"tipo":"un"},{"de":301,"preco":7.76,"tipo":"un"},{"de":501,"preco":7.36,"tipo":"un"}]},{"id":"uv360_sv_2","nome":"Sem verniz · 7 a 11 cm","obs":"Altura da personalização 7 a 11 cm","faixas":[{"de":1,"preco":10.01,"tipo":"un"},{"de":51,"preco":9.1,"tipo":"un"},{"de":101,"preco":8.97,"tipo":"un"},{"de":301,"preco":8.78,"tipo":"un"},{"de":501,"preco":8.32,"tipo":"un"}]},{"id":"uv360_sv_3","nome":"Sem verniz · 11 a 15 cm","obs":"Altura da personalização 11 a 15 cm","faixas":[{"de":1,"preco":11.17,"tipo":"un"},{"de":51,"preco":10.15,"tipo":"un"},{"de":101,"preco":10.01,"tipo":"un"},{"de":301,"preco":9.79,"tipo":"un"},{"de":501,"preco":9.28,"tipo":"un"}]},{"id":"uv360_sv_4","nome":"Sem verniz · 15 a 19 cm","obs":"Altura da personalização 15 a 19 cm","faixas":[{"de":1,"preco":12.01,"tipo":"un"},{"de":51,"preco":10.92,"tipo":"un"},{"de":101,"preco":10.76,"tipo":"un"},{"de":301,"preco":10.53,"tipo":"un"},{"de":501,"preco":9.98,"tipo":"un"}]},{"id":"uv360_cv_0","nome":"Com verniz · até 3 cm","obs":"Altura da personalização até 3 cm","faixas":[{"de":1,"preco":10.01,"tipo":"un"},{"de":51,"preco":9.1,"tipo":"un"},{"de":101,"preco":8.97,"tipo":"un"},{"de":301,"preco":8.78,"tipo":"un"},{"de":501,"preco":8.32,"tipo":"un"}]},{"id":"uv360_cv_1","nome":"Com verniz · 3 a 7 cm","obs":"Altura da personalização 3 a 7 cm","faixas":[{"de":1,"preco":11.52,"tipo":"un"},{"de":51,"preco":10.47,"tipo":"un"},{"de":101,"preco":10.32,"tipo":"un"},{"de":301,"preco":10.09,"tipo":"un"},{"de":501,"preco":9.57,"tipo":"un"}]},{"id":"uv360_cv_2","nome":"Com verniz · 7 a 11 cm","obs":"Altura da personalização 7 a 11 cm","faixas":[{"de":1,"preco":13.01,"tipo":"un"},{"de":51,"preco":11.83,"tipo":"un"},{"de":101,"preco":11.66,"tipo":"un"},{"de":301,"preco":11.41,"tipo":"un"},{"de":501,"preco":10.82,"tipo":"un"}]},{"id":"uv360_cv_3","nome":"Com verniz · 11 a 15 cm","obs":"Altura da personalização 11 a 15 cm","faixas":[{"de":1,"preco":14.52,"tipo":"un"},{"de":51,"preco":13.2,"tipo":"un"},{"de":101,"preco":13.01,"tipo":"un"},{"de":301,"preco":12.73,"tipo":"un"},{"de":501,"preco":12.06,"tipo":"un"}]},{"id":"uv360_cv_4","nome":"Com verniz · 15 a 19 cm","obs":"Altura da personalização 15 a 19 cm","faixas":[{"de":1,"preco":15.61,"tipo":"un"},{"de":51,"preco":14.2,"tipo":"un"},{"de":101,"preco":13.99,"tipo":"un"},{"de":301,"preco":13.69,"tipo":"un"},{"de":501,"preco":12.97,"tipo":"un"}]}]},{"id":"uvdig","nome":"UV Digital","fatMin":100,"desc":"Cura UV instantânea, ampla gama de cores, superfícies planas e cilíndricas.","amostra":"","obs":["Em cilíndricos (squeeze, copos) a medida máxima é 2,5 a 3 cm na circunferência. Em canetas, 0,5 a 0,7 cm conforme o modelo, comprimento proporcional.","Artes com traços finos ou escritas pequenas podem perder legibilidade.","Metal tem 70% de aderência de tinta na UV digital. Pode haver pequenas variações de tonalidade em relação ao arquivo.","Dados variáveis (nome, números etc.): segue as tabelas acima com acréscimo de R$ 2,50 por peça. Ex.: pen card 150 pçs = R$ 0,80 + R$ 2,50 = R$ 3,30 por peça/lado."],"extraDV":2.5,"grupos":[{"id":"uvd_pl","nome":"Peças pequenas e leves","obs":"Canetas, pen drives, protetor de webcam etc.","faixas":[{"de":1,"preco":0.45,"tipo":"un"},{"de":501,"preco":0.4,"tipo":"un"},{"de":1001,"preco":0.35,"tipo":"un"},{"de":3001,"preco":0.33,"tipo":"un"},{"de":5001,"preco":0.3,"tipo":"un"}]},{"id":"uvd_pp","nome":"Peças pequenas (2,5 cm x 9,5 cm)","obs":"Pop socket, adaptador de tomada, espelho pequeno etc.","faixas":[{"de":1,"preco":0.6,"tipo":"un"},{"de":201,"preco":0.55,"tipo":"un"},{"de":501,"preco":0.5,"tipo":"un"}]},{"id":"uvd_pm","nome":"Peças médias (até 6 cm x 9 cm, 54 cm²)","obs":"Pen card, power bank etc.","faixas":[{"de":1,"preco":0.8,"tipo":"un"},{"de":501,"preco":0.75,"tipo":"un"},{"de":1501,"preco":0.7,"tipo":"un"}]},{"id":"uvd_sq","nome":"Squeeze / garrafa (largura de 2,5 a 3,0 cm)","obs":"","faixas":[{"de":1,"preco":4.0,"tipo":"un"},{"de":201,"preco":3.5,"tipo":"un"},{"de":501,"preco":3.0,"tipo":"un"}]},{"id":"uvd_pg","nome":"Peças grandes (acima de 54 cm²)","obs":"Comprimento (cm) x altura (cm) x 0,025. Ex.: 14,9 x 9,8 x 0,025 = R$ 3,65 a unidade.","formula":{"tipo":"area","fator":[0.025],"faixasQtd":[1]}}]},{"id":"laser","nome":"Laser","fatMin":80,"desc":"Laser de fibra (metais) e laser CO₂ (madeira, vidro, silicone).","amostra":"","obs":["Em cilíndricos (squeeze, copos) a largura padrão é 27 mm na circunferência, até 50 mm em algumas peças (consultar a equipe). Em canetas, 5 a 7 mm conforme o modelo, comprimento proporcional.","A tonalidade da gravação é determinada pela cor do material sob a camada de tinta externa.","Artes com traços finos ou escritas pequenas podem perder legibilidade.","Em materiais inox e envernizados não é possível passar de 2,7 cm."],"grupos":[{"id":"l_pp1","nome":"Peças pequenas tipo 1","obs":"Caneta, lapiseira, laser point etc.","faixas":[{"de":1,"preco":0.5,"tipo":"un"},{"de":350,"preco":0.45,"tipo":"un"},{"de":1501,"preco":0.38,"tipo":"un"}]},{"id":"l_pp2","nome":"Peças pequenas tipo 2","obs":"Canivete, chaveiro, placas para mochilas, porta bolsas etc.","faixas":[{"de":1,"preco":0.55,"tipo":"un"},{"de":350,"preco":0.5,"tipo":"un"},{"de":1501,"preco":0.45,"tipo":"un"}]},{"id":"l_pm1","nome":"Peças médias tipo 1","obs":"Calculadoras, calendário, porta celular, trenas etc.","faixas":[{"de":1,"preco":0.7,"tipo":"un"},{"de":350,"preco":0.65,"tipo":"un"},{"de":1501,"preco":0.6,"tipo":"un"}]},{"id":"l_pm2","nome":"Peças médias tipo 2","obs":"Alicates, talheres etc.","faixas":[{"de":1,"preco":0.8,"tipo":"un"},{"de":350,"preco":0.75,"tipo":"un"},{"de":1501,"preco":0.7,"tipo":"un"}]},{"id":"l_dv","nome":"Dados variáveis e placas fixadas no material","obs":"Placas já fixadas em mochilas, necessaires, estojos, kits etc.","faixas":[{"de":1,"preco":1.5,"tipo":"un"},{"de":350,"preco":1.4,"tipo":"un"},{"de":1501,"preco":1.3,"tipo":"un"}]},{"id":"l_plaq","nome":"Gravação + aplicação de plaquinha","obs":"Inclui gravação + manuseio.","faixas":[{"de":1,"preco":4.4,"tipo":"un"},{"de":350,"preco":4.2,"tipo":"un"},{"de":1501,"preco":4.0,"tipo":"un"}]},{"id":"l_c27","nome":"Laser cilíndrico · largura até 2,7 cm","obs":"Canecas, cantil, squeeze, coqueteleira etc.","faixas":[{"de":1,"preco":0.9,"tipo":"un"},{"de":350,"preco":0.85,"tipo":"un"},{"de":1501,"preco":0.8,"tipo":"un"}]},{"id":"l_c35","nome":"Laser cilíndrico · largura de 2,8 a 3,5 cm","obs":"Canecas, cantil, squeeze, coqueteleira etc.","faixas":[{"de":1,"preco":1.5,"tipo":"un"},{"de":350,"preco":1.4,"tipo":"un"},{"de":1501,"preco":1.3,"tipo":"un"}]},{"id":"l_c50","nome":"Laser cilíndrico · largura de 3,6 a 5 cm","obs":"Canecas, cantil, squeeze, coqueteleira etc.","faixas":[{"de":1,"preco":3.0,"tipo":"un"},{"de":350,"preco":2.5,"tipo":"un"},{"de":1501,"preco":2.0,"tipo":"un"}]},{"id":"l_co1","nome":"Laser CO² tipo 1 pequeno (vidro, madeira, silicone)","obs":"Caneta, lapiseira, chaveiro, pen drive etc.","faixas":[{"de":1,"preco":0.7,"tipo":"un"},{"de":350,"preco":0.6,"tipo":"un"},{"de":1501,"preco":0.55,"tipo":"un"}]},{"id":"l_co2","nome":"Laser CO² tipo 2 pequeno (vidro, madeira, silicone)","obs":"Porta cartões de celular, suporte para celular, kit viagem etc.","faixas":[{"de":1,"preco":0.75,"tipo":"un"},{"de":350,"preco":0.7,"tipo":"un"},{"de":1501,"preco":0.6,"tipo":"un"}]},{"id":"l_co3","nome":"Laser CO² tipo 3 (vidro até 3,5 cm)","obs":"Taças, copos, canecas etc.","faixas":[{"de":1,"preco":3.0,"tipo":"un"},{"de":350,"preco":2.5,"tipo":"un"},{"de":1501,"preco":2.3,"tipo":"un"}]},{"id":"l_co4","nome":"Laser CO² tipo 4 grande (vidro, madeira, silicone)","obs":"Tábuas, kit queijo, kit pizza, caixa de madeira, guarda-chuva etc. Gravação até 9 x 9 cm.","faixas":[{"de":1,"preco":3.5,"tipo":"un"},{"de":350,"preco":3.0,"tipo":"un"},{"de":1501,"preco":2.5,"tipo":"un"}]}]},{"id":"tampo","nome":"Tampografia","fatMin":0,"desc":"Impressão indireta com clichê e tampão de silicone. Ideal para formatos irregulares e superfícies curvas, como canetas e eletrônicos.","amostra":"1 cor/batida R$ 70,00 · 2 cores/batidas R$ 140,00. Não reembolsada no pedido.","coresMax":2,"obs":["Valores de 1 cor/batida. Para mais de uma gravação ou cor, multiplique o total pela quantidade de batidas ou cores. Grava no máximo 2 cores.","Em cilíndricos (squeeze, copos) a medida máxima é 3 cm na circunferência. Em canetas, 5 a 7 mm conforme o modelo, comprimento proporcional.","A aderência da tinta varia com a textura. Em metal é 70% mesmo com promotor. Em courino a cobertura pode ter pequenas fissuras.","Peças pequenas: a embalagem individual é descartada após a gravação e não é refeita. Se precisar, tratar antes (custo de manuseio).","Faixas de peças pequenas conforme impresso: faturamento mínimo R$ 200,00 o lote; de 1.100 a 2.000 pçs; de 2.250 a 5.000 pçs; acima de 5.700 pçs. O PDF não informa o valor entre as faixas (1.001–1.099, 2.001–2.249, 5.001–5.699). O simulador usa a faixa anterior."],"grupos":[{"id":"t_pp","nome":"Peças pequenas","obs":"Canetas plásticas, ecológicas, lápis etc.","faixas":[{"de":1,"preco":200,"tipo":"lote"},{"de":1100,"preco":0.19,"tipo":"un"},{"de":2250,"preco":0.17,"tipo":"un"},{"de":5700,"preco":0.15,"tipo":"un"}]},{"id":"t_pm","nome":"Peças médias","obs":"Caneta de metal, caixinha de fone, trena, apontador etc.","faixas":[{"de":1,"preco":180,"tipo":"lote"},{"de":101,"preco":220,"tipo":"lote"},{"de":301,"preco":300,"tipo":"lote"},{"de":501,"preco":350,"tipo":"lote"},{"de":701,"preco":420,"tipo":"lote"},{"de":821,"preco":0.4,"tipo":"un"}]},{"id":"t_pg","nome":"Peças grandes e complexas","obs":"Fone de ouvido, squeeze, coqueteleira, caixa de som, umidificadores etc.","faixas":[{"de":1,"preco":180,"tipo":"lote"},{"de":51,"preco":220,"tipo":"lote"},{"de":101,"preco":240,"tipo":"lote"},{"de":301,"preco":0.8,"tipo":"un"},{"de":701,"preco":0.7,"tipo":"un"}]}]},{"id":"serig","nome":"Serigrafia / Silk","fatMin":0,"desc":"Tela tensionada e rodo. Ideal para séries em algodão, PVC, papel, tecidos, vidro, madeira, plástico e metal.","amostra":"1 cor/batida R$ 70,00 · 2 cores R$ 140,00 · 3 cores R$ 180,00. Não reembolsada no pedido.","coresMax":4,"obs":["Valores de 1 cor/batida. Para mais cores ou gravações, multiplique o total pela quantidade. Grava no máximo 4 cores.","Em canecas, por causa da alça, a medida máxima na circunferência varia de 4 a 6,5 cm conforme o modelo.","Em squeezes, garrafas e copos a gravação gira na circunferência, mas não faz rotação completa de 360°. Deixe 2 cm de margem na divisão.","Metal: aderência 70% mesmo com promotor. Courino: a tinta pode ter pequenas fissuras pela textura.","Logos coloridas: usa-se código Pantone (escala Solid Coated) como referência para aproximar a cor do visual digital.","Artes com traços finos ou escritas pequenas podem perder legibilidade."],"grupos":[{"id":"s_pp","nome":"Plana · peças pequenas (10 cm x 10 cm)","obs":"Calculadoras, trenas, lanternas pequenas etc.","faixas":[{"de":1,"preco":160,"tipo":"lote"},{"de":101,"preco":205,"tipo":"lote"},{"de":301,"preco":275,"tipo":"lote"},{"de":601,"preco":377,"tipo":"lote"},{"de":821,"preco":0.45,"tipo":"un"}]},{"id":"s_pm","nome":"Plana e cilíndricas · peças médias (15 cm x 15 cm)","obs":"Moleskines, squeezes, copo, suportes para celular, mouse pad etc.","faixas":[{"de":1,"preco":160,"tipo":"lote"},{"de":101,"preco":251,"tipo":"lote"},{"de":301,"preco":342,"tipo":"lote"},{"de":501,"preco":400,"tipo":"lote"},{"de":701,"preco":480,"tipo":"lote"},{"de":821,"preco":0.58,"tipo":"un"}]},{"id":"s_pg","nome":"Plana · peças grandes (25 cm x 25 cm)","obs":"Balança, pastas, raquete, sacola plástica etc.","faixas":[{"de":1,"preco":160,"tipo":"lote"},{"de":51,"preco":250,"tipo":"lote"},{"de":101,"preco":275,"tipo":"lote"},{"de":301,"preco":0.92,"tipo":"un"},{"de":701,"preco":0.8,"tipo":"un"}]},{"id":"s_tp","nome":"Têxtil · peças costuradas pequenas","obs":"Estojo, porta canudo, porta caneta, máscara, luvas, lixo car etc.","faixas":[{"de":1,"preco":160,"tipo":"lote"},{"de":51,"preco":250,"tipo":"lote"},{"de":101,"preco":275,"tipo":"lote"},{"de":301,"preco":0.92,"tipo":"un"},{"de":701,"preco":0.8,"tipo":"un"}]},{"id":"s_tg","nome":"Têxtil · peças costuradas grandes","obs":"Mochilas, sacolas grandes, bolsas, bolsa térmica, necessaires, mouse pad, sacochilas, estojo para kits etc.","faixas":[{"de":1,"preco":275,"tipo":"lote"},{"de":51,"preco":345,"tipo":"lote"},{"de":101,"preco":390,"tipo":"lote"},{"de":301,"preco":1.3,"tipo":"un"},{"de":701,"preco":1.15,"tipo":"un"}]},{"id":"s_gc","nome":"Guarda-chuva · preço por logo e gomo","obs":"","faixas":[{"de":1,"preco":230,"tipo":"lote"},{"de":101,"preco":1.95,"tipo":"un"},{"de":201,"preco":1.85,"tipo":"un"}]}]},{"id":"dtf","nome":"Transfer / DTF","fatMin":170,"desc":"DTF (Direct to Film): transferência impressa digitalmente e aplicada com calor. Somente materiais têxteis (necessaires, estojos, bolsas, mochilas, malas).","amostra":"R$ 35,00. Não reembolsada no pedido.","obs":["Grava somente materiais têxteis.","Artes com traços finos ou escritas pequenas podem perder legibilidade. No DTF, coloque um fundo chapado.","Acima de 308 cm²: altura x largura x fator multiplicador = valor da gravação (unidade). Fator: até 50 pçs 0,035 · 51 a 100 pçs 0,029 · 101 a 500 pçs 0,026 · acima de 501 pçs 0,024."],"grupos":[{"id":"d_57","nome":"9,5 cm x 6 cm (57 cm²)","obs":"","faixas":[{"de":1,"preco":170,"tipo":"lote"},{"de":34,"preco":5.15,"tipo":"un"},{"de":51,"preco":4.0,"tipo":"un"},{"de":101,"preco":3.55,"tipo":"un"},{"de":501,"preco":3.25,"tipo":"un"}]},{"id":"d_133","nome":"9,5 cm x 14 cm (133 cm²)","obs":"","faixas":[{"de":1,"preco":170,"tipo":"lote"},{"de":26,"preco":6.85,"tipo":"un"},{"de":51,"preco":5.48,"tipo":"un"},{"de":101,"preco":4.9,"tipo":"un"},{"de":501,"preco":4.45,"tipo":"un"}]},{"id":"d_280","nome":"14 cm x 20 cm (280 cm²)","obs":"","faixas":[{"de":1,"preco":170,"tipo":"lote"},{"de":18,"preco":10.05,"tipo":"un"},{"de":51,"preco":8.28,"tipo":"un"},{"de":101,"preco":7.55,"tipo":"un"},{"de":501,"preco":6.85,"tipo":"un"}]},{"id":"d_308","nome":"14 cm x 22 cm (308 cm²)","obs":"","faixas":[{"de":1,"preco":170,"tipo":"lote"},{"de":17,"preco":10.6,"tipo":"un"},{"de":51,"preco":8.6,"tipo":"un"},{"de":101,"preco":7.9,"tipo":"un"},{"de":501,"preco":7.4,"tipo":"un"}]},{"id":"d_f","nome":"Acima de 308 cm² (fórmula)","obs":"Altura x largura x fator.","formula":{"tipo":"area","fator":[0.035,0.029,0.026,0.024],"faixasQtd":[1,51,101,501]}}]},{"id":"subl","nome":"Sublimação","fatMin":100,"desc":"Sublimação em canecas de cerâmica: calor e pressão, cores vivas e resistentes à lavagem.","amostra":"","chapado":0.5,"obs":["Valores baseados em artes não chapadas, apenas logos. Quando a arte tem fundo chapado, os valores aumentam 50%.","Em canecas coloridas com tarja branca, a cor da impressão não fica tão nítida quanto a tonalidade da peça.","Artes com traços finos ou escritas pequenas podem perder legibilidade."],"grupos":[{"id":"sb_f","nome":"Frente (1 lado)","obs":"","faixas":[{"de":1,"preco":2.2,"tipo":"un"},{"de":501,"preco":2.05,"tipo":"un"},{"de":1001,"preco":1.95,"tipo":"un"}]},{"id":"sb_fv","nome":"Frente e verso (2 lados)","obs":"","faixas":[{"de":1,"preco":2.55,"tipo":"un"},{"de":501,"preco":2.4,"tipo":"un"},{"de":1001,"preco":2.3,"tipo":"un"}]},{"id":"sb_dv","nome":"Dados variáveis (fotos, nomes, caricatura etc.)","obs":"","faixas":[{"de":1,"preco":4.5,"tipo":"un"},{"de":501,"preco":4.3,"tipo":"un"},{"de":1001,"preco":4.0,"tipo":"un"}]}]},{"id":"etiq","nome":"Etiqueta Resinada","fatMin":100,"desc":"Camada de resina epóxi transparente sobre superfície adesiva. Alto-relevo brilhante e resistente.","amostra":"","obs":["Cálculo por dimensão: altura (cm) x largura (cm) x 0,057 = valor da etiqueta.","Valor mínimo de etiqueta: R$ 0,30 por unidade. Pedido mínimo R$ 100,00 (por logo, formato ou tamanho).","Manuseio de colagem de etiquetas: 1 lado R$ 0,30 · 2 lados R$ 0,50.","Exemplos: 5 x 2,5 cm = R$ 0,74 · 7,5 x 3,8 cm = R$ 1,62 · 2,5 x 1,5 cm = R$ 0,21, cobrado o mínimo de R$ 0,30."],"grupos":[{"id":"e_f","nome":"Etiqueta resinada (fórmula)","obs":"Altura x largura x 0,057, mínimo R$ 0,30.","formula":{"tipo":"area","fator":[0.057],"faixasQtd":[1],"minUn":0.3}}],"manuseio":{"1":0.3,"2":0.5}},{"id":"penchav","nome":"Pen-drive e Chaveiro","fatMin":400,"desc":"Acrílico 2D com resina, abertura retrátil ou com tampa. Dimensão máxima de 16 cm² (ex.: 4 x 4 cm ou 8 x 2 cm). Pedido mínimo R$ 400,00 por logo/formato.","amostra":"R$ 50,00. Reembolsada em pedidos acima de 200 peças.","obs":["Pen drive customizado: não inclui correntinha nem embalagem individual.","Chaveiro customizado: inclui correntinha, não inclui embalagem individual.","A tabela se refere aos pen drives sem memória. Todas as peças vêm com adaptador, já incluso no preço."],"grupos":[{"id":"pc_pd","nome":"Pen-drive","obs":"Retrátil ou tampa.","faixas":[{"de":50,"preco":9.14,"tipo":"un"},{"de":100,"preco":8.91,"tipo":"un"},{"de":201,"preco":8.57,"tipo":"un"},{"de":501,"preco":8.23,"tipo":"un"},{"de":1001,"preco":7.89,"tipo":"un"}]},{"id":"pc_ch","nome":"Chaveiro","obs":"Inclui correntinha.","faixas":[{"de":50,"preco":6.3,"tipo":"un"},{"de":100,"preco":5.37,"tipo":"un"},{"de":201,"preco":5.26,"tipo":"un"},{"de":501,"preco":5.14,"tipo":"un"},{"de":1001,"preco":5.03,"tipo":"un"}]}]}],"padrao":{"tiers":[50,100,300,500,1000],"processos":[{"id":"uv360","linhas":[{"id":"uv360_sv_0","nome":"Sem verniz · até 3 cm","ids":["uv360_sv_0"],"precos":{"50":7.7,"100":7.0,"300":6.9,"500":6.75,"1000":6.4},"media":false},{"id":"uv360_sv_1","nome":"Sem verniz · 3 a 7 cm","ids":["uv360_sv_1"],"precos":{"50":8.86,"100":8.05,"300":7.94,"500":7.76,"1000":7.36},"media":false},{"id":"uv360_sv_2","nome":"Sem verniz · 7 a 11 cm","ids":["uv360_sv_2"],"precos":{"50":10.01,"100":9.1,"300":8.97,"500":8.78,"1000":8.32},"media":false},{"id":"uv360_sv_3","nome":"Sem verniz · 11 a 15 cm","ids":["uv360_sv_3"],"precos":{"50":11.17,"100":10.15,"300":10.01,"500":9.79,"1000":9.28},"media":false},{"id":"uv360_sv_4","nome":"Sem verniz · 15 a 19 cm","ids":["uv360_sv_4"],"precos":{"50":12.01,"100":10.92,"300":10.76,"500":10.53,"1000":9.98},"media":false},{"id":"uv360_cv_0","nome":"Com verniz · até 3 cm","ids":["uv360_cv_0"],"precos":{"50":10.01,"100":9.1,"300":8.97,"500":8.78,"1000":8.32},"media":false},{"id":"uv360_cv_1","nome":"Com verniz · 3 a 7 cm","ids":["uv360_cv_1"],"precos":{"50":11.52,"100":10.47,"300":10.32,"500":10.09,"1000":9.57},"media":false},{"id":"uv360_cv_2","nome":"Com verniz · 7 a 11 cm","ids":["uv360_cv_2"],"precos":{"50":13.01,"100":11.83,"300":11.66,"500":11.41,"1000":10.82},"media":false},{"id":"uv360_cv_3","nome":"Com verniz · 11 a 15 cm","ids":["uv360_cv_3"],"precos":{"50":14.52,"100":13.2,"300":13.01,"500":12.73,"1000":12.06},"media":false},{"id":"uv360_cv_4","nome":"Com verniz · 15 a 19 cm","ids":["uv360_cv_4"],"precos":{"50":15.61,"100":14.2,"300":13.99,"500":13.69,"1000":12.97},"media":false}]},{"id":"uvdig","linhas":[{"id":"uvd_pl","nome":"Peças pequenas (UV Digital)","ids":["uvd_pl","uvd_pp"],"precos":{"50":0.53,"100":0.53,"300":0.5,"500":0.5,"1000":0.45},"media":true},{"id":"uvd_pm","nome":"Peças médias (até 6 cm x 9 cm, 54 cm²)","ids":["uvd_pm"],"precos":{"50":0.8,"100":0.8,"300":0.8,"500":0.8,"1000":0.75},"media":false},{"id":"uvd_sq","nome":"Squeeze / garrafa (largura de 2,5 a 3,0 cm)","ids":["uvd_sq"],"precos":{"50":4.0,"100":4.0,"300":3.5,"500":3.5,"1000":3.0},"media":false}]},{"id":"laser","linhas":[{"id":"l_pp1","nome":"Peças pequenas (Laser)","ids":["l_pp1","l_pp2"],"precos":{"50":0.53,"100":0.53,"300":0.53,"500":0.47,"1000":0.47},"media":true},{"id":"l_pm1","nome":"Peças médias (Laser)","ids":["l_pm1","l_pm2"],"precos":{"50":0.75,"100":0.75,"300":0.75,"500":0.7,"1000":0.7},"media":true},{"id":"l_dv","nome":"Dados variáveis e placas fixadas no material","ids":["l_dv"],"precos":{"50":1.5,"100":1.5,"300":1.5,"500":1.4,"1000":1.4},"media":false},{"id":"l_plaq","nome":"Gravação + aplicação de plaquinha","ids":["l_plaq"],"precos":{"50":4.4,"100":4.4,"300":4.4,"500":4.2,"1000":4.2},"media":false},{"id":"l_c27","nome":"Laser cilíndrico · largura até 2,7 cm","ids":["l_c27"],"precos":{"50":0.9,"100":0.9,"300":0.9,"500":0.85,"1000":0.85},"media":false},{"id":"l_c35","nome":"Laser cilíndrico · largura de 2,8 a 3,5 cm","ids":["l_c35"],"precos":{"50":1.5,"100":1.5,"300":1.5,"500":1.4,"1000":1.4},"media":false},{"id":"l_c50","nome":"Laser cilíndrico · largura de 3,6 a 5 cm","ids":["l_c50"],"precos":{"50":3.0,"100":3.0,"300":3.0,"500":2.5,"1000":2.5},"media":false},{"id":"l_co1","nome":"Laser CO² pequeno","ids":["l_co1","l_co2"],"precos":{"50":0.72,"100":0.72,"300":0.72,"500":0.65,"1000":0.65},"media":true},{"id":"l_co3","nome":"Laser CO² tipo 3 (vidro até 3,5 cm)","ids":["l_co3"],"precos":{"50":3.0,"100":3.0,"300":3.0,"500":2.5,"1000":2.5},"media":false},{"id":"l_co4","nome":"Laser CO² tipo 4 grande (vidro, madeira, silicone)","ids":["l_co4"],"precos":{"50":3.5,"100":3.5,"300":3.5,"500":3.0,"1000":3.0},"media":false}]},{"id":"tampo","linhas":[{"id":"t_pp","nome":"Peças pequenas","ids":["t_pp"],"precos":{"50":4.0,"100":2.0,"300":0.67,"500":0.4,"1000":0.2},"media":false},{"id":"t_pm","nome":"Peças médias","ids":["t_pm"],"precos":{"50":3.6,"100":1.8,"300":0.73,"500":0.6,"1000":0.4},"media":false},{"id":"t_pg","nome":"Peças grandes e complexas","ids":["t_pg"],"precos":{"50":3.6,"100":2.2,"300":0.8,"500":0.8,"1000":0.7},"media":false}]},{"id":"serig","linhas":[{"id":"s_pp","nome":"Plana · peças pequenas (10 cm x 10 cm)","ids":["s_pp"],"precos":{"50":3.2,"100":1.6,"300":0.68,"500":0.55,"1000":0.45},"media":false},{"id":"s_pm","nome":"Plana e cilíndricas · peças médias (15 cm x 15 cm)","ids":["s_pm"],"precos":{"50":3.2,"100":1.6,"300":0.84,"500":0.68,"1000":0.58},"media":false},{"id":"s_pg","nome":"Plana · peças grandes (25 cm x 25 cm)","ids":["s_pg"],"precos":{"50":3.2,"100":2.5,"300":0.92,"500":0.92,"1000":0.8},"media":false},{"id":"s_tp","nome":"Têxtil · peças costuradas pequenas","ids":["s_tp"],"precos":{"50":3.2,"100":2.5,"300":0.92,"500":0.92,"1000":0.8},"media":false},{"id":"s_tg","nome":"Têxtil · peças costuradas grandes","ids":["s_tg"],"precos":{"50":5.5,"100":3.45,"300":1.3,"500":1.3,"1000":1.15},"media":false},{"id":"s_gc","nome":"Guarda-chuva · preço por logo e gomo","ids":["s_gc"],"precos":{"50":4.6,"100":2.3,"300":1.85,"500":1.85,"1000":1.85},"media":false}]},{"id":"dtf","linhas":[{"id":"d_57","nome":"9,5 cm x 6 cm (57 cm²)","ids":["d_57"],"precos":{"50":5.15,"100":4.0,"300":3.55,"500":3.55,"1000":3.25},"media":false},{"id":"d_133","nome":"9,5 cm x 14 cm (133 cm²)","ids":["d_133"],"precos":{"50":6.85,"100":5.48,"300":4.9,"500":4.9,"1000":4.45},"media":false},{"id":"d_280","nome":"14 cm x 20 cm (280 cm²)","ids":["d_280"],"precos":{"50":10.05,"100":8.28,"300":7.55,"500":7.55,"1000":6.85},"media":false},{"id":"d_308","nome":"14 cm x 22 cm (308 cm²)","ids":["d_308"],"precos":{"50":10.6,"100":8.6,"300":7.9,"500":7.9,"1000":7.4},"media":false}]},{"id":"subl","linhas":[{"id":"sb_f","nome":"Frente (1 lado)","ids":["sb_f"],"precos":{"50":2.2,"100":2.2,"300":2.2,"500":2.2,"1000":2.05},"media":false},{"id":"sb_fv","nome":"Frente e verso (2 lados)","ids":["sb_fv"],"precos":{"50":2.55,"100":2.55,"300":2.55,"500":2.55,"1000":2.4},"media":false},{"id":"sb_dv","nome":"Dados variáveis (fotos, nomes, caricatura etc.)","ids":["sb_dv"],"precos":{"50":4.5,"100":4.5,"300":4.5,"500":4.5,"1000":4.3},"media":false}]},{"id":"etiq","linhas":[]},{"id":"penchav","linhas":[{"id":"pc_pd","nome":"Pen-drive","ids":["pc_pd"],"precos":{"50":9.14,"100":8.91,"300":8.57,"500":8.57,"1000":8.23},"media":false},{"id":"pc_ch","nome":"Chaveiro","ids":["pc_ch"],"precos":{"50":6.3,"100":5.37,"300":5.26,"500":5.26,"1000":5.14},"media":false}]}]}};
+function getPersTab(){try{var t=JSON.parse(localStorage.getItem('orcpro_pers_tab')||'null');if(t&&t.processos&&t.padrao)return t;}catch(e){}return JSON.parse(JSON.stringify(PERS_SEED));}
+function savePersTab(t){return gravarSeguro('orcpro_pers_tab',JSON.stringify(t),'tabela de personalização');}
+function persCfgPadrao(){return{niveis:[{n:'Varejo',m:45},{n:'Atacado',m:35},{n:'Revenda',m:25}]};}
+function getPersCfg(){try{var c=JSON.parse(localStorage.getItem('orcpro_pers_cfg')||'null');if(c&&c.niveis&&c.niveis.length===3)return c;}catch(e){}return persCfgPadrao();}
+function savePersCfg(c){return gravarSeguro('orcpro_pers_cfg',JSON.stringify(c),'margens de personalização');}
+// preço de venda a partir do custo e da margem sobre a venda (preço = custo / (1 - margem))
+function precoPorMargem(custo,m){m=Math.min(95,Math.max(0,parseFloat(m)||0))/100;return custo/(1-m);}
+function precosPorCusto(custo){var c=getPersCfg();return{varejo:precoPorMargem(custo,c.niveis[0].m),atacado:precoPorMargem(custo,c.niveis[1].m),revenda:precoPorMargem(custo,c.niveis[2].m)};}
+var _peT=null;
+function peT(){if(!_peT)_peT=getPersTab();return _peT;}
+function peProc(){return peT().processos.find(function(p){return p.id===ge('pe-proc').value;});}
+function peGrupos(p){
+  if(!ge('pe-simples')||!ge('pe-simples').checked)return p.grupos;
+  var pd=peT().padrao.processos.find(function(x){return x.id===p.id;}),r=[];
+  (pd?pd.linhas:[]).forEach(function(l){var g=p.grupos.find(function(x){return x.id===l.id;});r.push({id:l.id,nome:l.nome,obs:g?g.obs:'',padrao:l});});
+  p.grupos.forEach(function(g){if(g.formula)r.push(g);});
+  return r;
+}
+function peGrpAtual(){return peGrupos(peProc()).find(function(g){return g.id===ge('pe-grp').value;});}
+function peFaixa(fx,q){var f=null;fx.forEach(function(x){if(q>=x.de)f=x;});return f;}
+function peNum(id,d){var e=ge(id);if(!e)return d;var v=parseFloat(e.value);return isNaN(v)?d:v;}
+function peIniciar(){
+  var t=peT();
+  ge('pe-proc').innerHTML=t.processos.map(function(p){return'<option value="'+p.id+'">'+escHtml(p.nome)+'</option>';}).join('');
+  ge('pe-prod-lista').innerHTML=getProdutos().map(function(p){return'<option value="'+escHtml(p.nome)+'">';}).join('');
+  peGrp();
+}
+function peGrp(){var p=peProc();ge('pe-grp').innerHTML=peGrupos(p).map(function(g){return'<option value="'+g.id+'">'+escHtml(g.nome)+'</option>';}).join('');peOpts();}
+function peOpts(){
+  var p=peProc(),g=peGrpAtual(),h='';if(!g)return;
+  ge('pe-grp-obs').textContent=g.obs||'';
+  if(g.formula){var et=p.id==='etiq';h+='<div class="g2" style="margin-top:8px"><div><label class="lbl" for="pe-alt">Altura (cm)</label><input id="pe-alt" type="number" step="0.1" min="0" value="'+(et?3.8:10)+'"></div><div><label class="lbl" for="pe-lar">Largura (cm)</label><input id="pe-lar" type="number" step="0.1" min="0" value="'+(et?7.5:15)+'"></div></div>';}
+  if(p.coresMax)h+='<label class="lbl" for="pe-cores" style="margin-top:8px">Cores / batidas (máx. '+p.coresMax+')</label><input id="pe-cores" type="number" min="1" max="'+p.coresMax+'" value="1">';
+  if(p.extraDV)h+='<label class="lbl" style="display:flex;gap:8px;align-items:center;font-weight:500;margin-top:8px"><input type="checkbox" id="pe-dv" style="width:auto"> Dados variáveis (nome, número): + '+fmt(p.extraDV)+' por peça</label>';
+  if(p.chapado)h+='<label class="lbl" style="display:flex;gap:8px;align-items:center;font-weight:500;margin-top:8px"><input type="checkbox" id="pe-chap" style="width:auto"> Arte com fundo chapado: + 50%</label>';
+  if(p.manuseio)h+='<label class="lbl" for="pe-man" style="margin-top:8px">Manuseio de colagem</label><select id="pe-man"><option value="0">Sem colagem</option><option value="1">1 lado: '+fmt(p.manuseio['1'])+'</option><option value="2">2 lados: '+fmt(p.manuseio['2'])+'</option></select>';
+  ge('pe-opts').innerHTML=h;
+  ge('pe-opts').querySelectorAll('input,select').forEach(function(e){e.addEventListener('input',peCalc);});
+  peCalc();
+}
+function peProdEscolhido(){
+  var nome=ge('pe-prod').value,p=getProdutos().find(function(x){return x.nome===nome;});
+  if(p){ge('pe-custo').value=(parseFloat(p.custo)||0).toFixed(2);}
+  peCalc();
+}
+// custo da personalização por peça e no total (mesma lógica do preview aprovado)
+function persCusto(p,g,q){
+  var fl=[],un=0,tot=0,det='',faixa='';
+  if(g.formula){
+    var alt=peNum('pe-alt',0),lar=peNum('pe-lar',0),ix=0;g.formula.faixasQtd.forEach(function(d,i){if(q>=d)ix=i;});
+    var fat=g.formula.fator[ix];un=alt*lar*fat;det=alt+' x '+lar+' cm x '+fat+' = '+fmt(un);
+    if(g.formula.minUn&&un<g.formula.minUn){un=g.formula.minUn;fl.push(['warn','Valor mínimo por etiqueta aplicado: '+fmt(un)+' por unidade.']);}
+    if(p.manuseio&&ge('pe-man')&&ge('pe-man').value!=='0'){var mv=p.manuseio[ge('pe-man').value];un+=mv;det+=' + colagem '+fmt(mv);}
+    tot=un*q;faixa='fórmula por área';
+  }else if(g.padrao){
+    var T=peT().padrao.tiers,tt=null;T.forEach(function(x){if(q>=x)tt=x;});
+    if(tt===null){tt=T[0];fl.push(['warn','Abaixo de 50 peças o valor padrão não vale. Desmarque "valores padrão" para usar a tabela detalhada da Global.']);}
+    un=g.padrao.precos[tt];if(un==null){un=0;fl.push(['warn','Sem valor padrão nessa faixa.']);}
+    tot=un*q;faixa='faixa padrão de '+tt+' peças'+(g.padrao.media?' (média de 2 tipos)':'');det=fmt(un)+' por peça (valor médio)';
+    var c0=peNum('pe-cores',1);if(p.coresMax&&c0>1){tot*=c0;un*=c0;det+=' x '+c0+' cores';}
+  }else{
+    var f=peFaixa(g.faixas,q);
+    if(!f){f=g.faixas[0];fl.push(['warn','Quantidade abaixo da menor faixa da tabela ('+g.faixas[0].de+' peças). Valor da primeira faixa usado como referência.']);}
+    var i=g.faixas.indexOf(f),nx=g.faixas[i+1];
+    faixa=(nx?(f.de===1?'até '+(nx.de-1):'de '+f.de+' a '+(nx.de-1)):'acima de '+f.de)+' peças';
+    if(f.tipo==='lote'){tot=f.preco;un=tot/q;det='lote fechado '+fmt(f.preco);}else{un=f.preco;tot=un*q;det=fmt(f.preco)+' por peça';}
+    var c=peNum('pe-cores',1);if(p.coresMax&&c>1){tot*=c;un*=c;det+=' x '+c+' cores';}
+  }
+  if(ge('pe-dv')&&ge('pe-dv').checked){un+=p.extraDV;tot=un*q;det+=' + '+fmt(p.extraDV)+' dados variáveis';}
+  if(ge('pe-chap')&&ge('pe-chap').checked){un*=1+p.chapado;tot=un*q;det+=' + 50% fundo chapado';}
+  if(p.fatMin&&tot<p.fatMin){fl.push(['warn','Faturamento mínimo da Global: '+fmt(p.fatMin)+'. Seu pedido dá '+fmt(tot)+', então o custo sobe para '+fmt(p.fatMin)+' ('+fmt(p.fatMin/q)+' por peça).']);tot=p.fatMin;un=tot/q;}
+  return{un:un,tot:tot,det:det,faixa:faixa,fl:fl};
+}
+var _peUlt=null;
+function peCalc(){
+  var p=peProc(),g=peGrpAtual();if(!p||!g||!ge('pe-res'))return;
+  var q=Math.max(1,Math.floor(peNum('pe-qtd',1))),cp=peNum('pe-custo',0),ex=peNum('pe-extra',0);
+  var r=persCusto(p,g,q),cu=cp+r.un+ex,cfg=getPersCfg(),nome=ge('pe-prod').value||'Produto';
+  var h='<div class="card-title">Resultado</div><div style="font-size:13px;color:var(--dark-text3);margin-bottom:10px"><strong style="color:var(--dark-text)">'+escHtml(nome)+'</strong> · '+q+' peças · '+escHtml(p.nome)+' · '+escHtml(g.nome)+'</div>';
+  h+='<table style="width:100%;font-size:13px;border-collapse:collapse"><tbody>'+
+    '<tr><td>Produto ('+fmt(cp)+' x '+q+')</td><td style="text-align:right">'+fmt(cp*q)+'</td></tr>'+
+    '<tr><td>Personalização<br><small style="color:var(--dark-text3)">'+r.faixa+' · '+r.det+'</small></td><td style="text-align:right">'+fmt(r.tot)+'</td></tr>'+
+    (ex?'<tr><td>Custos extras ('+fmt(ex)+' x '+q+')</td><td style="text-align:right">'+fmt(ex*q)+'</td></tr>':'')+
+    '<tr style="font-weight:700;border-top:1px solid var(--dark-border)"><td>Custo total</td><td style="text-align:right">'+fmt(cu*q)+'</td></tr>'+
+    '<tr><td>Custo por peça</td><td style="text-align:right">'+fmt(cu)+'</td></tr></tbody></table>';
+  var linhas=cfg.niveis.map(function(n,i){return{nome:n.n,m:n.m,pu:precoPorMargem(cu,n.m)};});
+  var man=peNum('pe-manual',0);
+  if(man>0)linhas.push({nome:'Manual',m:(1-cu/man)*100,pu:man,manual:true});
+  _peUlt={linhas:linhas,cu:cu,q:q,nome:nome,p:p,g:g};
+  h+='<div style="overflow-x:auto;margin-top:12px"><table style="width:100%;font-size:13px;border-collapse:collapse"><thead><tr style="color:var(--dark-text3);font-size:11px;text-transform:uppercase"><th style="text-align:left;padding:6px">Nível</th><th style="text-align:right;padding:6px">Margem</th><th style="text-align:right;padding:6px">Preço un.</th><th style="text-align:right;padding:6px">Total</th><th style="text-align:right;padding:6px">Lucro</th><th></th></tr></thead><tbody>';
+  linhas.forEach(function(l,i){h+='<tr style="border-top:1px solid var(--dark-border)"><td style="padding:6px;font-weight:600">'+escHtml(l.nome)+'</td><td style="padding:6px;text-align:right">'+l.m.toFixed(1).replace('.',',')+'%</td><td style="padding:6px;text-align:right;font-weight:700;color:var(--brand)">'+fmt(l.pu)+'</td><td style="padding:6px;text-align:right">'+fmt(l.pu*q)+'</td><td style="padding:6px;text-align:right;color:var(--green)">'+fmt((l.pu-cu)*q)+'</td><td style="padding:6px;text-align:right"><button class="btn btn-brand btn-sm" onclick="peAdicionarOrc('+i+')">➕ Orçamento</button></td></tr>';});
+  h+='</tbody></table></div>';
+  r.fl.forEach(function(f){h+='<div class="'+(f[0]==='warn'?'warn-box':'info-box')+'" style="margin-top:10px">'+f[1]+'</div>';});
+  if(p.amostra)h+='<div class="info-box" style="margin-top:10px"><strong>Amostra física:</strong> '+escHtml(p.amostra)+'</div>';
+  ge('pe-res').innerHTML=h;
+}
+function peAdicionarOrc(i){
+  if(!_peUlt)return;var l=_peUlt.linhas[i];if(!l)return;
+  var desc=_peUlt.nome+' — personalização '+_peUlt.p.nome+' ('+_peUlt.g.nome+')';
+  showView('form');
+  addItem(desc,_peUlt.q,'un',+l.pu.toFixed(2),0,'','',+_peUlt.cu.toFixed(4));
+}
+function peAba(a){
+  ['sim','pad','ref','cfg'].forEach(function(x){ge('pe-'+x).style.display=x===a?'block':'none';ge('pe-tb-'+x).className='btn btn-sm '+(x===a?'btn-brand':'btn-out');});
+  if(a==='pad')peRenderPad();if(a==='ref')peRenderRef();if(a==='cfg')peRenderCfg();if(a==='sim')peIniciar();
+}
+function peRenderPad(){
+  var t=peT(),T=t.padrao.tiers;
+  var h='<div class="info-box">Valor médio por peça em cada faixa de quantidade. Edite aqui quando a Global confirmar ou reajustar os valores. Peças grandes, DTF acima de 308 cm² e etiquetas seguem por fórmula.</div>';
+  t.padrao.processos.forEach(function(pd,pi){
+    var p=t.processos.find(function(x){return x.id===pd.id;});
+    h+='<div class="card"><div class="card-title">'+escHtml(p.nome)+'</div>'+
+      '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:12px"><label for="pe-fm-'+pi+'">Faturamento mínimo (R$)</label><input id="pe-fm-'+pi+'" type="number" step="0.01" min="0" value="'+(p.fatMin||0)+'" style="width:110px" onchange="peSalvarFatMin('+pi+',this.value)"></div>'+
+      '<div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse"><thead><tr style="color:var(--dark-text3)"><th style="text-align:left;padding:4px">Tipo</th>'+T.map(function(x){return'<th style="padding:4px">'+(x===1000?'1.000':x)+' pçs</th>';}).join('')+'</tr></thead><tbody>';
+    pd.linhas.forEach(function(l,li){h+='<tr style="border-top:1px solid var(--dark-border)"><td style="padding:4px">'+escHtml(l.nome)+(l.media?' <span class="badge bbl">média</span>':'')+'</td>'+T.map(function(x){return'<td style="padding:3px"><input type="number" step="0.01" min="0" value="'+(l.precos[x]==null?'':l.precos[x])+'" style="width:78px;text-align:right" onchange="peSalvarPadrao('+pi+','+li+','+x+',this.value)"></td>';}).join('')+'</tr>';});
+    h+='</tbody></table></div></div>';
+  });
+  h+='<button class="btn btn-out" onclick="peRestaurar()">↺ Restaurar valores originais da tabela 2026</button> <button class="btn btn-brand" onclick="peCopiarPadrao()">📋 Copiar texto para enviar à Global</button> <span id="pe-msg" style="font-size:12px;color:var(--dark-text3)"></span>';
+  ge('pe-pad').innerHTML=h;
+}
+function peSalvarPadrao(pi,li,tier,v){var t=peT();var n=parseFloat(String(v).replace(',','.'));t.padrao.processos[pi].linhas[li].precos[tier]=isNaN(n)?null:n;savePersTab(t);}
+function peSalvarFatMin(pi,v){var t=peT();var p=t.processos.find(function(x){return x.id===t.padrao.processos[pi].id;});p.fatMin=parseFloat(v)||0;savePersTab(t);}
+function peRestaurar(){var m=ge('pe-msg');if(!m._ok){m._ok=1;m.textContent='Clique de novo para confirmar. Suas edições dos valores padrão serão perdidas.';setTimeout(function(){m._ok=0;m.textContent='';},6000);return;}m._ok=0;localStorage.removeItem('orcpro_pers_tab');_peT=null;savePersTab(peT());peRenderPad();}
+function peCopiarPadrao(){
+  var t=peT(),T=t.padrao.tiers,txt='Tabela padrão para validar (valor médio por peça)\n';
+  t.padrao.processos.forEach(function(pd){var p=t.processos.find(function(x){return x.id===pd.id;});txt+='\n'+p.nome.toUpperCase()+(p.fatMin?' (faturamento mínimo '+fmt(p.fatMin)+')':'')+'\n';pd.linhas.forEach(function(l){txt+='- '+l.nome+': '+T.map(function(x){return x+' pçs '+(l.precos[x]==null?'-':fmt(l.precos[x]));}).join(' | ')+'\n';});});
+  var m=ge('pe-msg');function ok(){m.textContent='Copiado.';}
+  function sel(){var ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');ok();}catch(e){m.textContent='Não foi possível copiar.';}ta.remove();}
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(ok,sel);else sel();
+}
+function peRenderRef(){
+  var t=peT(),h='<div class="card"><div class="card-title">Global Gravações</div><div style="font-size:13px;color:var(--dark-text2)">'+escHtml(t.empresa.tel)+' · '+escHtml(t.empresa.end)+' · '+escHtml(t.empresa.email)+' · '+escHtml(t.empresa.insta)+'<br>Pedidos: '+escHtml(t.empresa.site)+'</div><ul style="font-size:12px;color:var(--dark-text3);padding-left:18px">'+t.regras.map(function(r){return'<li style="margin:4px 0">'+escHtml(r)+'</li>';}).join('')+'</ul></div>';
+  t.processos.forEach(function(p){
+    h+='<div class="card"><div class="card-title">'+escHtml(p.nome)+(p.fatMin?' · mínimo '+fmt(p.fatMin):'')+'</div><p style="font-size:13px;margin:0 0 6px;color:var(--dark-text2)">'+escHtml(p.desc)+'</p>'+(p.amostra?'<div class="info-box"><strong>Amostra:</strong> '+escHtml(p.amostra)+'</div>':'')+'<ul style="font-size:12px;color:var(--dark-text3);padding-left:18px">'+p.obs.map(function(o){return'<li style="margin:3px 0">'+escHtml(o)+'</li>';}).join('')+'</ul><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px">';
+    p.grupos.forEach(function(g){
+      var tb;
+      if(g.formula){var f=g.formula;tb='<table style="width:100%;font-size:12px"><tbody>'+f.fator.map(function(x,i){var d=f.faixasQtd[i],nx=f.faixasQtd[i+1];return'<tr><td>'+(nx?(d===1?'até '+(nx-1):d+' a '+(nx-1)):'acima de '+(d-1))+' peças</td><td style="text-align:right">× '+x+'</td></tr>';}).join('')+'</tbody></table>';}
+      else tb='<table style="width:100%;font-size:12px"><tbody>'+g.faixas.map(function(f,i){var nx=g.faixas[i+1];var lb=nx?(f.de===1?'até '+(nx.de-1):f.de+' a '+(nx.de-1)):'acima de '+(i>0?f.de-1:f.de);return'<tr><td>'+lb+' peças</td><td style="text-align:right">'+fmt(f.preco)+(f.tipo==='lote'?' lote':' un.')+'</td></tr>';}).join('')+'</tbody></table>';
+      h+='<div style="background:rgba(255,255,255,.04);border:1px solid var(--dark-border);border-radius:8px;padding:10px"><div style="font-weight:600;font-size:12px">'+escHtml(g.nome)+'</div><div style="font-size:11px;color:var(--dark-text3);margin-bottom:6px">'+escHtml(g.obs||'')+'</div>'+tb+'</div>';
+    });
+    h+='</div></div>';
+  });
+  ge('pe-ref').innerHTML=h;
+}
+function peRenderCfg(){
+  var c=getPersCfg();
+  var h='<div class="card"><div class="card-title">Níveis de margem</div><p style="font-size:12px;color:var(--dark-text3);margin:0 0 10px">Margem sobre o preço de venda: preço = custo ÷ (1 − margem). Valem para o simulador e para o preço dos produtos importados da XBZ (Varejo, Atacado e Revenda).</p>';
+  c.niveis.forEach(function(n,i){h+='<div class="g2" style="margin-bottom:8px"><div><label class="lbl" for="pe-nn'+i+'">Nome do nível '+(i+1)+'</label><input id="pe-nn'+i+'" value="'+escHtml(n.n)+'"></div><div><label class="lbl" for="pe-nm'+i+'">Margem (%)</label><input id="pe-nm'+i+'" type="number" min="0" max="95" step="0.5" value="'+n.m+'"></div></div>';});
+  h+='<button class="btn btn-brand" onclick="peSalvarCfg()">💾 Salvar margens</button> <span id="pe-cfg-msg" style="font-size:12px;color:var(--dark-text3)"></span></div>';
+  ge('pe-cfg').innerHTML=h;
+}
+function peSalvarCfg(){
+  var c=getPersCfg();c.niveis=[0,1,2].map(function(i){return{n:val('pe-nn'+i).trim()||c.niveis[i].n,m:Math.min(95,Math.max(0,parseFloat(val('pe-nm'+i))||0))};});
+  savePersCfg(c);ge('pe-cfg-msg').textContent='Salvo. Valem para novas importações da XBZ e para o simulador.';
+}
+// Importação da XBZ: o valor do fornecedor é o CUSTO; o preço de venda sai das margens
+function aplicarCustoXbz(prod,custo){
+  if(!(custo>0))return;
+  var pr=precosPorCusto(custo);
+  prod.custo=custo;prod.varejo=+pr.varejo.toFixed(2);prod.atacado=+pr.atacado.toFixed(2);prod.revenda=+pr.revenda.toFixed(2);
+  prod.precoVarejo=prod.varejo.toFixed(2);
+}
+function migrarPrecosXbzUmaVez(){
+  try{
+    if(localStorage.getItem('orcpro_xbz_custo_v1'))return;
+    var prods=getProdutos(),n=0;
+    prods.forEach(function(p){
+      if(p&&(p._xbzCodigo||p._origem==='xbz')&&!(parseFloat(p.custo)>0)&&!p._precoEditado){
+        var forn=parseFloat(p.varejo)||parseFloat(p.precoVarejo)||0;
+        if(forn>0){aplicarCustoXbz(p,forn);n++;}
+      }
+    });
+    if(n)saveProdutos(prods);
+    localStorage.setItem('orcpro_xbz_custo_v1','1');
+  }catch(e){}
+}
+
 function showView(name){
-  var views=['dash','form','preview','hist','os','templates','cat','clientes','config','mei','notas','fornec','maquinas','receber','pagar','dre','usuarios','venda-rapida','catalogo','calctecidos','gerador'];
+  var views=['dash','form','preview','hist','os','templates','cat','clientes','config','mei','notas','fornec','maquinas','receber','pagar','dre','usuarios','venda-rapida','catalogo','calctecidos','pers','gerador'];
   views.forEach(function(n){
     var v=ge('view-'+n);if(v)v.style.display=n===name?'block':'none';
     var nb=ge('nb-'+n);if(nb){var badge=nb.querySelector('.nb-badge');nb.className='nb'+(n===name?' active':'');if(badge)nb.appendChild(badge);}
@@ -10953,7 +11178,7 @@ function showView(name){
   if(tbSub)tbSub.style.color='var(--dark-text3)';
   if(tbAccent)tbAccent.style.background='linear-gradient(180deg,var(--brand),transparent)';
 
-  var titles={dash:['Dashboard','Visão geral do negócio'],form:['Novo Orçamento','Preencha os dados abaixo'],preview:['Pré-visualização','Revise e envie ao cliente'],hist:['Histórico','Edite e acompanhe orçamentos'],os:['Ordens de Serviço','Acompanhe a produção'],templates:['Templates','Orçamentos reutilizáveis'],cat:['Catálogo de Produtos','Preços, custos e margens'],clientes:['Clientes & Follow-up','Gerencie relacionamentos'],config:['Minha Empresa','Dados, logotipo e backup'],mei:['Dashboard MEI','Controle financeiro para declaração anual'],notas:['Notas de Compra','Entrada de estoque e despesas automáticas'],fornec:['Fornecedores','Gerencie seus fornecedores'],maquinas:['Maquinários','Desgaste das máquinas por peça'],receber:['Contas a Receber','Controle de pagamentos dos clientes'],pagar:['Contas a Pagar','RH, custos fixos e fornecedores'],dre:['DRE Simplificado','Demonstrativo de resultado mês a mês'],usuarios:['Usuários','Perfis de acesso da equipe'],'venda-rapida':['Registrar Venda','Vendas rápidas de marketplace e balcão'],catalogo:['Catálogo Profissional','Vitrine dos seus produtos, sempre atualizada'],calctecidos:['Calculadora de Precificação','Tecidos, Canecas, Adesivos, 3D e mais'],gerador:['Gerador de Catálogo','Crie catálogos PPTX e PDF profissionais']};
+  var titles={dash:['Dashboard','Visão geral do negócio'],form:['Novo Orçamento','Preencha os dados abaixo'],preview:['Pré-visualização','Revise e envie ao cliente'],hist:['Histórico','Edite e acompanhe orçamentos'],os:['Ordens de Serviço','Acompanhe a produção'],templates:['Templates','Orçamentos reutilizáveis'],cat:['Catálogo de Produtos','Preços, custos e margens'],clientes:['Clientes & Follow-up','Gerencie relacionamentos'],config:['Minha Empresa','Dados, logotipo e backup'],mei:['Dashboard MEI','Controle financeiro para declaração anual'],notas:['Notas de Compra','Entrada de estoque e despesas automáticas'],fornec:['Fornecedores','Gerencie seus fornecedores'],maquinas:['Maquinários','Desgaste das máquinas por peça'],receber:['Contas a Receber','Controle de pagamentos dos clientes'],pagar:['Contas a Pagar','RH, custos fixos e fornecedores'],dre:['DRE Simplificado','Demonstrativo de resultado mês a mês'],usuarios:['Usuários','Perfis de acesso da equipe'],'venda-rapida':['Registrar Venda','Vendas rápidas de marketplace e balcão'],catalogo:['Catálogo Profissional','Vitrine dos seus produtos, sempre atualizada'],calctecidos:['Calculadora de Precificação','Tecidos, Canecas, Adesivos, 3D e mais'],pers:['Personalização','Tabela Global e preço final com margem'],gerador:['Gerador de Catálogo','Crie catálogos PPTX e PDF profissionais']};
   ge('tb-title').textContent=titles[name][0];ge('tb-sub').textContent=titles[name][1];
   var acts={
     dash:'<button class="btn btn-brand" onclick="showView(\'form\')">✏️ Novo orçamento</button> <button class="btn btn-out" onclick="abrirRelatorioSemanal()">📊 Relatório semanal</button>',
@@ -10972,7 +11197,7 @@ function showView(name){
     usuarios:'<button class="btn btn-brand" onclick="openUsuarioModal()">＋ Novo usuário</button>',
     'venda-rapida':'',
     catalogo:'<button class="btn btn-brand" onclick="exportarCatalogoPDF()">📄 Exportar PDF</button>',
-    calctecidos:'',
+    calctecidos:'',pers:'',
     gerador:''
   };
   ge('tb-actions').innerHTML=acts[name]||'';
@@ -10983,6 +11208,7 @@ function showView(name){
   if(name==='hist')renderHist();
   if(name==='dash')renderDash();
   if(name==='os')renderOS();
+  if(name==='pers'){_peT=null;peAba('sim');}
   if(name==='templates')renderTemplates();
   if(name==='mei')renderMEI();
   if(name==='notas')renderNotas();
@@ -11562,7 +11788,7 @@ function aplicarProtecaoAutofill(){
   var SUPA_URL='https://edztcoebgllqrkrkormc.supabase.co';
   var SUPA_KEY='sb_publishable_s6MSdF0rhidpCpddqTzNRg_1ajwnxIc';
   var CHAVE_KEY='orcpro_chave_nuvem',META_KEY='orcpro_sync_meta',SESS_KEY='orcpro_auth_session';
-  var TIPOS=['orcpro_emp','orcpro_produtos','orcpro_clientes','orcpro_hist','orcpro_os','orcpro_notas','orcpro_templates','orcpro_fornecedores','orcpro_maquinas','orcpro_receber','orcpro_rh','orcpro_precif_modelos','orcpro_ct_hist','orcpro_mov_estoque','orcpro_despesas','orcpro_custos','orcpro_canais','orcpro_funcs','orcpro_usuarios','orcpro_ct_config','orcpro_pagar_pagas','orcpro_cnt','orcpro_os_cnt','orcpro_recibo_cnt','orcpro_logo','orcpro_excluidos'];
+  var TIPOS=['orcpro_emp','orcpro_produtos','orcpro_clientes','orcpro_hist','orcpro_os','orcpro_notas','orcpro_templates','orcpro_fornecedores','orcpro_maquinas','orcpro_receber','orcpro_rh','orcpro_precif_modelos','orcpro_ct_hist','orcpro_mov_estoque','orcpro_despesas','orcpro_custos','orcpro_canais','orcpro_funcs','orcpro_usuarios','orcpro_ct_config','orcpro_pagar_pagas','orcpro_cnt','orcpro_os_cnt','orcpro_recibo_cnt','orcpro_logo','orcpro_excluidos','orcpro_pers_tab','orcpro_pers_cfg'];
   var RAW={orcpro_logo:1};
   var CONTADORES={orcpro_cnt:1,orcpro_os_cnt:1,orcpro_recibo_cnt:1};
   var SNAP_TIPOS=['orcpro_hist','orcpro_produtos','orcpro_clientes','orcpro_receber','orcpro_custos','orcpro_emp','orcpro_ct_config','orcpro_os','orcpro_ct_hist'];
@@ -12160,6 +12386,7 @@ function aplicarProtecaoAutofill(){
     // Inicia o app normal
     compactarGeradorCatalogo();
     corrigirFotosXbzUmaVez();
+    migrarPrecosXbzUmaVez();
     migrarSkusUmaVez();
     corrigirValoresCanecasUmaVez();
     initPIN();
