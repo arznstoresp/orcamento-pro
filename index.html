@@ -11480,7 +11480,7 @@ function aplicarProtecaoAutofill(){
       var chaveHash=btoa(chave).replace(/[^a-zA-Z0-9]/g,'').substring(0,16);
       var path='orcpro/'+chaveHash+'/'+prodId+'/'+idx+'.'+ext;
       var tk=SUPA_KEY;
-      try{var ss=JSON.parse(localStorage.getItem('orcpro_auth_session')||'null');if(ss&&ss.access_token)tk=ss.access_token;}catch(e){}
+      try{if(window._tokenSupa)tk=await window._tokenSupa();else{var ss=JSON.parse(localStorage.getItem('orcpro_auth_session')||'null');if(ss&&ss.access_token)tk=ss.access_token;}}catch(e){}
       var r=await fetch(SUPA_URL+'/storage/v1/object/'+BUCKET+'/'+path,{
         method:'POST',
         headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+tk,'Content-Type':blob.type,'x-upsert':'true'},
@@ -11613,27 +11613,54 @@ function aplicarProtecaoAutofill(){
   }
 
   // ---- rede ----
-  async function token(){
+  // Lê a expiração direto do JWT (não depende de 'expires_at' gravado na sessão)
+  function jwtExp(t){try{return JSON.parse(atob(String(t).split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))).exp||0;}catch(e){return 0;}}
+  var _renovando=null;
+  // Renova a sessão uma única vez por vez (evita duas renovações simultâneas com o mesmo refresh_token)
+  function renovarSessao(s){
+    if(_renovando)return _renovando;
+    _renovando=(async function(){
+      try{
+        var r=await fetch(SUPA_URL+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{apikey:SUPA_KEY,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:s.refresh_token})});
+        if(r.ok){var n=await r.json();if(n&&n.access_token){if(!n.expires_at&&n.expires_in)n.expires_at=Math.floor(Date.now()/1000)+n.expires_in;localStorage.setItem(SESS_KEY,JSON.stringify(n));return{token:n.access_token};}}
+        return{invalida:true};
+      }catch(e){return{rede:true};}
+      finally{setTimeout(function(){_renovando=null;},0);}
+    })();
+    return _renovando;
+  }
+  async function token(forcar){
     try{
       var s=JSON.parse(localStorage.getItem(SESS_KEY)||'null');
       if(!s||!s.access_token)return SUPA_KEY;
-      var exp=s.expires_at||0,agora=Math.floor(Date.now()/1000);
-      if(exp&&agora>exp-60&&s.refresh_token){
-        var r=await fetch(SUPA_URL+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{apikey:SUPA_KEY,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:s.refresh_token})});
-        if(r.ok){var n=await r.json();if(n&&n.access_token){localStorage.setItem(SESS_KEY,JSON.stringify(n));return n.access_token;}}
-        return SUPA_KEY;
+      var exp=jwtExp(s.access_token)||s.expires_at||0,agora=Math.floor(Date.now()/1000);
+      if((forcar||(exp&&agora>exp-60))&&s.refresh_token){
+        var res=await renovarSessao(s);
+        if(res.token)return res.token;
+        if(res.invalida)window._sessaoPerdida=true;
+        return forcar||(exp&&agora>exp)?SUPA_KEY:s.access_token;
       }
       return s.access_token;
     }catch(e){return SUPA_KEY;}
   }
-  async function supaReq(method,path,body,prefer,timeoutMs){
-    var tk=await token();
+  window._tokenSupa=token;
+  async function supaReq(method,path,body,prefer,timeoutMs,_retry){
+    var tk=await token(!!_retry);
     var ctl=new AbortController(),t=setTimeout(function(){ctl.abort();},timeoutMs||30000);
     var h={apikey:SUPA_KEY,Authorization:'Bearer '+tk,'Content-Type':'application/json'};
     if(prefer)h.Prefer=prefer;
     try{
       var r=await fetch(SUPA_URL+'/rest/v1/'+path,{method:method,headers:h,body:body?JSON.stringify(body):undefined,signal:ctl.signal});
-      if(!r.ok){var tx='';try{tx=await r.text();}catch(e){}throw new Error('Servidor respondeu '+r.status+(tx?' — '+tx.slice(0,180):''));}
+      if(r.status===401&&!_retry){clearTimeout(t);return await supaReq(method,path,body,prefer,timeoutMs,true);}
+      if(!r.ok){
+        var tx='';try{tx=await r.text();}catch(e){}
+        if(r.status===401&&window._sessaoPerdida){
+          var ls=document.getElementById('login-screen');if(ls)ls.style.display='flex';
+          throw new Error('Sua sessão expirou. Entre de novo com e-mail e senha (seus dados locais continuam intactos).');
+        }
+        throw new Error('Servidor respondeu '+r.status+(tx?' — '+tx.slice(0,180):''));
+      }
+      window._sessaoPerdida=false;
       var ct=r.headers.get('content-type')||'';
       return(ct.indexOf('json')>=0&&r.status!==204)?await r.json():null;
     }catch(e){
