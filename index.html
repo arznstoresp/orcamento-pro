@@ -1817,6 +1817,7 @@ body.papel-vendedor #tmargem-wrap{display:none!important}
     <!-- CONTAS A RECEBER -->
     <div id="view-receber" style="display:none;min-height:100%">
       <div id="receber-alertas"></div>
+      <div id="receber-conferencia"></div>
       <div id="receber-faltantes"></div>
       <div class="dash-grid" id="receber-kpis"></div>
       <div class="card">
@@ -8000,6 +8001,66 @@ function gerarContaFaltante(id){
   gerarContasReceber(hist[idx]);hist[idx]._contasGeradas=true;saveHist(hist);
   renderContasReceber();
 }
+// ── Conferência de contas a receber: acha duplicidades e valores que inflam o "Total já recebido" ──
+function _analisarContasReceber(){
+  var contas=getContasReceber(),hist=getHist(),hm={};hist.forEach(function(h){if(h)hm[h.id]=h;});
+  var r={exatas:[],parecidas:[],excedentes:[],orfas:[],recusadas:[],removerExatas:[],pagoRemover:0};
+  // A) mesma conta (mesmo orçamento + mesma parcela) lançada mais de uma vez
+  var g={};contas.forEach(function(c){var k=c.orcId+'|'+c.parcela;(g[k]=g[k]||[]).push(c);});
+  Object.keys(g).forEach(function(k){
+    var l=g[k];if(l.length<2)return;
+    var ordem=l.slice().sort(function(a,b){return(b.status==='pago'?1:0)-(a.status==='pago'?1:0)||((a.dataPgto||'')<(b.dataPgto||'')?-1:1);});
+    var manter=ordem[0],sobra=ordem.slice(1);
+    r.exatas.push({manter:manter,remover:sobra});
+    sobra.forEach(function(c){r.removerExatas.push(c.id);if(c.status==='pago')r.pagoRemover+=c.valor;});
+  });
+  // B) orçamentos diferentes com mesmo cliente, valor, parcela e vencimento (provável orçamento duplicado)
+  var g2={};contas.forEach(function(c){if(r.removerExatas.indexOf(c.id)>=0)return;var k=[(c.clienteNome||'').toLowerCase(),c.valor,c.parcela,c.vencimento].join('|');(g2[k]=g2[k]||[]).push(c);});
+  Object.keys(g2).forEach(function(k){var l=g2[k];var ids={};l.forEach(function(c){ids[c.orcId]=1;});if(Object.keys(ids).length>1)r.parecidas.push(l);});
+  // C) soma das contas maior que o valor do orçamento
+  var soma={};contas.forEach(function(c){if(r.removerExatas.indexOf(c.id)>=0)return;soma[c.orcId]=(soma[c.orcId]||0)+c.valor;});
+  Object.keys(soma).forEach(function(id){var h=hm[id];if(!h)return;var t=calcHistTotal(h);if(t>0&&soma[id]>t*1.01+0.01)r.excedentes.push({h:h,total:t,soma:soma[id]});});
+  // D) contas sem orçamento ou de orçamento que não está aprovado
+  contas.forEach(function(c){if(r.removerExatas.indexOf(c.id)>=0)return;var h=hm[c.orcId];if(!h)r.orfas.push(c);else if(h.status!=='Aprovado')r.recusadas.push({c:c,h:h});});
+  return r;
+}
+function conferirContasReceber(){
+  var el=ge('receber-conferencia');if(!el)return;
+  var r=_analisarContasReceber(),n=getContasReceber().length;
+  var cli=function(c){return escHtml(c.clienteNome||'—')+' · #'+escHtml(String(c.orcNum))+' · parcela '+escHtml(String(c.parcela))+' · '+fmt(c.valor)+' · '+(c.status==='pago'?'pago':'pendente');};
+  var h='<div class="card" style="border-color:var(--brand)"><div class="card-title">Conferência de contas a receber ('+n+' contas)</div>';
+  var achou=false;
+  if(r.exatas.length){achou=true;
+    h+='<div class="alert-box"><strong>'+r.exatas.length+' conta(s) lançada(s) mais de uma vez</strong> (mesmo orçamento e mesma parcela). Sobram '+r.removerExatas.length+' cópia(s), somando '+fmt(r.pagoRemover)+' em contas pagas que inflam o total recebido.'+
+      '<div style="margin-top:8px;max-height:220px;overflow:auto;font-size:12px">'+r.exatas.slice(0,40).map(function(x){return'<div style="padding:4px 0;border-top:1px solid rgba(255,255,255,.08)">'+cli(x.manter)+' <span style="color:var(--yellow)">(×'+(x.remover.length+1)+')</span></div>';}).join('')+(r.exatas.length>40?'<div>+ '+(r.exatas.length-40)+' outras</div>':'')+'</div>'+
+      '<button class="btn btn-brand btn-sm" style="margin-top:10px" onclick="removerContasDuplicadasExatas()">🧹 Remover as '+r.removerExatas.length+' cópias (mantém 1 de cada)</button></div>';}
+  if(r.parecidas.length){achou=true;
+    h+='<div class="warn-box"><strong>'+r.parecidas.length+' grupo(s) com mesmo cliente, valor, parcela e vencimento em orçamentos diferentes.</strong> Pode ser orçamento duplicado. Confira e remova só a conta que sobra.'+
+      r.parecidas.slice(0,15).map(function(l){return'<div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.08);font-size:12px">'+l.map(function(c){return'<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;margin:3px 0"><span>'+cli(c)+'</span><button class="btn btn-danger btn-sm" onclick="removerContaConferida(\''+c.id+'\')">Remover</button></div>';}).join('')+'</div>';}).join('')+'</div>';}
+  if(r.excedentes.length){achou=true;
+    h+='<div class="warn-box"><strong>'+r.excedentes.length+' pedido(s) com contas somando mais que o valor do orçamento.</strong>'+
+      r.excedentes.slice(0,15).map(function(x){return'<div style="font-size:12px;margin-top:6px">#'+escHtml(String(x.h.num))+' · '+escHtml((x.h.cliente&&x.h.cliente.nome)||'—')+' · orçamento '+fmt(x.total)+' · contas '+fmt(x.soma)+'</div>';}).join('')+'</div>';}
+  if(r.recusadas.length){achou=true;
+    h+='<div class="warn-box"><strong>'+r.recusadas.length+' conta(s) de orçamento que não está Aprovado</strong> (recusado, em revisão ou aguardando).'+
+      r.recusadas.slice(0,15).map(function(x){return'<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:12px;margin-top:6px"><span>'+cli(x.c)+' · '+escHtml(x.h.status)+'</span><button class="btn btn-danger btn-sm" onclick="removerContaConferida(\''+x.c.id+'\')">Remover</button></div>';}).join('')+'</div>';}
+  if(r.orfas.length){achou=true;
+    h+='<div class="warn-box"><strong>'+r.orfas.length+' conta(s) sem orçamento correspondente</strong> (o orçamento foi excluído).'+
+      r.orfas.slice(0,15).map(function(c){return'<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:12px;margin-top:6px"><span>'+cli(c)+'</span><button class="btn btn-danger btn-sm" onclick="removerContaConferida(\''+c.id+'\')">Remover</button></div>';}).join('')+'</div>';}
+  if(!achou)h+='<div class="success-box">✅ Nenhuma duplicidade ou inconsistência encontrada nas '+n+' contas.</div>';
+  h+='<button class="btn btn-out btn-sm" onclick="ge(\'receber-conferencia\').innerHTML=\'\'">Fechar</button></div>';
+  el.innerHTML=h;el.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function removerContasDuplicadasExatas(){
+  var r=_analisarContasReceber();if(!r.removerExatas.length)return;
+  var ids=r.removerExatas;
+  saveContasReceber(getContasReceber().filter(function(c){return ids.indexOf(c.id)<0;}));
+  renderContasReceber();conferirContasReceber();
+  var e=ge('receber-alertas');if(e){e.insertAdjacentHTML('afterbegin','<div class="success-box">✅ '+ids.length+' cópia(s) removida(s). O total recebido foi recalculado.</div>');}
+}
+function removerContaConferida(id){
+  saveContasReceber(getContasReceber().filter(function(c){return c.id!==id;}));
+  renderContasReceber();conferirContasReceber();
+}
 function renderContasReceber(){
   renderOrcamentosSemConta();
   var contas=getContasReceber();
@@ -11299,7 +11360,7 @@ function showView(name){
     notas:'<button class="btn btn-brand" onclick="openNotaModal()">＋ Nova nota de compra</button>',
     fornec:'<button class="btn btn-brand" onclick="openFornecedorModal()">＋ Novo fornecedor</button>',
     maquinas:'<button class="btn btn-brand" onclick="openMaquinarioModal()">＋ Nova máquina</button>',
-    receber:'',pagar:'',dre:'<button class="btn btn-out" onclick="exportarDREExcel()">📊 Exportar Excel</button>',
+    receber:'<button class="btn btn-out" onclick="conferirContasReceber()">🔍 Conferir contas</button>',pagar:'',dre:'<button class="btn btn-out" onclick="exportarDREExcel()">📊 Exportar Excel</button>',
     usuarios:'<button class="btn btn-brand" onclick="openUsuarioModal()">＋ Novo usuário</button>',
     'venda-rapida':'',
     catalogo:'<button class="btn btn-brand" onclick="exportarCatalogoPDF()">📄 Exportar PDF</button>',
