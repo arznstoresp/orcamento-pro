@@ -8065,6 +8065,19 @@ function conferirContasReceber(){
   if(r.orfas.length){achou=true;
     h+='<div class="warn-box"><strong>'+r.orfas.length+' conta(s) sem orçamento correspondente</strong> (o orçamento foi excluído).'+
       r.orfas.slice(0,15).map(function(c){return'<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:12px;margin-top:6px"><span>'+cli(c)+'</span><button class="btn btn-danger btn-sm" onclick="removerContaConferida(\''+c.id+'\')">Remover</button></div>';}).join('')+'</div>';}
+  // Composição do "Total já recebido": por mês de pagamento e as maiores contas pagas
+  (function(){
+    var pagas=getContasReceber().filter(function(c){return getStatusContaReceber(c)==='pago';});
+    if(!pagas.length)return;
+    var meses={},tot=0;
+    pagas.forEach(function(c){var m=(c.dataPgto||c.vencimento||'sem data').substring(0,7);meses[m]=(meses[m]||0)+c.valor;tot+=c.valor;});
+    var ks=Object.keys(meses).sort();
+    var maiores=pagas.slice().sort(function(x,y){return y.valor-x.valor;}).slice(0,10);
+    h+='<div class="info-box"><strong>De onde vem o Total já recebido ('+fmt(tot)+', '+pagas.length+' contas pagas)</strong>'+
+      '<div style="font-size:12px;margin-top:6px">'+ks.map(function(k){return'<div style="display:flex;justify-content:space-between;max-width:260px"><span>'+k+'</span><span>'+fmt(meses[k])+'</span></div>';}).join('')+'</div>'+
+      '<div style="margin-top:10px;font-weight:700">10 maiores contas pagas</div>'+
+      maiores.map(function(c){return'<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:12px;margin-top:5px"><span>'+cli(c)+' · '+escHtml(c.dataPgto||'sem data')+'</span><button class="btn btn-danger btn-sm" onclick="removerContaConferida(\''+c.id+'\')">Remover</button></div>';}).join('')+'</div>';
+  })();
   if(!achou)h+='<div class="success-box">✅ Nenhuma duplicidade ou inconsistência encontrada nas '+n+' contas.</div>';
   h+='<button class="btn btn-out btn-sm" onclick="ge(\'receber-conferencia\').innerHTML=\'\'">Fechar</button></div>';
   el.innerHTML=h;el.scrollIntoView({behavior:'smooth',block:'start'});
