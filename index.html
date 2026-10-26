@@ -2918,6 +2918,7 @@ function nextOSNum(){var n=(parseInt(localStorage.getItem('orcpro_os_cnt')||'0')
 // PAGAMENTO / PARCELAS
 // ═══════════════════════════════════════════════════
 var PGTOS_A_VISTA=['À vista','PIX'];
+var PGTOS_RECEBIDOS=['À vista','PIX','Já recebido'];// formas em que o dinheiro já entrou (conta nasce como paga)
 function onPgtoChange(){
   var pgto=val('pgto'),aVista=PGTOS_A_VISTA.indexOf(pgto)>=0;
   var wrap=ge('wrap-parcelas');if(wrap){wrap.style.opacity=aVista?'0.4':'1';wrap.style.pointerEvents=aVista?'none':'auto';}
@@ -7443,7 +7444,7 @@ function gerarContasReceber(h){
   }else{
     // À vista ou pagamento único: uma conta só, vencimento na data do orçamento
     // À vista/PIX já é recebido no ato — registra como paga (igual à Venda Rápida)
-    var jaRecebido=PGTOS_A_VISTA.indexOf(h.pgto)>=0;
+    var jaRecebido=PGTOS_RECEBIDOS.indexOf(h.pgto)>=0;
     contas.push({
       id:'rec'+Date.now(),orcId:h.id,orcNum:h.num,clienteNome:h.cliente.nome||'—',clienteWpp:h.cliente.wpp||'',
       parcela:'1/1',valor:total,vencimento:h.data,
@@ -7962,7 +7963,7 @@ function autoGerarContasAVista(){
     var hist=getHist(),n=0,corte=new Date(Date.now()-45*86400000).toISOString().substring(0,10);
     hist.forEach(function(h){
       if(!h||h.status!=='Aprovado'||comConta[h.id]||!h.cliente)return;
-      if(PGTOS_A_VISTA.indexOf(h.pgto)<0||(h.parcelas&&h.parcelas.n>1))return;
+      if(PGTOS_RECEBIDOS.indexOf(h.pgto)<0||(h.parcelas&&h.parcelas.n>1)||h._contaDispensada)return;
       if((h.data||'')<corte)return;
       gerarContasReceber(h);h._contasGeradas=true;comConta[h.id]=1;n++;
     });
@@ -7974,14 +7975,25 @@ function renderOrcamentosSemConta(){
   var el=ge('receber-faltantes');if(!el)return;
   var nAuto=autoGerarContasAVista();
   var comConta={};getContasReceber().forEach(function(c){comConta[c.orcId]=1;});
-  var falt=getHist().filter(function(h){return h&&h.status==='Aprovado'&&!comConta[h.id];}).sort(function(a,b){return(b.data||'')<(a.data||'')?-1:1;});
+  var dispensados=getHist().filter(function(h){return h&&h.status==='Aprovado'&&!comConta[h.id]&&h._contaDispensada;}).length;
+  var falt=getHist().filter(function(h){return h&&h.status==='Aprovado'&&!comConta[h.id]&&!h._contaDispensada;}).sort(function(a,b){return(b.data||'')<(a.data||'')?-1:1;});
   var aviso=nAuto?'<div class="success-box">✅ '+nAuto+' conta(s) à vista/PIX gerada(s) automaticamente como paga(s). Já dá para emitir o recibo.</div>':'';
-  if(!falt.length){el.innerHTML=aviso;return;}
-  var mais=falt.length>12?falt.length-12:0;
-  el.innerHTML=aviso+'<div class="warn-box"><strong>⚠️ '+falt.length+' orçamento(s) aprovado(s) sem conta a receber.</strong> Parcelados e outras formas precisam da sua conferência. Gere a conta para acompanhar o pagamento.'+
-    falt.slice(0,12).map(function(h){return'<div style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.08)"><span><strong>#'+escHtml(String(h.num))+'</strong> · '+escHtml((h.cliente&&h.cliente.nome)||'—')+' · '+fmtDt(h.data)+' · '+fmt(calcHistTotal(h))+' · '+escHtml(h.pgto||'forma não informada')+'</span><button class="btn btn-brand btn-sm" onclick="gerarContaFaltante(\''+h.id+'\')">＋ Gerar conta</button></div>';}).join('')+
-    (mais?'<div style="margin-top:8px;font-size:12px;color:rgba(255,255,255,.5)">+ '+mais+' mais antigo(s). Gere os de cima primeiro.</div>':'')+'</div>';
+  var restaurar=dispensados?'<div style="margin-top:8px;font-size:12px;color:rgba(255,255,255,.55)">'+dispensados+' dispensado(s) · <a href="#" onclick="restaurarContasDispensadas();return false" style="color:var(--brand)">restaurar</a></div>':'';
+  if(!falt.length){el.innerHTML=aviso+restaurar;return;}
+  var mais=falt.length>6?falt.length-6:0;
+  el.innerHTML=aviso+'<div class="warn-box"><div style="display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap"><span><strong>⚠️ '+falt.length+' orçamento(s) aprovado(s) sem conta a receber.</strong> Gere a conta dos que ainda vai cobrar ou dispense os que já foram resolvidos.</span><button class="btn btn-out btn-sm" onclick="dispensarContasFaltantes()">Dispensar todos ('+falt.length+')</button></div>'+
+    falt.slice(0,6).map(function(h){return'<div style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.08)"><span><strong>#'+escHtml(String(h.num))+'</strong> · '+escHtml((h.cliente&&h.cliente.nome)||'—')+' · '+fmtDt(h.data)+' · '+fmt(calcHistTotal(h))+' · '+escHtml(h.pgto||'forma não informada')+'</span><span style="display:flex;gap:6px"><button class="btn btn-out btn-sm" onclick="dispensarContaFaltante(\''+h.id+'\')">Dispensar</button><button class="btn btn-brand btn-sm" onclick="gerarContaFaltante(\''+h.id+'\')">＋ Gerar conta</button></span></div>';}).join('')+
+    (mais?'<div style="margin-top:8px;font-size:12px;color:rgba(255,255,255,.5)">+ '+mais+' mais. Eles aparecem aqui quando você resolver os de cima.</div>':'')+'</div>'+restaurar;
 }
+function _marcarDispensa(ids,v){
+  var hist=getHist();hist.forEach(function(h){if(h&&ids.indexOf(h.id)>=0){if(v)h._contaDispensada=true;else delete h._contaDispensada;}});saveHist(hist);renderContasReceber();
+}
+function dispensarContaFaltante(id){_marcarDispensa([id],true);}
+function dispensarContasFaltantes(){
+  var comConta={};getContasReceber().forEach(function(c){comConta[c.orcId]=1;});
+  _marcarDispensa(getHist().filter(function(h){return h&&h.status==='Aprovado'&&!comConta[h.id]&&!h._contaDispensada;}).map(function(h){return h.id;}),true);
+}
+function restaurarContasDispensadas(){_marcarDispensa(getHist().filter(function(h){return h&&h._contaDispensada;}).map(function(h){return h.id;}),false);}
 function gerarContaFaltante(id){
   var hist=getHist(),idx=hist.findIndex(function(h){return h.id===id;});if(idx<0)return;
   if(getContasReceber().some(function(c){return c.orcId===id;})){renderContasReceber();return;}
