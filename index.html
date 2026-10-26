@@ -8047,6 +8047,7 @@ function conferirContasReceber(){
   var cli=function(c){return escHtml(c.clienteNome||'—')+' · #'+escHtml(String(c.orcNum))+' · parcela '+escHtml(String(c.parcela))+' · '+fmt(c.valor)+' · '+(c.status==='pago'?'pago':'pendente');};
   var h='<div class="card" style="border-color:var(--brand)"><div class="card-title">Conferência de contas a receber ('+n+' contas)</div>';
   var achou=false;
+  h+='<div class="info-box"><strong>Correção automática</strong><br>Religa contas ao orçamento certo, remove cópias exatas e repetidas, e tira só contas <em>pendentes</em> de orçamento recusado, sem orçamento ou em excesso. Contas já pagas nunca são apagadas por aqui, e há backup com botão Desfazer.<br><button class="btn btn-brand btn-sm" style="margin-top:8px" onclick="if(confirm(\'Aplicar a correção automática? Um backup é guardado e dá para desfazer.\'))corrigirContasReceberAuto()">⚡ Corrigir automaticamente</button></div>';
   var nv=0;(function(){var hist=getHist(),hm={};hist.forEach(function(x){if(x)hm[x.id]=x;});getContasReceber().forEach(function(c){if(_orcDaContaOrfa(c,hist,hm))nv++;});})();
   if(nv){achou=true;h+='<div class="info-box"><strong>'+nv+' conta(s) sem orçamento têm um orçamento com o mesmo número e cliente.</strong> É o mesmo pedido que mudou de identificação. Vincular evita contas duplicadas e perda de pagamentos.<br><button class="btn btn-brand btn-sm" style="margin-top:8px" onclick="vincularContasOrfas();renderContasReceber();conferirContasReceber()">🔗 Vincular '+nv+' conta(s) aos orçamentos</button></div>';}
   if(r.exatas.length){achou=true;
@@ -8081,6 +8082,44 @@ function conferirContasReceber(){
   if(!achou)h+='<div class="success-box">✅ Nenhuma duplicidade ou inconsistência encontrada nas '+n+' contas.</div>';
   h+='<button class="btn btn-out btn-sm" onclick="ge(\'receber-conferencia\').innerHTML=\'\'">Fechar</button></div>';
   el.innerHTML=h;el.scrollIntoView({behavior:'smooth',block:'start'});
+}
+// Correção automática: só remove o que é seguro. Contas PAGAS de orçamento recusado/sem orçamento ficam (dinheiro pode ter entrado) e são listadas.
+function corrigirContasReceberAuto(){
+  var antes=getContasReceber();
+  gravarSeguro('orcpro_receber_backup',JSON.stringify({data:new Date().toISOString(),contas:antes}),'backup das contas a receber');
+  var totAntes=0;antes.forEach(function(c){if(getStatusContaReceber(c)==='pago')totAntes+=c.valor;});
+  var rel={vinc:0,exatas:0,parec:0,pend:0,exced:0};
+  rel.vinc=vincularContasOrfas();
+  var rm={};
+  var r=_analisarContasReceber();
+  r.removerExatas.forEach(function(id){rm[id]=1;rel.exatas++;});
+  r.parecidas.forEach(function(l){
+    var ord=l.slice().sort(function(a,b){return(b.status==='pago'?1:0)-(a.status==='pago'?1:0);});
+    ord.slice(1).forEach(function(c){if(!rm[c.id]){rm[c.id]=1;rel.parec++;}});
+  });
+  r.recusadas.forEach(function(x){if(x.c.status!=='pago'&&!rm[x.c.id]){rm[x.c.id]=1;rel.pend++;}});
+  r.orfas.forEach(function(c){if(c.status!=='pago'&&!rm[c.id]){rm[c.id]=1;rel.pend++;}});
+  var contas=antes.filter(function(c){return!rm[c.id];});
+  // excedentes: tira contas pendentes (maiores/últimas primeiro) até a soma caber no valor do orçamento
+  var hist=getHist(),hm={};hist.forEach(function(h){if(h)hm[h.id]=h;});
+  var soma={};contas.forEach(function(c){soma[c.orcId]=(soma[c.orcId]||0)+c.valor;});
+  Object.keys(soma).forEach(function(id){
+    var h=hm[id];if(!h)return;var t=calcHistTotal(h);
+    if(!(t>0&&soma[id]>t*1.01+0.01))return;
+    var pend=contas.filter(function(c){return c.orcId===id&&c.status!=='pago';}).sort(function(a,b){return a.vencimento<b.vencimento?1:-1;});
+    for(var i=0;i<pend.length&&soma[id]>t*1.01+0.01;i++){soma[id]-=pend[i].valor;rm[pend[i].id]=1;rel.exced++;}
+  });
+  contas=contas.filter(function(c){return!rm[c.id];});
+  saveContasReceber(contas);
+  var totDepois=0;contas.forEach(function(c){if(getStatusContaReceber(c)==='pago')totDepois+=c.valor;});
+  renderContasReceber();conferirContasReceber();
+  var e=ge('receber-conferencia');
+  if(e)e.insertAdjacentHTML('afterbegin','<div class="success-box"><strong>✅ Correção feita.</strong> '+rel.vinc+' conta(s) religada(s), '+rel.exatas+' cópia(s) exata(s) e '+rel.parec+' repetida(s) removida(s), '+rel.pend+' pendente(s) de orçamento recusado/sem orçamento removida(s), '+rel.exced+' pendente(s) em excesso removida(s).<br>Total já recebido: '+fmt(totAntes)+' → <strong>'+fmt(totDepois)+'</strong>. <button class="btn btn-out btn-sm" onclick="desfazerCorrecaoContas()">↩ Desfazer</button></div>');
+}
+function desfazerCorrecaoContas(){
+  try{var b=JSON.parse(localStorage.getItem('orcpro_receber_backup')||'null');if(!b||!b.contas){alert('Sem backup.');return;}
+    saveContasReceber(b.contas);renderContasReceber();conferirContasReceber();
+  }catch(e){alert('Não foi possível desfazer.');}
 }
 function removerContasDuplicadasExatas(){
   var r=_analisarContasReceber();if(!r.removerExatas.length)return;
