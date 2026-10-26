@@ -7958,8 +7958,24 @@ function confirmarDelFin(){
 // Orçamentos aprovados que ficaram sem conta a receber (aprovados antes do recurso, por outro caminho ou com a lista perdida)
 // Orçamentos aprovados à vista/PIX (dos últimos 45 dias) sem conta: gera a conta já como paga, sem retrabalho.
 // Parcelados e outras formas continuam na lista para você conferir.
+function _normNome(t){return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();}
+// Conta cujo orçamento (pelo id) não existe mais, mas há UM orçamento com o mesmo número e o mesmo cliente: é o mesmo pedido que mudou de id.
+function _orcDaContaOrfa(c,hist,hm){
+  if(hm[c.orcId])return null;
+  var nc=_normNome(c.clienteNome);
+  var cand=hist.filter(function(h){if(!h||String(h.num)!==String(c.orcNum))return false;var nh=_normNome(h.cliente&&h.cliente.nome);return nh&&nc&&(nh===nc||nh.indexOf(nc)>=0||nc.indexOf(nh)>=0);});
+  return cand.length===1?cand[0]:null;
+}
+function vincularContasOrfas(){
+  var hist=getHist(),hm={};hist.forEach(function(h){if(h)hm[h.id]=h;});
+  var contas=getContasReceber(),n=0;
+  contas.forEach(function(c){var h=_orcDaContaOrfa(c,hist,hm);if(h){c.orcId=h.id;n++;}});
+  if(n)saveContasReceber(contas);
+  return n;
+}
 function autoGerarContasAVista(){
   try{
+    vincularContasOrfas();
     var comConta={};getContasReceber().forEach(function(c){comConta[c.orcId]=1;});
     var hist=getHist(),n=0,corte=new Date(Date.now()-45*86400000).toISOString().substring(0,10);
     hist.forEach(function(h){
@@ -7974,6 +7990,7 @@ function autoGerarContasAVista(){
 }
 function renderOrcamentosSemConta(){
   var el=ge('receber-faltantes');if(!el)return;
+  vincularContasOrfas();
   var nAuto=autoGerarContasAVista();
   var comConta={};getContasReceber().forEach(function(c){comConta[c.orcId]=1;});
   var dispensados=getHist().filter(function(h){return h&&h.status==='Aprovado'&&!comConta[h.id]&&h._contaDispensada;}).length;
@@ -8030,6 +8047,8 @@ function conferirContasReceber(){
   var cli=function(c){return escHtml(c.clienteNome||'—')+' · #'+escHtml(String(c.orcNum))+' · parcela '+escHtml(String(c.parcela))+' · '+fmt(c.valor)+' · '+(c.status==='pago'?'pago':'pendente');};
   var h='<div class="card" style="border-color:var(--brand)"><div class="card-title">Conferência de contas a receber ('+n+' contas)</div>';
   var achou=false;
+  var nv=0;(function(){var hist=getHist(),hm={};hist.forEach(function(x){if(x)hm[x.id]=x;});getContasReceber().forEach(function(c){if(_orcDaContaOrfa(c,hist,hm))nv++;});})();
+  if(nv){achou=true;h+='<div class="info-box"><strong>'+nv+' conta(s) sem orçamento têm um orçamento com o mesmo número e cliente.</strong> É o mesmo pedido que mudou de identificação. Vincular evita contas duplicadas e perda de pagamentos.<br><button class="btn btn-brand btn-sm" style="margin-top:8px" onclick="vincularContasOrfas();renderContasReceber();conferirContasReceber()">🔗 Vincular '+nv+' conta(s) aos orçamentos</button></div>';}
   if(r.exatas.length){achou=true;
     h+='<div class="alert-box"><strong>'+r.exatas.length+' conta(s) lançada(s) mais de uma vez</strong> (mesmo orçamento e mesma parcela). Sobram '+r.removerExatas.length+' cópia(s), somando '+fmt(r.pagoRemover)+' em contas pagas que inflam o total recebido.'+
       '<div style="margin-top:8px;max-height:220px;overflow:auto;font-size:12px">'+r.exatas.slice(0,40).map(function(x){return'<div style="padding:4px 0;border-top:1px solid rgba(255,255,255,.08)">'+cli(x.manter)+' <span style="color:var(--yellow)">(×'+(x.remover.length+1)+')</span></div>';}).join('')+(r.exatas.length>40?'<div>+ '+(r.exatas.length-40)+' outras</div>':'')+'</div>'+
