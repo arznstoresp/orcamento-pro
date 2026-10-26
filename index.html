@@ -8064,6 +8064,34 @@ function nextReciboNum(){
   return String(n).padStart(4,'0');
 }
 
+// Valor por extenso em reais (ex.: 652,52 → "seiscentos e cinquenta e dois reais e cinquenta e dois centavos")
+function _ext999(n){
+  var u=['','um','dois','três','quatro','cinco','seis','sete','oito','nove','dez','onze','doze','treze','quatorze','quinze','dezesseis','dezessete','dezoito','dezenove'];
+  var d=['','','vinte','trinta','quarenta','cinquenta','sessenta','setenta','oitenta','noventa'];
+  var c=['','cento','duzentos','trezentos','quatrocentos','quinhentos','seiscentos','setecentos','oitocentos','novecentos'];
+  if(n===100)return'cem';
+  var p=[],h=Math.floor(n/100),r=n%100;
+  if(h)p.push(c[h]);
+  if(r)p.push(r<20?u[r]:d[Math.floor(r/10)]+(r%10?' e '+u[r%10]:''));
+  return p.join(' e ');
+}
+function _extInt(n){
+  if(n===0)return'zero';
+  var partes=[],m=Math.floor(n/1000000),mil=Math.floor((n%1000000)/1000),r=n%1000;
+  if(m)partes.push({v:m,t:m===1?'um milhão':_ext999(m)+' milhões'});
+  if(mil)partes.push({v:mil,t:mil===1?'mil':_ext999(mil)+' mil'});
+  if(r)partes.push({v:r,t:_ext999(r)});
+  var out=partes[0].t;
+  for(var i=1;i<partes.length;i++){var v=partes[i].v;out+=(v<100||v%100===0?' e ':' ')+partes[i].t;}
+  return out;
+}
+function valorPorExtenso(v){
+  v=Math.round((parseFloat(v)||0)*100);
+  var reais=Math.floor(v/100),cent=v%100,out=[];
+  if(reais>0||!cent)out.push(_extInt(reais)+(reais>=1000000&&reais%1000000===0?' de':'')+(reais===1?' real':' reais'));
+  if(cent)out.push(_extInt(cent)+(cent===1?' centavo':' centavos'));
+  var t=out.join(' e ');return t.charAt(0).toUpperCase()+t.slice(1)+'.';
+}
 function gerarReciboPagamento(contaId){
   var conta=getContasReceber().find(function(c){return c.id===contaId;});
   if(!conta){var el=ge('receber-alertas');if(el){el.innerHTML='<div class="warn-box">⚠️ Conta a receber não encontrada.</div>';setTimeout(function(){el.innerHTML='';},4000);}return;}
@@ -8074,67 +8102,96 @@ function gerarReciboPagamento(contaId){
   var hist=getHist();
   var orcamento=hist.find(function(h){return h.id===conta.orcId;});
 
-  var numRecibo=nextReciboNum();
+  // O mesmo recibo mantém o mesmo número (clicar de novo não gasta outro número)
+  if(!conta.reciboNum){
+    conta.reciboNum=nextReciboNum();
+    var todasC=getContasReceber();var ic=todasC.findIndex(function(c){return c.id===contaId;});
+    if(ic>=0){todasC[ic].reciboNum=conta.reciboNum;saveContasReceber(todasC);}
+  }
+  var numRecibo=conta.reciboNum;
   var dataEmissao=hoje();
-  var itensDescricao=orcamento&&orcamento.items?orcamento.items.map(function(it){return it.qty+'x '+it.desc;}).join(', '):'Referente ao pedido #'+conta.orcNum;
+  var cl=(orcamento&&orcamento.cliente)||{};
+  var itens=orcamento&&orcamento.items?orcamento.items:[];
+  var totalPedido=orcamento?calcHistTotal(orcamento):conta.valor;
+  var pagoAte=0;getContasReceber().forEach(function(c){if(c.orcId===conta.orcId&&c.status==='pago'&&((c.dataPgto||'')<=(conta.dataPgto||'9999')))pagoAte+=c.valor;});
+  var saldo=Math.max(0,totalPedido-pagoAte);
+  var dtLonga=new Date((conta.dataPgto||dataEmissao)+'T12:00').toLocaleDateString('pt-BR',{day:'numeric',month:'long',year:'numeric'});
+  var e=function(t){return escHtml(String(t==null?'':t));};
+  var logoHtml=logo?'<img src="'+logo+'" class="logo">':'';
+  var linhasItens=itens.slice(0,14).map(function(it){var sub=calcItemSub(it);return'<tr><td class="c-q">'+e(it.qty)+'</td><td>'+e(it.desc)+'</td><td class="c-v">'+fmt(parseFloat(it.price)||0)+'</td><td class="c-v">'+fmt(sub)+'</td></tr>';}).join('');
+  var maisItens=itens.length>14?'<tr><td></td><td colspan="3" class="mais">+ '+(itens.length-14)+' item(ns) do pedido #'+e(conta.orcNum)+'</td></tr>':'';
+  var contato=[cfg.cnpj?'CNPJ '+cfg.cnpj:'',cfg.endereco||'',cfg.cidade||'',cfg.tel||'',cfg.email||'',cfg.site||''].filter(function(x){return x;}).map(e).join(' &nbsp;·&nbsp; ');
 
-  var logoHtml=logo?'<img src="'+logo+'" style="width:46px;height:46px;object-fit:cover;border-radius:8px">':'<div style="width:46px;height:46px;background:rgba(255,107,0,.15);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px">🧾</div>';
-
-  var html='<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Recibo #'+numRecibo+' — '+(cfg.nome||'Empresa')+'</title>'+
+  var html='<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Recibo '+e(numRecibo)+' — '+e(cfg.nome||'Empresa')+'</title>'+
   '<style>'+
-    '*{box-sizing:border-box;margin:0;padding:0;font-family:Segoe UI,Arial,sans-serif}'+
-    'body{background:#F4F4F4;padding:24px;color:#222}'+
-    '.doc{max-width:680px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.1)}'+
-    '.header{background:#111;padding:24px 28px;display:flex;justify-content:space-between;align-items:flex-start;border-bottom:4px solid #FF6B00;gap:14px}'+
-    '.header-empresa{display:flex;gap:12px;align-items:flex-start}'+
-    '.header-nome{font-size:18px;font-weight:700;color:#fff}'+
-    '.header-info{font-size:11px;color:rgba(255,255,255,.5);margin-top:4px;line-height:1.6}'+
-    '.header-doc{text-align:right;flex-shrink:0}'+
-    '.header-doc-label{font-size:9px;letter-spacing:2px;color:rgba(255,255,255,.45);text-transform:uppercase}'+
-    '.header-doc-num{font-size:26px;font-weight:800;color:#FF6B00;margin-top:2px}'+
-    '.body{padding:28px}'+
-    '.valor-box{background:#FFF4EC;border:2px solid #FF6B00;border-radius:10px;padding:18px 22px;text-align:center;margin-bottom:22px}'+
-    '.valor-label{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#CC5500;font-weight:700}'+
-    '.valor-num{font-size:34px;font-weight:800;color:#FF6B00;margin-top:4px}'+
-    '.texto{font-size:14px;line-height:1.9;color:#333;margin-bottom:22px}'+
-    '.texto strong{color:#111}'+
-    '.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:22px}'+
-    '.campo-label{font-size:9px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#FF6B00;margin-bottom:3px}'+
-    '.campo-valor{font-size:13px;color:#222}'+
-    '.assinatura{margin-top:40px;padding-top:16px;border-top:1px solid #e5e5e5;display:flex;justify-content:space-between;align-items:flex-end}'+
-    '.assinatura-linha{border-top:1px solid #999;width:240px;text-align:center;padding-top:6px;font-size:11px;color:#777}'+
-    '.footer{padding:14px 28px;background:#FAFAFA;border-top:1px solid #eee;font-size:10px;color:#999;text-align:center}'+
-    '.aviso{font-size:10px;color:#aaa;text-align:center;margin-top:6px;font-style:italic}'+
-    '.btns{max-width:680px;margin:16px auto 0;display:flex;gap:8px;justify-content:center}'+
-    '.btn{padding:9px 18px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer}'+
-    '.btn-print{background:#FF6B00;color:#fff}'+
-    '.btn-close{background:#e5e5e5;color:#333}'+
-    '@media print{.btns{display:none}body{background:#fff;padding:0}.doc{box-shadow:none;border-radius:0}@page{size:A4;margin:1.2cm}}'+
+    '*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
+    'body{font-family:"Segoe UI",Helvetica,Arial,sans-serif;background:#ececec;padding:24px;color:#1d1d1f}'+
+    '.doc{width:210mm;max-width:100%;min-height:277mm;margin:0 auto;background:#fff;padding:16mm 16mm 12mm;position:relative;box-shadow:0 4px 24px rgba(0,0,0,.12);display:flex;flex-direction:column}'+
+    '.doc::before{content:"";position:absolute;left:0;right:0;top:0;height:7mm;background:#FF6B00}'+
+    '.top{display:flex;justify-content:space-between;align-items:center;gap:18px;margin-top:6mm;padding-bottom:6mm;border-bottom:1px solid #e3e3e3}'+
+    '.emp{display:flex;gap:14px;align-items:center;min-width:0}'+
+    '.logo{width:19mm;height:19mm;object-fit:contain;flex-shrink:0}'+
+    '.emp-nome{font-size:19px;font-weight:700;letter-spacing:-.01em;color:#111}'+
+    '.emp-info{font-size:10.5px;color:#666;margin-top:3px;line-height:1.55}'+
+    '.num{text-align:right;flex-shrink:0}'+
+    '.num-l{font-size:10px;font-weight:700;letter-spacing:.2em;color:#999;text-transform:uppercase}'+
+    '.num-n{font-size:30px;font-weight:800;color:#FF6B00;line-height:1.1;font-variant-numeric:tabular-nums}'+
+    '.num-d{font-size:11px;color:#777;margin-top:2px}'+
+    'h1{font-size:13px;letter-spacing:.28em;text-transform:uppercase;color:#111;margin:9mm 0 5mm;font-weight:700}'+
+    '.valor{border:2px solid #FF6B00;background:#FFF5EC;border-radius:10px;padding:6mm 8mm;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}'+
+    '.valor-l{font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#B54A00}'+
+    '.valor-n{font-size:36px;font-weight:800;color:#E85D00;line-height:1.1;font-variant-numeric:tabular-nums}'+
+    '.valor-x{font-size:11.5px;color:#7a4a22;font-style:italic;max-width:95mm;text-align:right;line-height:1.5}'+
+    '.texto{font-size:13px;line-height:1.85;color:#333;margin:7mm 0 6mm}'+
+    '.texto b{color:#111}'+
+    '.det{display:grid;grid-template-columns:1fr 1fr 1fr;border:1px solid #e3e3e3;border-radius:8px;overflow:hidden}'+
+    '.det>div{padding:3.2mm 4.5mm;border-right:1px solid #eee;border-bottom:1px solid #eee}'+
+    '.det>div:nth-child(3n){border-right:0}'+
+    '.det>div:nth-last-child(-n+3){border-bottom:0}'+
+    '.dl{font-size:8.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#E85D00;margin-bottom:2px}'+
+    '.dv{font-size:12.5px;color:#222}'+
+    'h2{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#888;margin:7mm 0 2.5mm;font-weight:700}'+
+    'table{width:100%;border-collapse:collapse;font-size:11.5px}'+
+    'th{text-align:left;font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;color:#888;font-weight:700;padding:2mm 2mm;border-bottom:1.5px solid #222}'+
+    'td{padding:2mm;border-bottom:1px solid #eee;vertical-align:top}'+
+    '.c-q{width:12mm;text-align:center;font-variant-numeric:tabular-nums}.c-v{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}th.c-v{text-align:right}th.c-q{text-align:center}'+
+    '.mais{color:#999;font-style:italic}'+
+    '.tot{margin:3mm 0 0 auto;width:78mm;font-size:12px}'+
+    '.tot div{display:flex;justify-content:space-between;padding:1.4mm 0;border-bottom:1px solid #eee}'+
+    '.tot .forte{font-weight:700;color:#111;border-bottom:2px solid #FF6B00}'+
+    '.tot .saldo{color:#555}'+
+    '.fill{flex:1}'+
+    '.ass{display:flex;justify-content:space-between;gap:16mm;margin-top:16mm}'+
+    '.ass div{flex:1;border-top:1px solid #444;padding-top:2mm;text-align:center;font-size:10.5px;color:#444}'+
+    '.ass small{display:block;color:#999;font-size:9.5px;margin-top:1px}'+
+    '.local{margin-top:7mm;text-align:center;font-size:11px;color:#666}'+
+    '.rod{margin-top:8mm;padding-top:3mm;border-top:1px solid #e3e3e3;font-size:9px;color:#999;text-align:center;line-height:1.6}'+
+    '.btns{max-width:210mm;margin:16px auto 0;display:flex;gap:8px;justify-content:center}'+
+    '.btn{padding:10px 20px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer}'+
+    '.btn-print{background:#FF6B00;color:#fff}.btn-close{background:#ddd;color:#333}'+
+    '@media print{body{background:#fff;padding:0}.doc{box-shadow:none;width:auto;min-height:0;height:276mm;padding:16mm 16mm 10mm}.btns{display:none}@page{size:A4;margin:0}}'+
   '</style></head><body>'+
     '<div class="doc">'+
-      '<div class="header">'+
-        '<div class="header-empresa">'+logoHtml+
-          '<div><div class="header-nome">'+(cfg.nome||'Empresa')+'</div>'+
-          '<div class="header-info">'+(cfg.cnpj?'CNPJ: '+cfg.cnpj+'<br>':'')+(cfg.tel||'')+(cfg.email?' · '+cfg.email:'')+'</div></div>'+
-        '</div>'+
-        '<div class="header-doc"><div class="header-doc-label">Recibo</div><div class="header-doc-num">#'+numRecibo+'</div></div>'+
+      '<div class="top"><div class="emp">'+logoHtml+'<div><div class="emp-nome">'+e(cfg.nome||'Empresa')+'</div><div class="emp-info">'+contato+'</div></div></div>'+
+        '<div class="num"><div class="num-l">Recibo nº</div><div class="num-n">'+e(numRecibo)+'</div><div class="num-d">Emitido em '+fmtDt(dataEmissao)+'</div></div></div>'+
+      '<h1>Recibo de pagamento</h1>'+
+      '<div class="valor"><div><div class="valor-l">Valor recebido</div><div class="valor-n">'+fmt(conta.valor)+'</div></div><div class="valor-x">'+e(valorPorExtenso(conta.valor))+'</div></div>'+
+      '<p class="texto">Recebemos de <b>'+e(conta.clienteNome||'Cliente')+'</b>'+(cl.doc?' (CPF/CNPJ '+e(cl.doc)+')':'')+' a quantia de <b>'+fmt(conta.valor)+'</b>, referente à parcela <b>'+e(conta.parcela)+'</b> do pedido <b>#'+e(conta.orcNum)+'</b>, dando plena quitação do valor recebido nesta data.</p>'+
+      '<div class="det">'+
+        '<div><div class="dl">Data do pagamento</div><div class="dv">'+fmtDt(conta.dataPgto||dataEmissao)+'</div></div>'+
+        '<div><div class="dl">Forma de pagamento</div><div class="dv">'+e(conta.formaPgto||'Não informado')+'</div></div>'+
+        '<div><div class="dl">Parcela</div><div class="dv">'+e(conta.parcela)+'</div></div>'+
+        '<div><div class="dl">Pedido / Orçamento</div><div class="dv">#'+e(conta.orcNum)+'</div></div>'+
+        '<div><div class="dl">Cliente</div><div class="dv">'+e(conta.clienteNome||'—')+'</div></div>'+
+        '<div><div class="dl">Contato</div><div class="dv">'+e(conta.clienteWpp||cl.wpp||'—')+'</div></div>'+
       '</div>'+
-      '<div class="body">'+
-        '<div class="valor-box"><div class="valor-label">Valor recebido</div><div class="valor-num">'+fmt(conta.valor)+'</div></div>'+
-        '<div class="texto">Recebemos de <strong>'+(conta.clienteNome||'Cliente')+'</strong> a quantia de <strong>'+fmt(conta.valor)+'</strong>, referente à parcela <strong>'+conta.parcela+'</strong> do pedido <strong>#'+conta.orcNum+'</strong>'+(itensDescricao?' ('+itensDescricao+')':'')+', dando plena quitação do valor recebido nesta data.</div>'+
-        '<div class="grid">'+
-          '<div><div class="campo-label">Data do pagamento</div><div class="campo-valor">'+fmtDt(conta.dataPgto||dataEmissao)+'</div></div>'+
-          '<div><div class="campo-label">Forma de pagamento</div><div class="campo-valor">'+(conta.formaPgto||'Não informado')+'</div></div>'+
-          '<div><div class="campo-label">Pedido / Orçamento</div><div class="campo-valor">#'+conta.orcNum+'</div></div>'+
-          '<div><div class="campo-label">Emitido em</div><div class="campo-valor">'+fmtDt(dataEmissao)+'</div></div>'+
-        '</div>'+
-        (conta.obs?'<div class="texto" style="font-size:12px;color:#666"><strong>Observações:</strong> '+conta.obs+'</div>':'')+
-        '<div class="assinatura">'+
-          '<div class="assinatura-linha">'+(cfg.nome||'Empresa')+'</div>'+
-          '<div class="assinatura-linha">'+(conta.clienteNome||'Cliente')+'</div>'+
-        '</div>'+
-      '</div>'+
-      '<div class="footer">Documento gerado eletronicamente · '+new Date().toLocaleString('pt-BR')+'<div class="aviso">Este recibo é um comprovante de controle interno e não possui valor fiscal (não substitui nota fiscal).</div></div>'+
+      (itens.length?'<h2>Itens do pedido</h2><table><thead><tr><th class="c-q">Qtd</th><th>Descrição</th><th class="c-v">Unitário</th><th class="c-v">Subtotal</th></tr></thead><tbody>'+linhasItens+maisItens+'</tbody></table>':'')+
+      '<div class="tot"><div><span>Total do pedido</span><span>'+fmt(totalPedido)+'</span></div><div class="forte"><span>Pago neste recibo</span><span>'+fmt(conta.valor)+'</span></div><div class="saldo"><span>Saldo restante do pedido</span><span>'+fmt(saldo)+'</span></div></div>'+
+      (conta.obs?'<p class="texto" style="font-size:11px;color:#666;margin:5mm 0 0"><b>Observações:</b> '+e(conta.obs)+'</p>':'')+
+      '<div class="fill"></div>'+
+      '<div class="local">'+(cfg.cidade?e(cfg.cidade)+', ':'')+dtLonga+'</div>'+
+      '<div class="ass"><div>'+e(cfg.nome||'Empresa')+'<small>Recebedor</small></div><div>'+e(conta.clienteNome||'Cliente')+'<small>Pagador</small></div></div>'+
+      '<div class="rod">Documento gerado eletronicamente em '+new Date().toLocaleString('pt-BR')+'.<br>Comprovante de controle interno, sem valor fiscal (não substitui nota fiscal).</div>'+
     '</div>'+
     '<div class="btns"><button class="btn btn-print" onclick="window.print()">🖨️ Imprimir / Salvar PDF</button><button class="btn btn-close" onclick="window.close()">Fechar</button></div>'+
   '</body></html>';
