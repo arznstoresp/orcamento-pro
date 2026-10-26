@@ -1160,7 +1160,9 @@ body.papel-vendedor #tmargem-wrap{display:none!important}
               </div>
             </div>
             <div class="card"><div class="card-title">2 · Personalização</div>
-              <label class="lbl" style="display:flex;gap:8px;align-items:center;font-weight:500"><input type="checkbox" id="pe-simples" checked onchange="peGrp()" style="width:auto"> Usar valores padrão (50 / 100 / 300 / 500 / 1.000 pçs)</label>
+              <label class="lbl" for="pe-modo">Quem produz</label>
+              <select id="pe-modo" onchange="peCalc()"><option value="auto">Automático (eu produzo as quantidades pequenas, Global as grandes)</option><option value="propria">Produção própria</option><option value="global">Global</option></select>
+              <label class="lbl" style="display:flex;gap:8px;align-items:center;font-weight:500;margin-top:10px"><input type="checkbox" id="pe-simples" checked onchange="peGrp()" style="width:auto"> Usar valores padrão (50 / 100 / 300 / 500 / 1.000 pçs)</label>
               <label class="lbl" for="pe-proc" style="margin-top:8px">Processo</label><select id="pe-proc" onchange="peGrp()"></select>
               <label class="lbl" for="pe-grp" style="margin-top:8px">Tipo / tamanho</label><select id="pe-grp" onchange="peOpts()"></select>
               <p id="pe-grp-obs" style="font-size:12px;color:var(--dark-text3);margin:6px 0 0"></p>
@@ -11220,6 +11222,8 @@ function getPersTab(){try{var t=JSON.parse(localStorage.getItem('orcpro_pers_tab
 function savePersTab(t){return gravarSeguro('orcpro_pers_tab',JSON.stringify(t),'tabela de personalização');}
 function persCfgPadrao(){return{niveis:[{n:'Varejo',m:45},{n:'Atacado',m:35},{n:'Revenda',m:25}]};}
 function getPersCfg(){try{var c=JSON.parse(localStorage.getItem('orcpro_pers_cfg')||'null');if(c&&c.niveis&&c.niveis.length===3)return c;}catch(e){}return persCfgPadrao();}
+// Produção própria: custo por peça de personalizar em casa, por processo, e até quantas peças vale produzir em casa
+function getPersPropria(){var c=getPersCfg(),pp=c.propria||{};return{limite:parseInt(pp.limite)>0?parseInt(pp.limite):50,custos:pp.custos||{}};}
 function savePersCfg(c){return gravarSeguro('orcpro_pers_cfg',JSON.stringify(c),'margens de personalização');}
 // preço de venda a partir do custo e da margem sobre a venda (preço = custo / (1 - margem))
 function precoPorMargem(custo,m){m=Math.min(95,Math.max(0,parseFloat(m)||0))/100;return custo/(1-m);}
@@ -11293,7 +11297,11 @@ var _peUlt=null;
 function peCalc(){
   var p=peProc(),g=peGrpAtual();if(!p||!g||!ge('pe-res'))return;
   var q=Math.max(1,Math.floor(peNum('pe-qtd',1))),cp=peNum('pe-custo',0),ex=peNum('pe-extra',0);
-  var r=persCusto(p,g,q),cu=cp+r.un+ex,cfg=getPersCfg(),nome=ge('pe-prod').value||'Produto';
+  var pp=getPersPropria(),modo=ge('pe-modo')?ge('pe-modo').value:'auto',cp2=parseFloat(pp.custos[p.id])||0,usaP=false,avisoP='';
+  if(modo==='propria'||(modo==='auto'&&q<pp.limite)){if(cp2>0)usaP=true;else avisoP='Você ainda não informou o seu custo de produção própria para '+p.nome+' (aba Margens). Usando a tabela da Global.';}
+  var r=usaP?{un:cp2,tot:cp2*q,faixa:'produção própria',det:fmt(cp2)+' por peça (seu custo, sem faturamento mínimo)',fl:[]}:persCusto(p,g,q);
+  if(avisoP)r.fl.push(['warn',avisoP]);
+  var cu=cp+r.un+ex,cfg=getPersCfg(),nome=ge('pe-prod').value||'Produto';
   var h='<div class="card-title">Resultado</div><div style="font-size:13px;color:var(--dark-text3);margin-bottom:10px"><strong style="color:var(--dark-text)">'+escHtml(nome)+'</strong> · '+q+' peças · '+escHtml(p.nome)+' · '+escHtml(g.nome)+'</div>';
   h+='<table style="width:100%;font-size:13px;border-collapse:collapse"><tbody>'+
     '<tr><td>Produto ('+fmt(cp)+' x '+q+')</td><td style="text-align:right">'+fmt(cp*q)+'</td></tr>'+
@@ -11309,7 +11317,7 @@ function peCalc(){
   linhas.forEach(function(l,i){h+='<tr style="border-top:1px solid var(--dark-border)"><td style="padding:6px;font-weight:600">'+escHtml(l.nome)+'</td><td style="padding:6px;text-align:right">'+l.m.toFixed(1).replace('.',',')+'%</td><td style="padding:6px;text-align:right;font-weight:700;color:var(--brand)">'+fmt(l.pu)+'</td><td style="padding:6px;text-align:right">'+fmt(l.pu*q)+'</td><td style="padding:6px;text-align:right;color:var(--green)">'+fmt((l.pu-cu)*q)+'</td><td style="padding:6px;text-align:right"><button class="btn btn-brand btn-sm" onclick="peAdicionarOrc('+i+')">➕ Orçamento</button> <button class="btn btn-out btn-sm" onclick="peSalvarCatalogo('+i+')" title="Grava este preço no produto para o gerador de catálogo">📒 Catálogo</button></td></tr>';});
   h+='</tbody></table></div>';
   r.fl.forEach(function(f){h+='<div class="'+(f[0]==='warn'?'warn-box':'info-box')+'" style="margin-top:10px">'+f[1]+'</div>';});
-  if(p.amostra)h+='<div class="info-box" style="margin-top:10px"><strong>Amostra física:</strong> '+escHtml(p.amostra)+'</div>';
+  if(p.amostra&&!usaP)h+='<div class="info-box" style="margin-top:10px"><strong>Amostra física:</strong> '+escHtml(p.amostra)+'</div>';
   ge('pe-res').innerHTML=h;
 }
 // Grava o preço (com personalização) no produto, para o Gerador de Catálogo usar no slide
@@ -11374,11 +11382,17 @@ function peRenderCfg(){
   var c=getPersCfg();
   var h='<div class="card"><div class="card-title">Níveis de margem</div><p style="font-size:12px;color:var(--dark-text3);margin:0 0 10px">Margem sobre o preço de venda: preço = custo ÷ (1 − margem). Valem para o simulador e para o preço dos produtos importados da XBZ (Varejo, Atacado e Revenda).</p>';
   c.niveis.forEach(function(n,i){h+='<div class="g2" style="margin-bottom:8px"><div><label class="lbl" for="pe-nn'+i+'">Nome do nível '+(i+1)+'</label><input id="pe-nn'+i+'" value="'+escHtml(n.n)+'"></div><div><label class="lbl" for="pe-nm'+i+'">Margem (%)</label><input id="pe-nm'+i+'" type="number" min="0" max="95" step="0.5" value="'+n.m+'"></div></div>';});
+  var pp=getPersPropria();
+  h+='<div class="card-title" style="margin-top:16px">Produção própria</div><p style="font-size:12px;color:var(--dark-text3);margin:0 0 10px">Quanto custa para VOCÊ personalizar uma peça em casa (tinta, papel, energia, desgaste, tempo), por processo. Quando a quantidade for menor que o limite, o simulador usa este custo no lugar da tabela da Global, e o faturamento mínimo da Global não conta.</p>'+
+    '<div style="margin-bottom:10px"><label class="lbl" for="pe-pp-lim">Produzo em casa até (peças)</label><input id="pe-pp-lim" type="number" min="1" step="1" value="'+pp.limite+'"></div>'+
+    peT().processos.map(function(pr){return'<div class="g2" style="margin-bottom:6px;align-items:end"><div style="font-size:13px;padding-bottom:10px">'+escHtml(pr.nome)+'</div><div><label class="lbl" for="pe-pp-'+pr.id+'">Meu custo por peça (R$)</label><input id="pe-pp-'+pr.id+'" type="number" min="0" step="0.01" value="'+(parseFloat(pp.custos[pr.id])||'')+'" placeholder="0,00 = usar Global"></div></div>';}).join('')+'<div style="height:8px"></div>';
   h+='<button class="btn btn-brand" onclick="peSalvarCfg()">💾 Salvar margens</button> <span id="pe-cfg-msg" style="font-size:12px;color:var(--dark-text3)"></span></div>';
   ge('pe-cfg').innerHTML=h;
 }
 function peSalvarCfg(){
   var c=getPersCfg();c.niveis=[0,1,2].map(function(i){return{n:val('pe-nn'+i).trim()||c.niveis[i].n,m:Math.min(95,Math.max(0,parseFloat(val('pe-nm'+i))||0))};});
+  c.propria={limite:Math.max(1,parseInt(val('pe-pp-lim'))||50),custos:{}};
+  peT().processos.forEach(function(pr){var v=parseFloat(val('pe-pp-'+pr.id))||0;if(v>0)c.propria.custos[pr.id]=v;});
   savePersCfg(c);ge('pe-cfg-msg').textContent='Salvo. Valem para novas importações da XBZ e para o simulador.';
 }
 // Importação da XBZ: o valor do fornecedor é o CUSTO; o preço de venda sai das margens
