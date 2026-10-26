@@ -7954,13 +7954,31 @@ function confirmarDelFin(){
 }
 
 // Orçamentos aprovados que ficaram sem conta a receber (aprovados antes do recurso, por outro caminho ou com a lista perdida)
+// Orçamentos aprovados à vista/PIX (dos últimos 45 dias) sem conta: gera a conta já como paga, sem retrabalho.
+// Parcelados e outras formas continuam na lista para você conferir.
+function autoGerarContasAVista(){
+  try{
+    var comConta={};getContasReceber().forEach(function(c){comConta[c.orcId]=1;});
+    var hist=getHist(),n=0,corte=new Date(Date.now()-45*86400000).toISOString().substring(0,10);
+    hist.forEach(function(h){
+      if(!h||h.status!=='Aprovado'||comConta[h.id]||!h.cliente)return;
+      if(PGTOS_A_VISTA.indexOf(h.pgto)<0||(h.parcelas&&h.parcelas.n>1))return;
+      if((h.data||'')<corte)return;
+      gerarContasReceber(h);h._contasGeradas=true;comConta[h.id]=1;n++;
+    });
+    if(n){saveHist(hist);console.log('[Receber] '+n+' conta(s) à vista/PIX geradas automaticamente.');}
+    return n;
+  }catch(e){console.warn('[Receber] auto-geração falhou',e);return 0;}
+}
 function renderOrcamentosSemConta(){
   var el=ge('receber-faltantes');if(!el)return;
+  var nAuto=autoGerarContasAVista();
   var comConta={};getContasReceber().forEach(function(c){comConta[c.orcId]=1;});
   var falt=getHist().filter(function(h){return h&&h.status==='Aprovado'&&!comConta[h.id];}).sort(function(a,b){return(b.data||'')<(a.data||'')?-1:1;});
-  if(!falt.length){el.innerHTML='';return;}
+  var aviso=nAuto?'<div class="success-box">✅ '+nAuto+' conta(s) à vista/PIX gerada(s) automaticamente como paga(s). Já dá para emitir o recibo.</div>':'';
+  if(!falt.length){el.innerHTML=aviso;return;}
   var mais=falt.length>12?falt.length-12:0;
-  el.innerHTML='<div class="warn-box"><strong>⚠️ '+falt.length+' orçamento(s) aprovado(s) sem conta a receber.</strong> Gere a conta para acompanhar o pagamento e emitir o recibo. À vista/PIX entra como paga.'+
+  el.innerHTML=aviso+'<div class="warn-box"><strong>⚠️ '+falt.length+' orçamento(s) aprovado(s) sem conta a receber.</strong> Parcelados e outras formas precisam da sua conferência. Gere a conta para acompanhar o pagamento.'+
     falt.slice(0,12).map(function(h){return'<div style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.08)"><span><strong>#'+escHtml(String(h.num))+'</strong> · '+escHtml((h.cliente&&h.cliente.nome)||'—')+' · '+fmtDt(h.data)+' · '+fmt(calcHistTotal(h))+' · '+escHtml(h.pgto||'forma não informada')+'</span><button class="btn btn-brand btn-sm" onclick="gerarContaFaltante(\''+h.id+'\')">＋ Gerar conta</button></div>';}).join('')+
     (mais?'<div style="margin-top:8px;font-size:12px;color:rgba(255,255,255,.5)">+ '+mais+' mais antigo(s). Gere os de cima primeiro.</div>':'')+'</div>';
 }
@@ -12406,6 +12424,7 @@ function aplicarProtecaoAutofill(){
     compactarGeradorCatalogo();
     corrigirFotosXbzUmaVez();
     migrarPrecosXbzUmaVez();
+    autoGerarContasAVista();
     migrarSkusUmaVez();
     corrigirValoresCanecasUmaVez();
     initPIN();
