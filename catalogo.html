@@ -1601,14 +1601,14 @@ setTimeout(function(){
 renderList();
 renderPreview();
 generateQR();
-window.__gen={S:S,buildSlides:buildSlides,addFiles:addFiles,parsePage:parsePage,renderPreview:renderPreview,renderList:renderList,newProduct:newProduct,schedule:schedule};
+window.__gen={S:S,buildSlides:buildSlides,addFiles:addFiles,parsePage:parsePage,renderPreview:renderPreview,renderList:renderList,newProduct:newProduct,schedule:schedule,cortarDesc:cortarDesc};
 })();
 
-$("btnExport2").addEventListener("click",function(){ $("btnExport").click(); });
-$("btnExportPdf2").addEventListener("click",function(){ $("btnExportPdf").click(); });
+_ge("btnExport2").addEventListener("click",function(){ _ge("btnExport").click(); });
+_ge("btnExportPdf2").addEventListener("click",function(){ _ge("btnExportPdf").click(); });
 
 /* ---- btnPickInline alias ---- */
-var _inlineLink=$("btnPickInline"); if(_inlineLink) _inlineLink.addEventListener("click",function(e){e.stopPropagation();$("file").click();});
+var _inlineLink=_ge("btnPickInline"); if(_inlineLink) _inlineLink.addEventListener("click",function(e){e.stopPropagation();_ge("file").click();});
 
 /* ---- empty state toggle ---- */
 function _ge(id){return document.getElementById(id);}
@@ -1636,22 +1636,28 @@ _ge("btnImportOrcpro").addEventListener("click",function(){
   // evitar duplicatas por nome
   var existingNames={};
   (g.S.products||[]).forEach(function(p){ existingNames[p.name]=true; });
-  var added=0;
+  var added=0, atualizados=0;
+  var precoCat=function(p){ return p.persCat&&p.persCat.preco>0 ? p.persCat.preco.toFixed(2).replace(".",",") : (p.varejo?String(p.varejo):""); };
+  var qtdCat=function(p){ return p.persCat&&p.persCat.qtd>0 ? p.persCat.qtd+" unidades" : (p.minAtacado?String(p.minAtacado):""); };
   prods.forEach(function(p){
-    if(existingNames[p.nome]) return;
+    if(existingNames[p.nome]){
+      // produto já no catálogo: atualiza só o preço quando há preço de personalização gravado
+      if(p.persCat&&p.persCat.preco>0){ var ex=(g.S.products||[]).find(function(x){return x.name===p.nome;}); if(ex){ ex.preco=precoCat(p); ex.minQtd=qtdCat(p); atualizados++; } }
+      return;
+    }
     g.S.products.push(g.newProduct({
       name: p.nome||"",
       cat: p.cat||"",
-      desc: cortarDesc(p.desc||""),
+      desc: g.cortarDesc(p.desc||""),
       img: p.foto||"",
       prev: p.foto||"",
-      preco: p.varejo?String(p.varejo):"",
-      minQtd: p.minAtacado?String(p.minAtacado):""
+      preco: precoCat(p),
+      minQtd: qtdCat(p)
     }));
     added++;
   });
   g.renderList(); g.schedule();
-  info.textContent=added+" produto(s) importado(s)"+(prods.length-added?" ("+( prods.length-added)+" já existiam)":"")+ ". Revise nomes e fotos antes de exportar.";
+  info.textContent=added+" produto(s) importado(s)"+(atualizados?", "+atualizados+" com preço de personalização atualizado":"")+(prods.length-added?" ("+( prods.length-added)+" já existiam)":"")+ ". Revise nomes e fotos antes de exportar.";
   info.style.color="var(--ok)"; info.style.display="block";
   updateEmptyState();
 });

@@ -11306,11 +11306,21 @@ function peCalc(){
   if(man>0)linhas.push({nome:'Manual',m:(1-cu/man)*100,pu:man,manual:true});
   _peUlt={linhas:linhas,cu:cu,q:q,nome:nome,p:p,g:g};
   h+='<div style="overflow-x:auto;margin-top:12px"><table style="width:100%;font-size:13px;border-collapse:collapse"><thead><tr style="color:var(--dark-text3);font-size:11px;text-transform:uppercase"><th style="text-align:left;padding:6px">Nível</th><th style="text-align:right;padding:6px">Margem</th><th style="text-align:right;padding:6px">Preço un.</th><th style="text-align:right;padding:6px">Total</th><th style="text-align:right;padding:6px">Lucro</th><th></th></tr></thead><tbody>';
-  linhas.forEach(function(l,i){h+='<tr style="border-top:1px solid var(--dark-border)"><td style="padding:6px;font-weight:600">'+escHtml(l.nome)+'</td><td style="padding:6px;text-align:right">'+l.m.toFixed(1).replace('.',',')+'%</td><td style="padding:6px;text-align:right;font-weight:700;color:var(--brand)">'+fmt(l.pu)+'</td><td style="padding:6px;text-align:right">'+fmt(l.pu*q)+'</td><td style="padding:6px;text-align:right;color:var(--green)">'+fmt((l.pu-cu)*q)+'</td><td style="padding:6px;text-align:right"><button class="btn btn-brand btn-sm" onclick="peAdicionarOrc('+i+')">➕ Orçamento</button></td></tr>';});
+  linhas.forEach(function(l,i){h+='<tr style="border-top:1px solid var(--dark-border)"><td style="padding:6px;font-weight:600">'+escHtml(l.nome)+'</td><td style="padding:6px;text-align:right">'+l.m.toFixed(1).replace('.',',')+'%</td><td style="padding:6px;text-align:right;font-weight:700;color:var(--brand)">'+fmt(l.pu)+'</td><td style="padding:6px;text-align:right">'+fmt(l.pu*q)+'</td><td style="padding:6px;text-align:right;color:var(--green)">'+fmt((l.pu-cu)*q)+'</td><td style="padding:6px;text-align:right"><button class="btn btn-brand btn-sm" onclick="peAdicionarOrc('+i+')">➕ Orçamento</button> <button class="btn btn-out btn-sm" onclick="peSalvarCatalogo('+i+')" title="Grava este preço no produto para o gerador de catálogo">📒 Catálogo</button></td></tr>';});
   h+='</tbody></table></div>';
   r.fl.forEach(function(f){h+='<div class="'+(f[0]==='warn'?'warn-box':'info-box')+'" style="margin-top:10px">'+f[1]+'</div>';});
   if(p.amostra)h+='<div class="info-box" style="margin-top:10px"><strong>Amostra física:</strong> '+escHtml(p.amostra)+'</div>';
   ge('pe-res').innerHTML=h;
+}
+// Grava o preço (com personalização) no produto, para o Gerador de Catálogo usar no slide
+function peSalvarCatalogo(i){
+  if(!_peUlt)return;var l=_peUlt.linhas[i];if(!l)return;
+  var prods=getProdutos(),pr=prods.find(function(x){return x.nome===_peUlt.nome;});
+  if(!pr){alert('Escolha um produto cadastrado na lista (campo Produto) para gravar o preço de catálogo.');return;}
+  pr.persCat={preco:+l.pu.toFixed(2),qtd:_peUlt.q,nivel:l.nome,proc:_peUlt.p.nome,grupo:_peUlt.g.nome};
+  saveProdutos(prods);
+  var m=ge('pe-cat-msg');if(!m){m=document.createElement('div');m.id='pe-cat-msg';m.className='success-box';m.style.marginTop='10px';ge('pe-res').appendChild(m);}
+  m.textContent='✅ '+fmt(l.pu)+' por peça (nível '+l.nome+', '+_peUlt.q+' peças, '+_peUlt.p.nome+') gravado em "'+pr.nome+'". No Gerador de Catálogo, importe os produtos para usar esse preço.';
 }
 function peAdicionarOrc(i){
   if(!_peUlt)return;var l=_peUlt.linhas[i];if(!l)return;
