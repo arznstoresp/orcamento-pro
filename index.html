@@ -7808,6 +7808,16 @@ function _aplicarPeriodoReceber(arr){
   return arr;
 }
 
+// Abre o modal de confirmação genérico (excluir OS, orçamento, template, venda, canal, usuário...)
+// raw = 'tipo:id' tratado em confirmarDelFin(); msg pode ter HTML já escapado.
+function abrirDelFin(raw,msg,rotuloBotao,classeBotao){
+  ge('modal-del-fin-id').value=raw;
+  ge('modal-del-fin-msg').innerHTML=msg;
+  var b=ge('modal-del-fin-btn');
+  b.textContent=(rotuloBotao||'Confirmar').replace(/^⚠️\s*/,'🗑 ');
+  b.className=classeBotao||'btn btn-danger';
+  ge('modal-del-fin').className='modal-overlay open';
+}
 function confirmarDelFin(){
   var raw=ge('modal-del-fin-id').value;
   if(!raw)return;
@@ -11552,7 +11562,7 @@ function aplicarProtecaoAutofill(){
   var SUPA_URL='https://edztcoebgllqrkrkormc.supabase.co';
   var SUPA_KEY='sb_publishable_s6MSdF0rhidpCpddqTzNRg_1ajwnxIc';
   var CHAVE_KEY='orcpro_chave_nuvem',META_KEY='orcpro_sync_meta',SESS_KEY='orcpro_auth_session';
-  var TIPOS=['orcpro_emp','orcpro_produtos','orcpro_clientes','orcpro_hist','orcpro_os','orcpro_notas','orcpro_templates','orcpro_fornecedores','orcpro_maquinas','orcpro_receber','orcpro_rh','orcpro_precif_modelos','orcpro_ct_hist','orcpro_mov_estoque','orcpro_despesas','orcpro_custos','orcpro_canais','orcpro_funcs','orcpro_usuarios','orcpro_ct_config','orcpro_pagar_pagas','orcpro_cnt','orcpro_os_cnt','orcpro_recibo_cnt','orcpro_logo'];
+  var TIPOS=['orcpro_emp','orcpro_produtos','orcpro_clientes','orcpro_hist','orcpro_os','orcpro_notas','orcpro_templates','orcpro_fornecedores','orcpro_maquinas','orcpro_receber','orcpro_rh','orcpro_precif_modelos','orcpro_ct_hist','orcpro_mov_estoque','orcpro_despesas','orcpro_custos','orcpro_canais','orcpro_funcs','orcpro_usuarios','orcpro_ct_config','orcpro_pagar_pagas','orcpro_cnt','orcpro_os_cnt','orcpro_recibo_cnt','orcpro_logo','orcpro_excluidos'];
   var RAW={orcpro_logo:1};
   var CONTADORES={orcpro_cnt:1,orcpro_os_cnt:1,orcpro_recibo_cnt:1};
   var SNAP_TIPOS=['orcpro_hist','orcpro_produtos','orcpro_clientes','orcpro_receber','orcpro_custos','orcpro_emp','orcpro_ct_config','orcpro_os','orcpro_ct_hist'];
@@ -11568,6 +11578,11 @@ function aplicarProtecaoAutofill(){
   function getMeta(){try{return JSON.parse(localStorage.getItem(META_KEY)||'{}')||{};}catch(e){return{};}}
   function saveMeta(m){try{localStorage.setItem(META_KEY,JSON.stringify(m));}catch(e){}}
   function hash(s){if(s==null)return'';var h=5381,i=s.length;while(i)h=(h*33)^s.charCodeAt(--i);return s.length+':'+(h>>>0);}
+
+  // ---- exclusões (lápides): sem isso, o que você apaga volta na próxima sincronização ----
+  var TOMB='orcpro_excluidos';
+  function getTomb(){try{return JSON.parse(localStorage.getItem(TOMB)||'{}')||{};}catch(e){return{};}}
+  function idsDe(v){return(Array.isArray(v)&&v.every(function(x){return x&&typeof x==='object'&&x.id!=null;}))?v.map(function(x){return String(x.id);}):null;}
 
   // ---- leitura/escrita local ----
   function rawLocal(tipo){return localStorage.getItem(tipo);}
@@ -11598,6 +11613,7 @@ function aplicarProtecaoAutofill(){
   }
   function mesclar(tipo,loc,rem){
     try{
+      if(tipo===TOMB){var u={};[rem,loc].forEach(function(o){Object.keys(o||{}).forEach(function(t){u[t]=Object.assign({},u[t],o[t]);});});return u;}
       if(tipo==='orcpro_emp')return deveAdotarRemoto(loc,rem)?rem:loc;
       if(tipo==='orcpro_ct_config')return deveAdotarRemotoConfigTecidos(loc,rem)?rem:loc;
       if(CONTADORES[tipo])return Math.max(+loc||0,+rem||0);
@@ -11698,9 +11714,34 @@ function aplicarProtecaoAutofill(){
       var idx=await nuvemIndice();
       pronta=true;
       var novo=['orcpro_hist','orcpro_produtos','orcpro_clientes','orcpro_emp'].every(function(t){return vazio(lerLocal(t),t);})&&!Object.keys(meta.t).length;
-      for(var i=0;i<TIPOS.length;i++){
-        var tipo=TIPOS[i];
+      meta.ids=meta.ids||{};
+      var tomb=getTomb();
+      var filtrarTomb=function(tp,v){if(tp===TOMB||!Array.isArray(v))return v;var t=tomb[tp];if(!t)return v;return v.filter(function(x){return!(x&&typeof x==='object'&&x.id!=null&&t[String(x.id)]);});};
+      var lista=[TOMB].concat(TIPOS.filter(function(x){return x!==TOMB;}));
+      for(var i=0;i<lista.length;i++){
+        var tipo=lista[i];
         try{
+          if(tipo!==TOMB){
+            var l0=lerLocal(tipo);
+            if(Array.isArray(l0)){
+              // 1) o que sumiu daqui desde a última sincronização foi excluído por você
+              var prev=meta.ids[tipo],atu=idsDe(l0)||[];
+              if(prev){
+                var set={};atu.forEach(function(x){set[x]=1;});
+                var del=prev.filter(function(x){return!set[x];});
+                if(del.length&&!(del.length>10&&del.length>prev.length*0.5)){
+                  var agoraIso=new Date().toISOString();tomb[tipo]=tomb[tipo]||{};
+                  del.forEach(function(x){tomb[tipo][x]=agoraIso;});
+                  var corte=Date.now()-90*86400000;
+                  Object.keys(tomb).forEach(function(tp){Object.keys(tomb[tp]).forEach(function(k){if(Date.parse(tomb[tp][k])<corte)delete tomb[tp][k];});});
+                  gravarLocal(TOMB,tomb);
+                }
+              }
+              // 2) o que foi excluído em outro aparelho some daqui
+              var fl=filtrarTomb(tipo,l0);
+              if(fl.length!==l0.length)gravarLocal(tipo,fl);
+            }
+          }
           var m=meta.t[tipo]||null,c=idx[tipo]||null;
           var loc=lerLocal(tipo),locVazio=vazio(loc,tipo);
           var h=hash(rawLocal(tipo));
@@ -11709,16 +11750,17 @@ function aplicarProtecaoAutofill(){
           if(c){
             var cloudNovo=!m||Date.parse(c)>Date.parse(m.ts||0);
             if(locVazio||novo){
-              var rem=await nuvemLer(tipo);
+              var rem=filtrarTomb(tipo,await nuvemLer(tipo));
               if(rem!==undefined&&!vazio(rem,tipo)){if(gravarLocal(tipo,rem)){r.baixados++;r.mudou=true;}}
               meta.t[tipo]={ts:c,h:hash(rawLocal(tipo))};
             }else if(cloudNovo&&(!m||sujo)){
-              var rem2=await nuvemLer(tipo);
-              var mer=(rem2===undefined||vazio(rem2,tipo))?loc:mesclar(tipo,loc,rem2);
+              var rem2=filtrarTomb(tipo,await nuvemLer(tipo));
+              var mer=filtrarTomb(tipo,(rem2===undefined||vazio(rem2,tipo))?loc:mesclar(tipo,loc,rem2));
+              if(tipo===TOMB)tomb=mer||tomb;
               if(JSON.stringify(mer)!==JSON.stringify(loc)){if(gravarLocal(tipo,mer)){r.baixados++;r.mudou=true;}}
               precisaEnviar=true;
             }else if(cloudNovo){
-              var rem3=await nuvemLer(tipo);
+              var rem3=filtrarTomb(tipo,await nuvemLer(tipo));
               if(rem3!==undefined&&!vazio(rem3,tipo)){if(gravarLocal(tipo,rem3)){r.baixados++;r.mudou=true;}}
               meta.t[tipo]={ts:c,h:hash(rawLocal(tipo))};
             }else if(sujo){precisaEnviar=true;}
@@ -11730,6 +11772,8 @@ function aplicarProtecaoAutofill(){
               meta.t[tipo]={ts:ts,h:hash(rawLocal(tipo))};r.enviados++;
             }
           }
+          if(tipo===TOMB)tomb=getTomb();
+          var lf=lerLocal(tipo);if(Array.isArray(lf)){var ii=idsDe(lf);if(ii)meta.ids[tipo]=ii;}
         }catch(e){r.erros.push(tipo.replace('orcpro_','')+': '+(e&&e.message||e));console.warn('[Nuvem] erro em',tipo,e);}
         saveMeta(meta);
       }
