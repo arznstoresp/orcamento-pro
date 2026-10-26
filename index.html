@@ -1304,19 +1304,26 @@ body.papel-vendedor #tmargem-wrap{display:none!important}
             <div id="ct-das-mei-info" style="font-size:11px;margin-top:6px;display:none"></div>
           </details>
 
+          <!-- PERSONALIZAÇÃO TERCEIRIZADA (GLOBAL) -->
+          <details class="card ct-sec" id="ct-sec-persglobal" ontoggle="salvarEstadoSecaoCalc(this)">
+            <summary class="card-title">Personalização feita pela Global</summary>
+            <label class="lbl" style="display:flex;gap:8px;align-items:center;font-weight:500"><input type="checkbox" id="ct-pg-on" style="width:auto" onchange="pgIniciar();calcularTecidos()"> Incluir o custo da Global neste produto</label>
+            <div id="ct-pg-corpo" style="display:none;margin-top:8px">
+              <p style="font-size:12px;color:var(--dark-text3);margin:0 0 8px">Use quando a Global grava/imprime a peça. Soma o valor da tabela 2026 (pela quantidade deste cálculo) ao custo por peça. Se você mesmo produz, deixe desmarcado: o seu custo já está nos insumos e máquinas acima.</p>
+              <label class="lbl" for="ct-pg-proc">Processo</label><select id="ct-pg-proc" onchange="pgGrp();calcularTecidos()"></select>
+              <label class="lbl" for="ct-pg-grp" style="margin-top:8px">Tipo / tamanho</label><select id="ct-pg-grp" onchange="pgOpts();calcularTecidos()"></select>
+              <div id="ct-pg-opts"></div>
+              <div id="ct-pg-res" class="info-box" style="margin-top:8px"></div>
+            </div>
+          </details>
+
           <!-- ETAPA 7: MARGEM -->
           <details class="card ct-sec" id="ct-sec-margem" open ontoggle="salvarEstadoSecaoCalc(this)">
             <summary class="card-title">9. Margem</summary>
             <label class="lbl">Margem desejada (%)</label>
             <input type="number" id="ct-margem" value="45" min="0" max="95" step="1" oninput="calcularTecidos()">
-            <div class="mt" style="display:flex;gap:6px;flex-wrap:wrap">
-              <button type="button" class="btn btn-out btn-sm" onclick="setMargemTecidos(35)">35%</button>
-              <button type="button" class="btn btn-out btn-sm" onclick="setMargemTecidos(40)">40%</button>
-              <button type="button" class="btn btn-out btn-sm" onclick="setMargemTecidos(45)">45%</button>
-              <button type="button" class="btn btn-out btn-sm" onclick="setMargemTecidos(50)">50%</button>
-              <button type="button" class="btn btn-out btn-sm" onclick="setMargemTecidos(55)">55%</button>
-              <button type="button" class="btn btn-out btn-sm" onclick="setMargemTecidos(60)">60%</button>
-            </div>
+            <div class="mt" id="ct-margem-btns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+            <div style="font-size:11px;color:var(--dark-text3);margin-top:6px">Os níveis vêm de Personalização → Margens (Varejo, Atacado e Revenda).</div>
           </details>
         </div>
 
@@ -6087,6 +6094,43 @@ function calcularRateioDasMEI(){
   return r;
 }
 
+// Margens compartilhadas com a tela Personalização (um só lugar para mudar)
+function renderBotoesMargem(){
+  var el=ge('ct-margem-btns');if(!el)return;
+  var c=getPersCfg(),k=c.niveis.map(function(n){return n.n+':'+n.m;}).join('|');
+  if(el.getAttribute('data-k')===k)return;el.setAttribute('data-k',k);
+  el.innerHTML=c.niveis.map(function(n){return'<button type="button" class="btn btn-out btn-sm" onclick="setMargemTecidos('+n.m+')">'+escHtml(n.n)+' '+n.m+'%</button>';}).join('');
+}
+// Personalização da Global dentro da Precificação
+function pgIniciar(){
+  var on=ge('ct-pg-on');if(!on)return;
+  ge('ct-pg-corpo').style.display=on.checked?'block':'none';
+  if(on.checked&&!ge('ct-pg-proc').options.length){
+    ge('ct-pg-proc').innerHTML=peT().processos.map(function(p){return'<option value="'+p.id+'">'+escHtml(p.nome)+'</option>';}).join('');
+    pgGrp();
+  }
+}
+function pgProc(){return peT().processos.find(function(p){return p.id===val('ct-pg-proc');});}
+function pgGrupos(p){return p?p.grupos.filter(function(g){return!g.formula;}):[];}
+function pgGrp(){var p=pgProc();ge('ct-pg-grp').innerHTML=pgGrupos(p).map(function(g){return'<option value="'+g.id+'">'+escHtml(g.nome)+'</option>';}).join('');pgOpts();}
+function pgOpts(){
+  var p=pgProc(),h='';if(!p)return;
+  if(p.coresMax)h+='<label class="lbl" for="ct-pg-cores" style="margin-top:8px">Cores / batidas (máx. '+p.coresMax+')</label><input id="ct-pg-cores" type="number" min="1" max="'+p.coresMax+'" value="1" oninput="calcularTecidos()">';
+  if(p.extraDV)h+='<label class="lbl" style="display:flex;gap:8px;align-items:center;font-weight:500;margin-top:8px"><input type="checkbox" id="ct-pg-dv" style="width:auto" onchange="calcularTecidos()"> Dados variáveis (nome, número): + '+fmt(p.extraDV)+' por peça</label>';
+  if(p.chapado)h+='<label class="lbl" style="display:flex;gap:8px;align-items:center;font-weight:500;margin-top:8px"><input type="checkbox" id="ct-pg-chap" style="width:auto" onchange="calcularTecidos()"> Arte com fundo chapado: + 50%</label>';
+  ge('ct-pg-opts').innerHTML=h;
+}
+// custo por peça da Global para a quantidade atual (0 se desligado)
+function pgCustoUnitario(q){
+  var on=ge('ct-pg-on'),res=ge('ct-pg-res');
+  if(!on||!on.checked||!(q>0))return 0;
+  var p=pgProc(),g=p&&pgGrupos(p).find(function(x){return x.id===val('ct-pg-grp');});
+  if(!p||!g)return 0;
+  var o={cores:Math.max(1,parseFloat(val('ct-pg-cores'))||1),dv:!!(ge('ct-pg-dv')&&ge('ct-pg-dv').checked),chap:!!(ge('ct-pg-chap')&&ge('ct-pg-chap').checked)};
+  var r=persCusto(p,g,q,o);
+  if(res)res.innerHTML='<strong>'+fmt(r.un)+' por peça</strong> ('+fmt(r.tot)+' no pedido) · '+escHtml(r.faixa)+' · '+escHtml(r.det)+r.fl.map(function(f){return'<br>'+f[1];}).join('');
+  return r.un;
+}
 function setMargemTecidos(pct){setVal('ct-margem',pct);calcularTecidos();}
 
 // ── Seções que abrem/fecham: lembra o estado de cada uma entre visitas (preferência só deste navegador) ──
@@ -6575,7 +6619,9 @@ function calcularTecidos(){
   var custosPedidoPorUnidade=qtd>0?custosPedido/qtd:0;// rateado entre as peças
 
   // Custo unitário final — o frete entra rateado, não cheio em cada peça
-  var custoUnitario=valorPeca+custoInsumoEspecifico+custoMaoObraUnitario+custoIndiretoUnitario+custosExtrasUnidade+custosPedidoPorUnidade;
+  renderBotoesMargem();
+  var custoPersGlobal=pgCustoUnitario(qtd);
+  var custoUnitario=valorPeca+custoInsumoEspecifico+custoMaoObraUnitario+custoIndiretoUnitario+custosExtrasUnidade+custosPedidoPorUnidade+custoPersGlobal;
   var custoTotalPedido=custoUnitario*qtd;
 
   // Preços
@@ -11266,10 +11312,12 @@ function peProdEscolhido(){
   peCalc();
 }
 // custo da personalização por peça e no total (mesma lógica do preview aprovado)
-function persCusto(p,g,q){
+function _po(o,k,id,d){return o&&o[k]!=null?o[k]:peNum(id,d);}
+function _pb(o,k,id){return o&&o[k]!=null?!!o[k]:!!(ge(id)&&ge(id).checked);}
+function persCusto(p,g,q,o){
   var fl=[],un=0,tot=0,det='',faixa='';
   if(g.formula){
-    var alt=peNum('pe-alt',0),lar=peNum('pe-lar',0),ix=0;g.formula.faixasQtd.forEach(function(d,i){if(q>=d)ix=i;});
+    var alt=_po(o,'alt','pe-alt',0),lar=_po(o,'lar','pe-lar',0),ix=0;g.formula.faixasQtd.forEach(function(d,i){if(q>=d)ix=i;});
     var fat=g.formula.fator[ix];un=alt*lar*fat;det=alt+' x '+lar+' cm x '+fat+' = '+fmt(un);
     if(g.formula.minUn&&un<g.formula.minUn){un=g.formula.minUn;fl.push(['warn','Valor mínimo por etiqueta aplicado: '+fmt(un)+' por unidade.']);}
     if(p.manuseio&&ge('pe-man')&&ge('pe-man').value!=='0'){var mv=p.manuseio[ge('pe-man').value];un+=mv;det+=' + colagem '+fmt(mv);}
@@ -11279,17 +11327,17 @@ function persCusto(p,g,q){
     if(tt===null){tt=T[0];fl.push(['warn','Abaixo de 50 peças o valor padrão não vale. Desmarque "valores padrão" para usar a tabela detalhada da Global.']);}
     un=g.padrao.precos[tt];if(un==null){un=0;fl.push(['warn','Sem valor padrão nessa faixa.']);}
     tot=un*q;faixa='faixa padrão de '+tt+' peças'+(g.padrao.media?' (média de 2 tipos)':'');det=fmt(un)+' por peça (valor médio)';
-    var c0=peNum('pe-cores',1);if(p.coresMax&&c0>1){tot*=c0;un*=c0;det+=' x '+c0+' cores';}
+    var c0=_po(o,'cores','pe-cores',1);if(p.coresMax&&c0>1){tot*=c0;un*=c0;det+=' x '+c0+' cores';}
   }else{
     var f=peFaixa(g.faixas,q);
     if(!f){f=g.faixas[0];fl.push(['warn','Quantidade abaixo da menor faixa da tabela ('+g.faixas[0].de+' peças). Valor da primeira faixa usado como referência.']);}
     var i=g.faixas.indexOf(f),nx=g.faixas[i+1];
     faixa=(nx?(f.de===1?'até '+(nx.de-1):'de '+f.de+' a '+(nx.de-1)):'acima de '+f.de)+' peças';
     if(f.tipo==='lote'){tot=f.preco;un=tot/q;det='lote fechado '+fmt(f.preco);}else{un=f.preco;tot=un*q;det=fmt(f.preco)+' por peça';}
-    var c=peNum('pe-cores',1);if(p.coresMax&&c>1){tot*=c;un*=c;det+=' x '+c+' cores';}
+    var c=_po(o,'cores','pe-cores',1);if(p.coresMax&&c>1){tot*=c;un*=c;det+=' x '+c+' cores';}
   }
-  if(ge('pe-dv')&&ge('pe-dv').checked){un+=p.extraDV;tot=un*q;det+=' + '+fmt(p.extraDV)+' dados variáveis';}
-  if(ge('pe-chap')&&ge('pe-chap').checked){un*=1+p.chapado;tot=un*q;det+=' + 50% fundo chapado';}
+  if(_pb(o,'dv','pe-dv')){un+=p.extraDV;tot=un*q;det+=' + '+fmt(p.extraDV)+' dados variáveis';}
+  if(_pb(o,'chap','pe-chap')){un*=1+p.chapado;tot=un*q;det+=' + 50% fundo chapado';}
   if(p.fatMin&&tot<p.fatMin){fl.push(['warn','Faturamento mínimo da Global: '+fmt(p.fatMin)+'. Seu pedido dá '+fmt(tot)+', então o custo sobe para '+fmt(p.fatMin)+' ('+fmt(p.fatMin/q)+' por peça).']);tot=p.fatMin;un=tot/q;}
   return{un:un,tot:tot,det:det,faixa:faixa,fl:fl};
 }
