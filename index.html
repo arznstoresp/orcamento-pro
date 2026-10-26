@@ -1817,6 +1817,7 @@ body.papel-vendedor #tmargem-wrap{display:none!important}
     <!-- CONTAS A RECEBER -->
     <div id="view-receber" style="display:none;min-height:100%">
       <div id="receber-alertas"></div>
+      <div id="receber-faltantes"></div>
       <div class="dash-grid" id="receber-kpis"></div>
       <div class="card">
         <div class="card-title">
@@ -7952,7 +7953,25 @@ function confirmarDelFin(){
   ge('modal-del-fin-btn').className='btn btn-danger';
 }
 
+// Orçamentos aprovados que ficaram sem conta a receber (aprovados antes do recurso, por outro caminho ou com a lista perdida)
+function renderOrcamentosSemConta(){
+  var el=ge('receber-faltantes');if(!el)return;
+  var comConta={};getContasReceber().forEach(function(c){comConta[c.orcId]=1;});
+  var falt=getHist().filter(function(h){return h&&h.status==='Aprovado'&&!comConta[h.id];}).sort(function(a,b){return(b.data||'')<(a.data||'')?-1:1;});
+  if(!falt.length){el.innerHTML='';return;}
+  var mais=falt.length>12?falt.length-12:0;
+  el.innerHTML='<div class="warn-box"><strong>⚠️ '+falt.length+' orçamento(s) aprovado(s) sem conta a receber.</strong> Gere a conta para acompanhar o pagamento e emitir o recibo. À vista/PIX entra como paga.'+
+    falt.slice(0,12).map(function(h){return'<div style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.08)"><span><strong>#'+escHtml(String(h.num))+'</strong> · '+escHtml((h.cliente&&h.cliente.nome)||'—')+' · '+fmtDt(h.data)+' · '+fmt(calcHistTotal(h))+' · '+escHtml(h.pgto||'forma não informada')+'</span><button class="btn btn-brand btn-sm" onclick="gerarContaFaltante(\''+h.id+'\')">＋ Gerar conta</button></div>';}).join('')+
+    (mais?'<div style="margin-top:8px;font-size:12px;color:rgba(255,255,255,.5)">+ '+mais+' mais antigo(s). Gere os de cima primeiro.</div>':'')+'</div>';
+}
+function gerarContaFaltante(id){
+  var hist=getHist(),idx=hist.findIndex(function(h){return h.id===id;});if(idx<0)return;
+  if(getContasReceber().some(function(c){return c.orcId===id;})){renderContasReceber();return;}
+  gerarContasReceber(hist[idx]);hist[idx]._contasGeradas=true;saveHist(hist);
+  renderContasReceber();
+}
 function renderContasReceber(){
+  renderOrcamentosSemConta();
   var contas=getContasReceber();
   var statusFiltro=val('receber-filtro-status'),q=(val('receber-search')||'').toLowerCase();
   var f=contas.filter(function(c){
