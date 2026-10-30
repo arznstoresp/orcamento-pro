@@ -290,7 +290,7 @@ input:hover,textarea:hover{border-color:var(--line-2)}
           <button class="draft-btn" data-slot="4" type="button">Rascunho 4</button>
         </div>
         <div id="libBox" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line,rgba(255,255,255,.12))">
-          <label class="field-label" style="font-size:12px;font-weight:700;color:var(--mute);letter-spacing:.05em;text-transform:uppercase;display:block;margin-bottom:8px;">📚 Meus catálogos (sem limite)</label>
+          <label class="field-label" style="font-size:12px;font-weight:700;color:var(--mute);letter-spacing:.05em;text-transform:uppercase;display:block;margin-bottom:8px;">📚 Meus catálogos (sem limite) <span id="libSync" style="text-transform:none;letter-spacing:0;font-weight:500;margin-left:6px"></span> <button class="btn small" id="libSyncBtn" type="button" style="margin-left:6px">🔄 Sincronizar</button></label>
           <div style="display:flex;gap:6px;flex-wrap:wrap">
             <input id="libNome" type="text" placeholder="Nome (ex.: Lounge Alvenaria - out/26)" style="flex:1;min-width:160px">
             <button class="btn small primary" id="libSalvar" type="button">💾 Salvar este catálogo</button>
@@ -1456,7 +1456,7 @@ applyThemeLogoFilter();
       var igual=l.find(function(r){ return (r.nome||"").toLowerCase()===nome.toLowerCase(); });
       if(igual&&!window.confirm('Já existe "'+nome+'". Substituir pela versão atual?')) return;
       var dados=JSON.parse(JSON.stringify(S));
-      return gravar({id:igual?igual.id:"c"+Date.now()+Math.floor(Math.random()*1000),nome:nome,salvoEm:new Date().toISOString(),dados:dados}).then(function(){ msg('✅ "'+nome+'" salvo.'); render(); });
+      return gravar({id:igual?igual.id:"c"+Date.now()+Math.floor(Math.random()*1000),nome:nome,salvoEm:new Date().toISOString(),dados:dados}).then(function(){ msg('✅ "'+nome+'" salvo.'); depois(); });
     }).catch(function(e){ msg("Não consegui salvar: "+(e&&e.message||e),true); });
   }
   document.addEventListener("click",function(ev){
@@ -1469,13 +1469,91 @@ applyThemeLogoFilter();
         window.__aplicarCatalogo(r.dados,r.nome); var n=document.getElementById("libNome"); if(n) n.value=r.nome;
       }else if(acao==="dup"){
         var novo=window.prompt("Nome da cópia:",r.nome+" (cópia)"); if(!novo) return;
-        return gravar({id:"c"+Date.now()+Math.floor(Math.random()*1000),nome:novo.trim().slice(0,60),salvoEm:new Date().toISOString(),dados:r.dados}).then(function(){ msg('✅ Cópia "'+novo+'" criada.'); render(); });
+        return gravar({id:"c"+Date.now()+Math.floor(Math.random()*1000),nome:novo.trim().slice(0,60),salvoEm:new Date().toISOString(),dados:r.dados}).then(function(){ msg('✅ Cópia "'+novo+'" criada.'); depois(); });
       }else if(acao==="del"){
         if(!window.confirm('Excluir "'+r.nome+'" da biblioteca?')) return;
-        return apagar(id).then(function(){ msg("Excluído."); render(); });
+        var tb=lerJ(K_TOMB); tb[id]=new Date().toISOString(); gravJ(K_TOMB,tb);
+        return apagar(id).then(function(){ msg("Excluído."); depois(); });
       }
     }).catch(function(e){ msg("Erro: "+(e&&e.message||e),true); });
   });
+  /* ---- nuvem (mesmo login e mesma chave do Orçamento Pro; um registro por catálogo em orcpro_dados) ---- */
+  var SU="https://edztcoebgllqrkrkormc.supabase.co", SK="sb_publishable_s6MSdF0rhidpCpddqTzNRg_1ajwnxIc";
+  var K_TOMB="arzn-cat-excluidos", K_SYNC="arzn-cat-sincronizados", sincronizando=false;
+  function lerJ(k){ try{ return JSON.parse(localStorage.getItem(k)||"{}")||{}; }catch(e){ return {}; } }
+  function gravJ(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+  function jwtExp2(t){ try{ return JSON.parse(atob(t.split(".")[1].replace(/-/g,"+").replace(/_/g,"/"))).exp||0; }catch(e){ return 0; } }
+  function chaveNuvem(){ return localStorage.getItem("orcpro_chave_nuvem")||""; }
+  async function tokenNuvem(){
+    var s0=null; try{ s0=JSON.parse(localStorage.getItem("orcpro_auth_session")||"null"); }catch(e){}
+    if(!s0||!s0.access_token) return null;
+    var exp=jwtExp2(s0.access_token)||s0.expires_at||0, agora=Math.floor(Date.now()/1000);
+    if(exp&&agora>exp-60&&s0.refresh_token){
+      try{
+        var r=await fetch(SU+"/auth/v1/token?grant_type=refresh_token",{method:"POST",headers:{apikey:SK,"Content-Type":"application/json"},body:JSON.stringify({refresh_token:s0.refresh_token})});
+        if(r.ok){ var n=await r.json(); if(n&&n.access_token){ if(!n.expires_at&&n.expires_in) n.expires_at=Math.floor(Date.now()/1000)+n.expires_in; localStorage.setItem("orcpro_auth_session",JSON.stringify(n)); return n.access_token; } }
+      }catch(e){}
+      return agora>exp?null:s0.access_token;
+    }
+    return s0.access_token;
+  }
+  async function req(metodo,caminho,corpo,prefer){
+    var tk=await tokenNuvem(); if(!tk) throw new Error("sem login");
+    var h={apikey:SK,Authorization:"Bearer "+tk,"Content-Type":"application/json"}; if(prefer) h.Prefer=prefer;
+    var r=await fetch(SU+"/rest/v1/"+caminho,{method:metodo,headers:h,body:corpo?JSON.stringify(corpo):undefined});
+    if(!r.ok) throw new Error("nuvem HTTP "+r.status);
+    var t=await r.text(); return t?JSON.parse(t):null;
+  }
+  function depois(){ render(); sincronizar(); }
+  async function sincronizar(manual){
+    if(sincronizando) return;
+    var chave=chaveNuvem();
+    if(!chave||!localStorage.getItem("orcpro_auth_session")){ if(manual) msg("Para sincronizar, entre no Orçamento Pro neste aparelho (mesmo navegador) e volte aqui.",true); return; }
+    sincronizando=true; var st=document.getElementById("libSync"); if(st) st.textContent="🔄 sincronizando…";
+    try{
+      var q="orcpro_dados?chave=eq."+encodeURIComponent(chave)+"&tipo=like.catalogo:*&select=tipo,atualizado_em,salvoEm:dados->>salvoEm";
+      var remoto=await req("GET",q)||[], rm={};
+      remoto.forEach(function(r){ rm[r.tipo.replace("catalogo:","")]=r; });
+      var tomb=lerJ(K_TOMB), sinc=lerJ(K_SYNC), locais=await todos(), lm={};
+      locais.forEach(function(r){ lm[r.id]=r; });
+      var subiu=0,desceu=0,apagouNuvem=0,apagouLocal=0;
+      // exclusões feitas aqui: apaga na nuvem
+      for(var id in tomb){ if(rm[id]){ await req("DELETE","orcpro_dados?chave=eq."+encodeURIComponent(chave)+"&tipo=eq."+encodeURIComponent("catalogo:"+id)); apagouNuvem++; delete rm[id]; } delete sinc[id]; }
+      // catálogos que já estiveram sincronizados e sumiram da nuvem: foram excluídos em outro aparelho
+      for(var id2 in lm){ if(sinc[id2]&&!rm[id2]&&!tomb[id2]){ await apagar(id2); delete lm[id2]; delete sinc[id2]; apagouLocal++; } }
+      // sobe o que é novo ou mais recente aqui
+      for(var id3 in lm){
+        var l=lm[id3], r=rm[id3];
+        if(tomb[id3]) continue;
+        if(!r||(l.salvoEm||"")>(r.salvoEm||"")){
+          var np=(l.dados&&l.dados.products)?l.dados.products.length:0;
+          await req("POST","orcpro_dados?on_conflict=chave,tipo",{chave:chave,tipo:"catalogo:"+id3,dados:{id:l.id,nome:l.nome,salvoEm:l.salvoEm,np:np,dados:l.dados},atualizado_em:new Date().toISOString()},"resolution=merge-duplicates,return=minimal");
+          sinc[id3]=l.salvoEm; subiu++;
+        }
+      }
+      // baixa o que é novo ou mais recente na nuvem
+      for(var id4 in rm){
+        if(tomb[id4]) continue;
+        var l4=lm[id4], r4=rm[id4];
+        if(!l4||(r4.salvoEm||"")>(l4.salvoEm||"")){
+          var linhas=await req("GET","orcpro_dados?chave=eq."+encodeURIComponent(chave)+"&tipo=eq."+encodeURIComponent("catalogo:"+id4)+"&select=dados&limit=1");
+          var d=linhas&&linhas[0]&&linhas[0].dados;
+          if(d&&d.dados){ await gravar({id:d.id||id4,nome:d.nome,salvoEm:d.salvoEm,dados:d.dados}); sinc[id4]=d.salvoEm; desceu++; }
+        } else { sinc[id4]=r4.salvoEm; }
+      }
+      gravJ(K_SYNC,sinc);
+      // tombstones já aplicados na nuvem
+      for(var t2 in tomb){ if(!rm[t2]) delete tomb[t2]; } gravJ(K_TOMB,tomb);
+      if(st) st.textContent="☁️ sincronizado";
+      if(subiu||desceu||apagouLocal||apagouNuvem||manual) msg("☁️ Nuvem: "+subiu+" enviado(s), "+desceu+" baixado(s)"+(apagouLocal?", "+apagouLocal+" removido(s) (excluídos em outro aparelho)":"")+".");
+      render();
+    }catch(e){
+      if(st) st.textContent="⚠️ sem nuvem";
+      msg("Não consegui sincronizar agora ("+(e&&e.message||e)+"). Seus catálogos continuam salvos neste aparelho.",true);
+    }finally{ sincronizando=false; }
+  }
+  var bsync=document.getElementById("libSyncBtn"); if(bsync) bsync.addEventListener("click",function(){ sincronizar(true); });
+  setTimeout(sincronizar,1500);
   var bs=document.getElementById("libSalvar"); if(bs) bs.addEventListener("click",salvar);
   var bb=document.getElementById("libBusca"); if(bb) bb.addEventListener("input",render);
   var ln=document.getElementById("libNome"); if(ln) ln.placeholder="Nome (ex.: "+nomeSugerido()+")";
